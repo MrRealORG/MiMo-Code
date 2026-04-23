@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://huggingface.co/blog/dvilasuero/choosing-best-open-source-ai-models",
+    "name": "How to Choose the Best Open Source LLM for Your Project in 2025",
+    "snippet": "Try AI Sheets - it's free and connects to Hugging Face Inference Providers so you can test thousands of open source models through optimized ...",
+    "host_name": "huggingface.co",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/pricing",
+    "name": "Pricing - Hugging Face",
+    "snippet": "Spaces are one of the most popular ways to share ML applications and demos with the world. Upgrade your Spaces ... 16GB, $0.27. 16, 32GB, $0.54. aws, Intel ... Missing: 2025 | Show results with: 2025",
+    "host_name": "huggingface.co",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/spaces/2025-ai-timeline/2025-ai-timeline",
+    "name": "a Hugging Face Space by 2025-ai-timeline",
+    "snippet": "Large LLM outperforming several leading closed models. API Only Text Model. Qwen2.5-1M Series. Open long-context LLMs up to 1M tokens (open weights). Open ... Missing: 16GB free deployment",
+    "host_name": "huggingface.co",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/blog/daya-shankar/open-source-llms",
+    "name": "10 Best Open-Source LLM Models (2025 Updated): Llama 4, Qwen",
+    "snippet": "Code and weights are public; free to use, modify, and distribute commercially. ... Hugging Face Open LLM Leaderboard: A widely cited benchmark ...",
+    "host_name": "huggingface.co",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@gokulrajar/how-to-deploy-llm-for-free-of-cost-6e7947d9b64a",
+    "name": "How to Deploy LLM for Free of Cost. | by Gokul - Medium",
+    "snippet": "We are going to use the same Hugging Face space to deploy our LLM. Hugging Face provides CPU Basic, 2 vCPU with 16GB RAM, and 50GB Storage Free!",
+    "host_name": "medium.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/democra-ai/HuggingClaw",
+    "name": "democra-ai/HuggingClaw: No Mac Mini? No problem  - GitHub",
+    "snippet": "Free forever, HuggingFace Spaces gives you 2 vCPU + 16 GB RAM at no cost. Always online, Your conversations, settings, and credentials survive every restart. Missing: 2025 | Show results with: 2025",
+    "host_name": "github.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/blog/welcome-openai-gpt-oss",
+    "name": "Welcome GPT OSS, the new open-source model family from OpenAI!",
+    "snippet": "With these components in place, you can run the 20B model on GPUs with 16 GB of RAM. ... Deploy on Hugging Face Partners. Azure. Hugging Face ...",
+    "host_name": "huggingface.co",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discuss.huggingface.co/t/deploy-llm-on-space-with-efficient-gpu/168639",
+    "name": "Deploy LLM on Space with efficient GPU - Hugging Face Forums",
+    "snippet": "Hi guys, I mainly use HuggingFace to buid AI Agent with Streamlit and LangChain and deploy them on Space. Today, I would like to use Space ... Missing: free | Show results with: free",
+    "host_name": "discuss.huggingface.co",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/LocalLLaMA/comments/1pwh0q9/best_local_llms_2025",
+    "name": "Best Local LLMs - 2025 : r/LocalLLaMA - Reddit",
+    "snippet": "Best local LLMs of 2025 recommendations. Best local models for AI enthusiasts. Best model to run locally in 2025. Best free local LLM options.",
+    "host_name": "www.reddit.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://dev.to/therabbithole/4-ways-to-deploy-any-llm-on-hugging-face-every-developer-should-know-5217",
+    "name": "4 Ways to Deploy any LLM on Hugging Face every developer",
+    "snippet": "A dedicated endpoint allows you to reserve and rent specific hardware to deploy the selected model on various cloud providers, managed by ... Missing: 16GB RAM",
+    "host_name": "dev.to",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://opencode.ai/docs",
+    "name": "Intro | AI coding agent built for the terminal - OpenCode",
+    "snippet": "OpenCode is an open source AI coding agent. It's available as a terminal-based interface, desktop app, or IDE extension. OpenCode TUI with the opencode ...",
+    "host_name": "opencode.ai",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cefboud.com/posts/coding-agents-internals-opencode-deepdive",
+    "name": "How Coding Agents Actually Work: Inside OpenCode | Moncef Abboud",
+    "snippet": "Opencode generates SDK client code automatically using Stainless, which ingests an OpenAPI spec and produces high-quality, idiomatic client code ...\nA hands-on exploration of OpenCode, an open-source coding agent built with a client/server architecture. Learn how AI tools, LLMs, and real ...",
+    "host_name": "cefboud.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://opencode.ai",
+    "name": "OpenCode | The open source AI coding agent",
+    "snippet": "What is OpenCode? OpenCode is an open source agent that helps you write code in your terminal, IDE, or desktop. [*]. LSP enabled Automatically loads the ... Missing: architecture | Show results with: architecture\nOpenCode is an open source agent that helps you write code in your terminal, IDE, or desktop. [*]. LSP enabled Automatically loads the right LSPs for the LLM. Missing: architecture | Show results with: architecture",
+    "host_name": "opencode.ai",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=WXffHkvfRpM",
+    "name": "OpenCode CRASH Course | OPEN SOURCE AI CODING AGENT",
+    "snippet": "... OpenCode, an open-source AI coding agent that works in your terminal, desktop, or IDE. What We'll Cover: - Introduction to OpenCode and its ...\nComplete OpenCode Tutorial - Your Open Source AI Coding Agent In this video, I'll walk you through everything you need to know about ...",
+    "host_name": "www.youtube.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@gaharwar.milind/inside-opencode-how-to-build-an-ai-coding-agent-that-actually-works-28c614494f4f",
+    "name": "Inside OpenCode: How to Build an AI Coding Agent That Actually",
+    "snippet": "A deep dive into the architecture of OpenCode, the open-source AI coding assistant that's changing how developers work.",
+    "host_name": "medium.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

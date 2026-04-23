@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://huggingface.co/docs/hub/spaces-zerogpu",
+    "name": "Spaces ZeroGPU: Dynamic GPU Allocation for Spaces",
+    "snippet": "ZeroGPU is a shared infrastructure that optimizes GPU usage for AI models and demos on Hugging Face Spaces. It dynamically allocates and releases NVIDIA H200 ...",
+    "host_name": "huggingface.co",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/zero-gpu-explorers",
+    "name": "zero-gpu-explorers (ZeroGPU Explorers)",
+    "snippet": "ZeroGPU is a new kind of hardware for Spaces. It has two goals : Provide free GPU access for Spaces ; Allow Spaces to run on multiple GPUs. This is achieved by ...",
+    "host_name": "huggingface.co",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/spaces",
+    "name": "Spaces",
+    "snippet": "Reachy. new · Image Generation · Video Generation · Text Generation · Language Translation · Speech Synthesis · 3D Modeling · Object Detection.",
+    "host_name": "huggingface.co",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://thamizhelango.medium.com/zerogpu-on-hugging-face-run-open-models-for-almost-free-2a3c9d87fcdf",
+    "name": "ZeroGPU on Hugging Face: Run Open Models for (Almost) Free",
+    "snippet": "ZeroGPU is a special “hardware” option for Hugging Face Spaces that dynamically allocates a GPU only during actual compute (e.g., when your ...",
+    "host_name": "thamizhelango.medium.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/spaces/enzostvs/zero-gpu-spaces",
+    "name": "— Zero GPU Spaces — - a Hugging Face Space by enzostvs",
+    "snippet": "Search and browse a list of AI Spaces that run on ZeroGPU hardware . Just type keywords to filter the available demos, and view details like title, ...",
+    "host_name": "huggingface.co",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/pricing",
+    "name": "Pricing",
+    "snippet": "Store your AI models, datasets, Spaces , and Buckets with simple per-TB pricing. Optimized for large files and high-throughput uploads and downloads. → Add ...",
+    "host_name": "huggingface.co",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/mistralai",
+    "name": "mistralai (Mistral AI_)",
+    "snippet": "Mistral AI - Frontier AI. In Your Hands. We believe in a future where AI is abundant and accessible. We aspire to empower the world to build with—and ...",
+    "host_name": "huggingface.co",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://dev.to/pi19404/hugging-face-zero-gpu-spaces-shieldgemma-application-12g5",
+    "name": "Hugging Face Zero GPU Spaces: ShieldGemma Application",
+    "snippet": "It is only ...",
+    "host_name": "dev.to",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=rDUza4lYyjY",
+    "name": "How to Get Free GPU with ZeroGPU",
+    "snippet": "This video shows how to use ZeroGPU in hugging face spaces to host and run LLMs for free.",
+    "host_name": "www.youtube.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discuss.huggingface.co/t/deploy-llm-on-space-with-efficient-gpu/168639",
+    "name": "Deploy LLM on Space with efficient GPU",
+    "snippet": "Sep 24, 2025 — Hi guys, I mainly use HuggingFace to buid AI Agent with Streamlit and LangChain and deploy them on Space . Today, I would like to use Space ...",
+    "host_name": "discuss.huggingface.co",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://huggingface.co/blog/daya-shankar/open-source-llms",
+    "name": "10 Best Open-Source LLM Models (2025 Updated): Llama 4, Qwen",
+    "snippet": "For production servers, frameworks like vLLM and Hugging Face's Text Generation Inference (TGI) offer high-throughput performance. # Serve Llama ...",
+    "host_name": "huggingface.co",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/Qwen",
+    "name": "Qwen - Hugging Face",
+    "snippet": "Welcome to Qwen. This is the organization of Qwen, which refers to the large language model family built by Alibaba Cloud. Missing: Inference Llama Mistral",
+    "host_name": "huggingface.co",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/mnfst/awesome-free-llm-apis",
+    "name": "mnfst/awesome-free-llm-apis - GitHub",
+    "snippet": "Hugging Face. Free Serverless Inference API. Base URL: https://api-inference.huggingface.co/models. Model Name, Context, Max Output, Modality ...",
+    "host_name": "github.com",
+    "rank": 2,
+    "date": "Apr 20, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co",
+    "name": "Hugging Face – The AI community building the future.",
+    "snippet": "The platform where the machine learning community collaborates on models, datasets, and applications. Explore AI Apps. or Browse 2M+ models. Missing: Mistral | Show results with: Mistral",
+    "host_name": "huggingface.co",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/discussions/1",
+    "name": "Qwen/Qwen2.5-72B-Instruct · There's a HUGE drop in popular",
+    "snippet": "Qwen2 72b is still too error prone and low IQ for academic use, so the small boost in its academic performance really doesn't make it any more ...",
+    "host_name": "huggingface.co",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

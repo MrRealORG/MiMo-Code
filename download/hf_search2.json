@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://huggingface.co/docs/inference-providers/integrations/opencode",
+    "name": "OpenCode - Hugging Face",
+    "snippet": "OpenCode is an AI coding agent built for the terminal that helps with code review, refactoring, testing, and general development tasks. Overview. OpenCode ... Missing: website | Show results with: website",
+    "host_name": "huggingface.co",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://opencode.ai",
+    "name": "OpenCode | The open source AI coding agent",
+    "snippet": "The open source AI coding agent. Free models included or connect any model from any provider, including Claude, GPT, Gemini and more. Missing: Hugging Face",
+    "host_name": "opencode.ai",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/blog/daya-shankar/open-source-llms",
+    "name": "10 Best Open-Source LLM Models (2025 Updated): Llama 4, Qwen",
+    "snippet": "Hugging Face Open LLM Leaderboard: A widely cited benchmark that tests reasoning, common sense, and knowledge across multiple standardized tests ... Missing: OpenCode | Show results with: OpenCode",
+    "host_name": "huggingface.co",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://opencode.ai/docs/providers",
+    "name": "Providers - OpenCode",
+    "snippet": "Hugging Face. Hugging Face Inference Providers provides access to open models supported by 17+ providers. Head over to Hugging Face settings to create a ...",
+    "host_name": "opencode.ai",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/OpenCoder-LLM",
+    "name": "OpenCoder-LLM (OpenCoder) - Hugging Face",
+    "snippet": "OpenCoder-Team is an open-source AI research community focusing on code AI. Github: https://github.com/OpenCoder-llm/OpenCoder-llm",
+    "host_name": "huggingface.co",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.docker.com/blog/opencode-docker-model-runner-private-ai-coding",
+    "name": "OpenCode with Docker Model Runner for Private AI Coding",
+    "snippet": "Docker Model Runner can pull models not only from Docker Hub, but also directly from Hugging Face and automatically convert them into OCI ...",
+    "host_name": "www.docker.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/LocalLLM/comments/1munj66/using_open_source_models_from_huggingface",
+    "name": "Using open source models from Huggingface : r/LocalLLM - Reddit",
+    "snippet": "The purpose is to be able to process confidential documents and perform QA. Would any of you use this approach - using open source LLM. For ...",
+    "host_name": "www.reddit.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=20vcJmqAr4M",
+    "name": "OpenCode: Free AI Coding Agent Setup Guide 2026 - YouTube",
+    "snippet": "Set up OpenCode — the FREE open-source AI coding agent — using completely free LLM models like Google Gemini, Groq, and Ollama. Missing: website Hugging Face",
+    "host_name": "www.youtube.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://opencode.ai/go",
+    "name": "OpenCode Go | Low cost coding models for everyone",
+    "snippet": "Offering generous limits and reliable access to the most capable open-source models, so you can build with powerful agents without worrying about cost or ...",
+    "host_name": "opencode.ai",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/papers/trending",
+    "name": "Trending Papers - Hugging Face",
+    "snippet": "OpenDevin is a platform for developing AI agents that interact with the world by writing code, using command lines, and browsing the web, with support for ... Missing: OpenCode | Show results with: OpenCode",
+    "host_name": "huggingface.co",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

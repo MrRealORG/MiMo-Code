@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://huggingface.co/docs/hub/spaces-zerogpu",
+    "name": "Spaces ZeroGPU: Dynamic GPU Allocation for Spaces - Hugging Face",
+    "snippet": "Free GPU Access: Enables cost-effective GPU usage for Spaces. Multi-GPU Support: Allows Spaces to leverage multiple GPUs concurrently on a single application. Missing: T4 LLM 2025 2026",
+    "host_name": "huggingface.co",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/pricing",
+    "name": "Pricing - Hugging Face",
+    "snippet": "Starting at $0.033/hour. Inference Endpoints (dedicated) offers a secure production solution to easily deploy any ML model on dedicated and autoscaling ... Missing: 2025 2026",
+    "host_name": "huggingface.co",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.metacto.com/blogs/the-true-cost-of-hugging-face-a-guide-to-pricing-and-integration",
+    "name": "Hugging Face Pricing 2026: Is It Free? Complete Cost Breakdown",
+    "snippet": "Is Hugging Face free? Yes! This 2026 guide covers Hugging Face pricing: free tier, PRO ($9/mo), Enterprise Hub, Spaces ($0.40-$23.50/hr), ...",
+    "host_name": "www.metacto.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discuss.huggingface.co/t/seeking-advice-for-university-workshop/173622",
+    "name": "Seeking Advice for University Workshop - Spaces",
+    "snippet": "Hi everyone. I am hosting a workshop for architecture students and am planning to use quite a bit of huggingface spaces to introduce them to ...",
+    "host_name": "discuss.huggingface.co",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://lalatenduswain.medium.com/google-colab-vs-hugging-face-the-definitive-ai-platform-showdown-in-2026-90725f875c55",
+    "name": "Google Colab vs Hugging Face: The Definitive AI Platform",
+    "snippet": "Zero GPU Spaces: Free CPU-based Spaces for demos; Persistent Spaces with GPU: Paid upgrades starting around $0.60/hour for T4 instances ...",
+    "host_name": "lalatenduswain.medium.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

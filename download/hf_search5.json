@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://huggingface.co/docs/hub/spaces-gpus",
+    "name": "Using GPU Spaces - Hugging Face",
+    "snippet": "If your Space runs on the default cpu-basic hardware, it will go to sleep if inactive for more than a set time (currently, 48 hours). Anyone visiting your ...\nUsing GPU Spaces . You can upgrade your Space to use a GPU accelerator using the Settings button in the top navigation bar of the Space .",
+    "host_name": "huggingface.co",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discuss.huggingface.co/t/gradio-app-runtime-error/111441",
+    "name": "Gradio app runtime error - Spaces - Hugging Face Forums",
+    "snippet": "There is only 16GB of RAM in the CPU space, so I think the model you are trying to use is simply too big to have enough RAM. Let's try a smaller model first. Missing: free run",
+    "host_name": "discuss.huggingface.co",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/docs/hub/en/spaces-overview",
+    "name": "Spaces Overview - Hugging Face",
+    "snippet": "Each Spaces environment is limited to 16GB RAM, 2 CPU cores and 50GB of (not persistent) disk space by default, which you can use free of charge. You can ...\nEach Spaces environment is limited to 16GB RAM , 2 CPU cores and 50GB of (not persistent) disk space by default, which you can use free of charge. You can ...",
+    "host_name": "huggingface.co",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@sharathpai107/deploying-a-streamlit-application-on-spaces-6138ed4d3268",
+    "name": "Deploying a Gradio Application on Spaces | by Sharath Pai | Medium",
+    "snippet": "HuggingFace Spaces acts like a playground to many open-source applications where users can test models for free without code. This saves time as ...",
+    "host_name": "medium.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/docs/hub/en/spaces-sdks-gradio",
+    "name": "Gradio Spaces - Hugging Face",
+    "snippet": "Gradio provides an easy and intuitive interface for running a model from a list of inputs and displaying the outputs in formats such as images, audio, 3D ... Missing: CPU 16GB RAM",
+    "host_name": "huggingface.co",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

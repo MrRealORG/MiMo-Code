@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://www.gradio.app/guides/quickstart",
+    "name": "Quickstart - Gradio",
+    "snippet": "Gradio is an open-source Python package that allows you to quickly build a demo or web application for your machine learning model, API, or any arbitrary Python ...",
+    "host_name": "www.gradio.app",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/learn/llm-course/en/chapter1/1",
+    "name": "Introduction - Hugging Face",
+    "snippet": "This course will teach you about large language models (LLMs) and natural language processing (NLP) using libraries from the Hugging Face ecosystem.",
+    "host_name": "huggingface.co",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/spaces",
+    "name": "Spaces - Hugging Face",
+    "snippet": "Reachy. new · Image Generation · Video Generation · Text Generation · Language Translation · Speech Synthesis · 3D Modeling · Object Detection.",
+    "host_name": "huggingface.co",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.gradio.app/guides/gradio-and-llm-agents",
+    "name": "Gradio And Llm Agents",
+    "snippet": "This guide will show how you can use gradio_tools to grant your LLM Agent access to the cutting edge Gradio applications hosted in the world.",
+    "host_name": "www.gradio.app",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=ABNxNFPqIGQ",
+    "name": "Building an LLM Application with Gradio - YouTube",
+    "snippet": "In this video, we will be live-coding a web application that allows us to query popular large language models like Llama 3, ... Missing: prompt Space generation",
+    "host_name": "www.youtube.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]
