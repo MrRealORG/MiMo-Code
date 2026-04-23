@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://console.groq.com/docs/rate-limits",
+    "name": "Rate Limits - GroqDocs - Groq Console",
+    "snippet": "Rate limits act as control measures to regulate how frequently users and applications can access our API within specified timeframes. Missing: 2025 | Show results with: 2025",
+    "host_name": "console.groq.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.grizzlypeaksoftware.com/articles/p/groq-api-free-tier-limits-in-2026-what-you-actually-get-uwysd6mb",
+    "name": "Groq API Free Tier Limits in 2026: What You Actually Get",
+    "snippet": "Rate limits scale up substantially: for example, llama-3.1-8b-instant on the Developer plan goes from 14,400 to 500,000 RPD. If you're past ... Missing: 2025 | Show results with: 2025",
+    "host_name": "www.grizzlypeaksoftware.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://pricepertoken.com/endpoints/groq/free",
+    "name": "Groq Free Tier 2026 — Free Models, Credits & Limits | Price Per Token",
+    "snippet": "Groq offers a generous free tier with access to all models on their ultra-fast LPU hardware. No credit card required — rate limits are the only restriction. Missing: 2025 | Show results with: 2025",
+    "host_name": "pricepertoken.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://groq.com",
+    "name": "Groq is fast, low cost inference.",
+    "snippet": "The Groq LPU delivers inference with the speed and cost developers need.",
+    "host_name": "groq.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.youtube.com/watch?v=s7xC2LmTb2c",
+    "name": "2026 零成本AI 開發指南：Gemini、Groq、OpenRouter 免費額度",
+    "snippet": "精華重點摘要想開發AI 卻被昂貴的API 費用嚇跑嗎？2026 年的AI 版圖已經全面進化，邱文盛老師將教你如何利用四大陣營的免費方案，不花一毛錢打造專業級AI ...",
+    "host_name": "www.youtube.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

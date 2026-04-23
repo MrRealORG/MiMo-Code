@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://forums.developer.nvidia.com/t/new-models-in-the-free-api-are-always-overloaded-why-not-lower-the-rpm-to-5-10-queries-for-the-most-popular-models/359095",
+    "name": "New models in the free API are always overloaded. Why",
+    "snippet": "Access/Accounts · nim , llama , nemotron. 2, 150, April 16, 2026 .",
+    "host_name": "forums.developer.nvidia.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://decodethefuture.org/en/nvidia-nim-api-explained",
+    "name": "NVIDIA NIM API Explained: Free AI Inference in 2026",
+    "snippet": "1 Apr 2026 — The free tier gives you 1,000 inference credits on signup. You can request up to 5,000 total credits. The rate limit is 40 requests per minute.",
+    "host_name": "decodethefuture.org",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/artificial-intel-ligence-playground/are-you-too-a-poor-gpu-guy-heres-how-to-run-400b-parameter-models-for-free-edf73d6345f4",
+    "name": "Are you too a Poor-GPU-guy? Here's how to run 400B",
+    "snippet": "A complete guide to NVIDIA NIM's free tier: get hundreds of API calls, access frontier models like Llama 3.3 and DeepSeek, and build a CLI ...",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://build.nvidia.com",
+    "name": "Try NVIDIA NIM APIs",
+    "snippet": "Build Your AI Application with a Blueprint. Get started with workflows and code samples to build AI applications from the ground up.",
+    "host_name": "build.nvidia.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/xRyul/pi-nvidia-nim",
+    "name": "NVIDIA NIM API provider extension for pi coding agent",
+    "snippet": "All models on NVIDIA NIM are free during the preview period (with rate limits ). Notes. All costs are set to $0 since NVIDIA NIM preview models are free (rate- ...",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

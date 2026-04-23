@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://tokenmix.ai/blog/free-llm-api",
+    "name": "15 Best Free LLM APIs 2026: Tested Limits, No Credit Card",
+    "snippet": "Google AI Studio (Gemini 2.5 Flash) offers the most generous free tier: 1,500 requests/day, 1M token context, multimodal support, no credit card ... Missing: 2025 unlimited generation",
+    "host_name": "tokenmix.ai",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/tinix.vn/posts/-free-llm-apis-042026-m%E1%BB%8F-v%C3%A0ng-cho-dev-build-ai-kh%C3%B4ng-t%E1%BB%91n-ti%E1%BB%81n-d%C3%B9ng-%C4%91%E1%BB%83-test-ho%E1%BA%B7c-/1513650284103818",
+    "name": "Free LLM APIs 04/2026– “mỏ vàng” cho dev build AI không tốn tiền",
+    "snippet": "... Groq → cực nhanh (LPU) * Cerebras → ~2600 tok/s, 1M tokens/ngày ￼ * GitHub Models → free cho mọi dev * Cloudflare → 50+ models ... Missing: best 2025 unlimited SambaNova Workers generation",
+    "host_name": "www.facebook.com",
+    "rank": 1,
+    "date": "Apr 20, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://luu.name.vn/tong-hop-api-llm-mien-phi-voc-vach",
+    "name": "Tổng hợp API LLM miễn phí – cho bạn tha hồ vọc vạch - Blog của Lưu",
+    "snippet": "Tổng hợp API LLM miễn phí – cho bạn tha hồ vọc vạch · Google AI Studio – free tier khủng nhất hiện tại · NVIDIA NIM – kho model free khá đa dạng.",
+    "host_name": "luu.name.vn",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/cheahjs/free-llm-api-resources",
+    "name": "cheahjs/free-llm-api-resources - GitHub",
+    "snippet": "Free LLM API resources · OpenRouter · Google AI Studio · NVIDIA NIM · Mistral (La Plateforme) · Mistral (Codestral) · HuggingFace Inference Providers ...",
+    "host_name": "github.com",
+    "rank": 3,
+    "date": "Apr 19, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://belski.me/blog/ai_inference_providers_2026_free_tier_deep_dive",
+    "name": "AI Inference Providers 2026: Free Tier Deep-Dive for CTOs and",
+    "snippet": "Comprehensive analysis of 13 AI inference providers — Groq, Cerebras, Google AI Studio, NVIDIA NIM, OpenRouter, Mistral, and more.",
+    "host_name": "belski.me",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://dev.to/cesar_nikolascamacmelen/top-5-free-ai-apis-to-supercharge-your-apps-in-2026-5ajb",
+    "name": "Top 5 Free AI APIs to Supercharge Your Apps in 2026",
+    "snippet": "Here are the best free AI API providers you should be using right now: 1. Google AI Studio (Gemini). Google is currently dominating the free ... Missing: unlimited Cerebras SambaNova Cloudflare Workers generation",
+    "host_name": "dev.to",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.analyticsvidhya.com/blog/2026/01/top-free-llm-apis",
+    "name": "15 Free LLM APIs You Can Use in 2026 - Analytics Vidhya",
+    "snippet": "Discover the best free LLM APIs in 2026. Compare limits, models, pricing, and real code examples from Google, Mistral, Grow, and more. Missing: SambaNova | Show results with: SambaNova",
+    "host_name": "www.analyticsvidhya.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://apidog.com/blog/free-open-source-llm-apis",
+    "name": "Top Free Open Source LLM APIs: 30+ Powerful Models for Developers",
+    "snippet": "Explore over 30 top free open-source LLM APIs for developers. Discover high-performance models from Meta, Mistral, Google, Qwen, and more—plus practical ...",
+    "host_name": "apidog.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.ipfoxy.com/blog/brand-spotlights/5789",
+    "name": "10 Best LLM APIs for Developers in 2026: Major Model Comparison",
+    "snippet": "Explore the top LLM APIs in 2026 with detailed comparisons of OpenAI, Anthropic, Google Gemini, and more. Learn pricing, features, use cases, and best ...",
+    "host_name": "www.ipfoxy.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/ShaikhWarsi/free-ai-tools",
+    "name": "GitHub - ShaikhWarsi/free-ai-tools: Curated list of free and low cost",
+    "snippet": "Curated list of free LLM APIs, coding copilots, AI IDEs, agents, and infrastructure tools for building real AI applications. What's Inside. ✓ Free GPT-5 / ...",
+    "host_name": "github.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

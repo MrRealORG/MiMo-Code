@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://adam.holter.com/cerebras-opens-a-free-1m-tokens-per-day-inference-tier-and-ccerebras-now-offers-free-inference-with-1m-tokens-per-day-real-speed-benchmarks-show-2600-tokens-sec-on-llama4scout-here-are-the-actual-n",
+    "name": "Cerebras: 1M Free Tokens Per Day - The GPU Alternative to Claude",
+    "snippet": "One million tokens per day is enough for serious prototyping, small internal tools, or a pilot with real users. Cerebras also says cost per ...",
+    "host_name": "adam.holter.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.cerebras.ai/pricing",
+    "name": "Pricing - Cerebras",
+    "snippet": "10x higher rate limits than free tier; Higher priority processing. get api key ... Send up to 24 million tokens/day ($48/day worth of value); Ideal for ... Missing: 1M | Show results with: 1M",
+    "host_name": "www.cerebras.ai",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://inference-docs.cerebras.ai/support/rate-limits",
+    "name": "Rate Limits - Cerebras Inference",
+    "snippet": "Rate limits ensure fair usage and system stability by regulating how often users and applications can access our API within a specified timeframe. Missing: speed 2026",
+    "host_name": "inference-docs.cerebras.ai",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.linkedin.com/posts/adam-holter-b5334327a_cerebras-just-dropped-a-free-1m-tokens-per-activity-7376925874203361280-WAUc",
+    "name": "Cerebras offers free 1M tokens per day inference tier, beats Nvidia",
+    "snippet": "Cerebras just dropped a free 1M tokens per day inference tier and is posting speeds that beat Nvidia by a wide margin on big models.",
+    "host_name": "www.linkedin.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.threads.com/@utkarsh.gen/post/DTxWtwdgKGg/cerebras-cerebras-ai-million-tokens-per-day-free-model-gpt-oss-b-qwen-b-rate",
+    "name": "6 Cerebras (cerebras.ai) 1 MILLION tokens per day. Free. Model",
+    "snippet": "Yeah, they're the most generous free tier. ◾ Model: Gemini 3 Flash , Gemini 2.5 Pro. ◾ Rate Limit: 1 M Tokens Per Minute. But remember ...",
+    "host_name": "www.threads.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]
