@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://huggingface.co/spaces/discord-community/LevelBot/blob/main/app.py",
+    "name": "app.py · discord-community/LevelBot at main - Hugging Face",
+    "snippet": "We're on a journey to advance and democratize artificial intelligence through open source and open science. Missing: host Python 2025 2026",
+    "host_name": "huggingface.co",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/huggingface/discord-bots",
+    "name": "huggingface/discord-bots - GitHub",
+    "snippet": "Almost any Gradio app can be used as an API! This means we can query most Spaces on the Hugging Face Hub and use them in our discord bots. Missing: 2025 persistent",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@thomaschaigneau.ai/building-and-launching-your-discord-bot-a-step-by-step-guide-f803f7943d33",
+    "name": "Building and Launching Your Discord Bot: A Step-by-Step Guide",
+    "snippet": "In this blog post, we will be covering how I built a powerful chat summarization bot that can handle multiple servers and users, all while scaling.",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://kuberns.com/blogs/how-to-deploy-discord-bot",
+    "name": "How to Deploy a Discord Bot and Keep It Running 24/7 in 2026",
+    "snippet": "Learn how to deploy a Discord bot and keep it running 24/7 in 2026. Step-by-step guide using Kuberns AI. No server setup, no sleep mode, ...",
+    "host_name": "kuberns.com",
+    "rank": 3,
+    "date": "Apr 20, 2026",
+    "favicon": ""
+  },
+  {
+    "url": "https://discuss.huggingface.co/t/hugging-face-support-request-dns-resolution-issue-in-spaces-environment/168073",
+    "name": "Hugging Face Support Request: DNS Resolution Issue in Spaces",
+    "snippet": "I'm experiencing a DNS resolution failure when trying to connect to api.wit.ai from a Hugging Face Space. The same code works perfectly on my ... Missing: bot 2026",
+    "host_name": "discuss.huggingface.co",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://hackceleration.com/hugging-face-review",
+    "name": "Hugging Face Review 2026: Complete AI Platform Test & Real ROI",
+    "snippet": "Rating 4.8 (56) Hugging Face is an AI collaboration platform that enables hosting, sharing, and deploying machine learning models at scale. Thanks to its unlimited free ...",
+    "host_name": "hackceleration.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/docs/hub/spaces",
+    "name": "Spaces - Hugging Face",
+    "snippet": "Hugging Face Spaces offer a simple way to host ML demo apps directly on your profile or your organization's profile. This allows you to create your ML portfolio ... Missing: Discord discord. 2025 2026 persistent",
+    "host_name": "huggingface.co",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.gradio.app/4.44.1/guides/creating-a-discord-bot-from-a-gradio-app",
+    "name": "Creating A Discord Bot From A Gradio App",
+    "snippet": "We have created an organization on Hugging Face called gradio-discord-bots containing several template spaces that explain how to deploy state of the art LLMs ... Missing: host 2025 2026 persistent",
+    "host_name": "www.gradio.app",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.firecrawl.dev/blog/15-python-projects-2025",
+    "name": "Top 15 Python Projects to Build in 2025: From Beginner to Production",
+    "snippet": "These beginner Python projects allow you to learn by quickly building fun applications, such as automated emails, a simple to-do list GUI, ...",
+    "host_name": "www.firecrawl.dev",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/docs/hub/spaces-sdks-python",
+    "name": "Custom Python Spaces - Hugging Face",
+    "snippet": "You are able to run your own Python + interface stack in Spaces by selecting Gradio as your SDK and serving a frontend on port 7860.",
+    "host_name": "huggingface.co",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

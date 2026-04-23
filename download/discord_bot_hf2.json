@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://discuss.huggingface.co/t/chainlit-websocket-issue-on-hugging-face-spaces-missing-websockets-in-requirements/146755",
+    "name": "Chainlit WebSocket Issue on Hugging Face Spaces",
+    "snippet": "Mar 21, 2025 — I started using Hugging Face Spaces just a few hours ago and noticed that my simple Chainlit app wasn't working correctly.",
+    "host_name": "discuss.huggingface.co",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/datasets/longcodeu/longcodeu-dataset/commit/f4c06ae5b879ff739bfe85f391628e755a1d51e3",
+    "name": "Upload folder using huggingface_hub · longcodeu",
+    "snippet": "May 30, 2025 — We're on a journey to advance and democratize artificial intelligence through open source and open science.",
+    "host_name": "huggingface.co",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://gist.github.com/alexfazio/dcf2f253d346d8ed2702935b57184582",
+    "name": "serverless-claude-code-platform-comparison.md",
+    "snippet": "Feb 4, 2026 — Proxy checks every ~5 min for zero connections . For the Discord bot's persistent WebSocket (not routed through proxy), auto-stop is blind to ...",
+    "host_name": "gist.github.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/spaces/Tonic/WhisperFusionTest/commit/31a7207d347a62190bc261eb016df74541498792.diff",
+    "name": "https://huggingface.co/spaces/Tonic/WhisperFusionT",
+    "snippet": "diff --git a/ Dockerfile b/ Dockerfile new file mode 100644 index ... discord :before{content:\"\\f392\"}.fa-discourse:before{content:\"\\f393\"}.fa-disease ...",
+    "host_name": "huggingface.co",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/okite97/code-search-net-tokenizer1/commit/9182420858ad04f39d83d15a3724dfac8cd03b6a.diff?file=tokenizer.json",
+    "name": "https://huggingface.co/okite97/code-search-net-tok",
+    "snippet": "... mode 100644--- /dev/null +++ \"b/tokenizer.json\" @@ -0,0 +1,103790 @@ +{ + \"version\": \"1.0\", + \"truncation\": null, + \"padding\": null, + \"added_tokens\": [ + ...",
+    "host_name": "huggingface.co",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]
