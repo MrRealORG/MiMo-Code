@@ -168,7 +168,9 @@ async function createToolContext(agent: Agent.Info) {
     }),
   )
 
-  const ruleset = Permission.merge(agent.permission, session.permission ?? [])
+  // Agent permission merged AFTER session permission so mode-specific rules
+  // override session-level defaults (findLast wins).
+  const ruleset = Permission.merge(session.permission ?? [], agent.permission)
 
   return {
     sessionID: session.id,

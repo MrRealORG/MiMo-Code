@@ -470,7 +470,10 @@ const live: Layer.Layer<
           }
         }
 
-        const ruleset = Permission.merge(input.agent.permission ?? [], input.permission ?? [])
+        // Agent permission merged AFTER session permission so that mode-specific
+        // rules (e.g. plan agent's plan_exit: allow) override session defaults.
+        // evaluate() uses findLast, so the last matching rule wins.
+        const ruleset = Permission.merge(input.permission ?? [], input.agent.permission ?? [])
         workflowModel.sessionPreapprovedTools = Object.keys(tools).filter((name) => {
           const match = ruleset.findLast((rule) => Wildcard.match(name, rule.permission))
           return !match || match.action !== "ask"
@@ -713,9 +716,11 @@ export const defaultLayer = Layer.suspend(() =>
 )
 
 function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
+  // Agent permission merged AFTER session permission so mode-specific rules
+  // take precedence over session-level defaults (findLast wins).
   const disabled = Permission.disabled(
     Object.keys(input.tools),
-    Permission.merge(input.agent.permission, input.permission ?? []),
+    Permission.merge(input.permission ?? [], input.agent.permission),
   )
   return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false && !disabled.has(k))
 }
