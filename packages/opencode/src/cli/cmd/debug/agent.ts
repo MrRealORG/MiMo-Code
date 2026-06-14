@@ -168,7 +168,7 @@ async function createToolContext(agent: Agent.Info) {
     }),
   )
 
-  const ruleset = Permission.merge(agent.permission, session.permission ?? [])
+  const ruleset = Permission.merge(session.permission ?? [], agent.permission)
 
   return {
     sessionID: session.id,

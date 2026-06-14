@@ -631,7 +631,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 ...req,
                 sessionID: input.session.id,
                 tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-                ruleset: Permission.merge(input.agent.permission, input.session.permission ?? []),
+                ruleset: Permission.merge(input.session.permission ?? [], input.agent.permission),
                 // System-spawned background agents (checkpoint-writer, dream, distill)
                 // have no human to answer a permission prompt — fail clean, don't hang.
                 interactive: !SYSTEM_SPAWNED_AGENT_TYPES.has(input.agent.name),
@@ -928,7 +928,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               .ask({
                 ...req,
                 sessionID,
-                ruleset: Permission.merge(taskAgent.permission, session.permission ?? []),
+                ruleset: Permission.merge(session.permission ?? [], taskAgent.permission),
               })
               .pipe(Effect.orDie),
         })
