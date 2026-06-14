@@ -389,4 +389,18 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+
+  // Provider dialog
+  "tui.provider.wizard.provider_id": "プロバイダー ID",
+  "tui.provider.wizard.provider_id.placeholder": "例: mimorouter",
+  "tui.provider.wizard.display_name": "表示名",
+  "tui.provider.wizard.display_name.placeholder": "例: MiMo Router",
+  "tui.provider.wizard.base_url": "Base URL",
+  "tui.provider.wizard.base_url.placeholder": "https://.../v1",
+  "tui.provider.wizard.api_key": "API キー（任意、Enter でスキップ）",
+  "tui.provider.wizard.api_key.placeholder": "sk-...",
+  "tui.provider.wizard.model_id": "最初のモデル ID",
+  "tui.provider.wizard.model_id.placeholder": "例: claude-sonnet-4-6",
+  "tui.provider.wizard.model_name": "最初のモデル名",
+  "tui.provider.wizard.model_name.placeholder": "例: Claude Sonnet 4.6",
 } satisfies Partial<Record<Keys, string>>

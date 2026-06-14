@@ -394,4 +394,18 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Provider dialog
+  "tui.provider.wizard.provider_id": "Provider id",
+  "tui.provider.wizard.provider_id.placeholder": "e.g. mimorouter",
+  "tui.provider.wizard.display_name": "Display name",
+  "tui.provider.wizard.display_name.placeholder": "e.g. MiMo Router",
+  "tui.provider.wizard.base_url": "Base URL",
+  "tui.provider.wizard.base_url.placeholder": "https://.../v1",
+  "tui.provider.wizard.api_key": "API key (optional, Enter to skip)",
+  "tui.provider.wizard.api_key.placeholder": "sk-...",
+  "tui.provider.wizard.model_id": "First model id",
+  "tui.provider.wizard.model_id.placeholder": "e.g. claude-sonnet-4-6",
+  "tui.provider.wizard.model_name": "First model name",
+  "tui.provider.wizard.model_name.placeholder": "e.g. Claude Sonnet 4.6",
 }

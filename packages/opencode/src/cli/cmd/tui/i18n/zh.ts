@@ -387,4 +387,18 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自动",
+
+  // Provider dialog
+  "tui.provider.wizard.provider_id": "Provider ID",
+  "tui.provider.wizard.provider_id.placeholder": "例如 mimorouter",
+  "tui.provider.wizard.display_name": "显示名称",
+  "tui.provider.wizard.display_name.placeholder": "例如 MiMo Router",
+  "tui.provider.wizard.base_url": "Base URL",
+  "tui.provider.wizard.base_url.placeholder": "https://.../v1",
+  "tui.provider.wizard.api_key": "API 密钥（可选，按回车跳过）",
+  "tui.provider.wizard.api_key.placeholder": "sk-...",
+  "tui.provider.wizard.model_id": "第一个模型 ID",
+  "tui.provider.wizard.model_id.placeholder": "例如 claude-sonnet-4-6",
+  "tui.provider.wizard.model_name": "第一个模型名称",
+  "tui.provider.wizard.model_name.placeholder": "例如 Claude Sonnet 4.6",
 } satisfies Partial<Record<Keys, string>>
