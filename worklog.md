@@ -190,3 +190,21 @@ Stage Summary:
 - PR: https://github.com/XiaomiMiMo/MiMo-Code/pull/599
 - 4 files changed, 156 insertions
 - All 8 TUI locales (en, zh, zht, es, ja, fr, ru + da/ko/de/ar/no/br/th/bs/tr via fallback) now have complete login/provider i18n
+
+---
+Task ID: 7
+Agent: Auto Bug Fix (Cron #204449)
+Task: Check new issue #600 (MCP env vars not passed)
+
+Work Log:
+- Found new issue #600: MCP server environment variables not passed
+- Traced full code path: config/mcp.ts schema → config/config.ts loading → mcp/index.ts connectLocal
+- Schema correctly defines environment as optional Record<String, String>
+- connectLocal correctly spreads ...mcp.environment into StdioClientTransport env
+- Config loading preserves environment via mergeDeep
+- No code bug found — the env passing logic is correct
+- Possible causes: user config format error, SDK version issue, or npx process isolation
+
+Stage Summary:
+- No PR created — code is correct, issue may be user config or external dependency problem
+- Logged as: No actionable code bug found for #600
