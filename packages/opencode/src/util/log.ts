@@ -15,6 +15,7 @@ const levelPriority: Record<Level, number> = {
   ERROR: 3,
 }
 const keep = 10
+const MAX_LOG_SIZE = 50 * 1024 * 1024 // 50 MB per log file
 
 let level: Level = "INFO"
 
@@ -79,11 +80,21 @@ export async function init(options: Options) {
     await fs.truncate(logpath).catch(() => {})
   }
   const stream = createWriteStream(logpath, { flags: "a" })
+  let currentSize = 0
+  // Check initial file size to start capping from the right offset
+  try {
+    const stat = await fs.stat(logpath).catch(() => null)
+    if (stat) currentSize = stat.size
+  } catch {}
   write = async (msg: any) => {
+    const buf = typeof msg === "string" ? msg : String(msg)
+    currentSize += Buffer.byteLength(buf)
+    // When the file exceeds the cap, stop writing to prevent unbounded growth
+    if (currentSize > MAX_LOG_SIZE) return buf.length
     return new Promise((resolve, reject) => {
-      stream.write(msg, (err) => {
+      stream.write(buf, (err) => {
         if (err) reject(err)
-        else resolve(msg.length)
+        else resolve(buf.length)
       })
     })
   }
@@ -99,10 +110,35 @@ async function cleanup(dir: string) {
   )
     .filter((file) => path.basename(file) === file)
     .sort()
-  if (files.length <= keep) return
+  if (files.length <= keep) {
+    // Even if under the count limit, delete files that exceed size cap
+    const oversized = []
+    for (const file of files) {
+      try {
+        const stat = await fs.stat(path.join(dir, file))
+        if (stat.size > MAX_LOG_SIZE) oversized.push(file)
+      } catch { /* ignore */ }
+    }
+    await Promise.all(oversized.map((file) => fs.unlink(path.join(dir, file)).catch(() => {})))
+    return
+  }
 
   const doomed = files.slice(0, -keep)
   await Promise.all(doomed.map((file) => fs.unlink(path.join(dir, file)).catch(() => {})))
+
+  // Also clean up accumulated dev.log.* files (never cleaned before)
+  const devLogs = (
+    await Glob.scan("dev.log.*", {
+      cwd: dir,
+      absolute: false,
+      include: "file",
+    }).catch(() => [])
+  ).sort()
+  const devKeep = 3
+  if (devLogs.length > devKeep) {
+    const doomedDev = devLogs.slice(0, -(devKeep))
+    await Promise.all(doomedDev.map((file) => fs.unlink(path.join(dir, file)).catch(() => {})))
+  }
 }
 
 function formatError(error: Error, depth = 0): string {

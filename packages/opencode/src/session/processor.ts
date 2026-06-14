@@ -561,6 +561,19 @@ export const layer: Layer.Layer<
 
           case "text-end":
             if (!ctx.currentText) return
+            // Strip common EOS / end-of-turn tokens that some local models
+            // (Gemma, Llama, Mistral via ollama/vLLM/oMLX) leak into text.
+            // These tokens cause the agent loop to misclassify the turn as
+            // "final text" instead of continuing after tool results (#578).
+            ctx.currentText.text = ctx.currentText.text
+              .replace(/<eos>/gi, "")
+              .replace(/<end_of_turn>/gi, "")
+              .replace(/<\/s>/gi, "")
+              .replace(/<\|im_end\|>/g, "")
+              .replace(/<\|end\|>/g, "")
+              .replace(/<eot\|?>/gi, "")
+              .replace(/<\/token>/gi, "")
+              .trimEnd()
             // oxlint-disable-next-line no-self-assign -- reactivity trigger
             ctx.currentText.text = ctx.currentText.text
             ctx.currentText.text = (yield* plugin.trigger(
