@@ -7,6 +7,10 @@ import { GitOpsTool } from "./git-ops"
 import { RefactorTool } from "./refactor"
 import { EnvCheckTool } from "./env-check"
 import { CodeReviewTool } from "./code-review"
+import { ContextTool } from "./context"
+import { DepGraphTool } from "./dep-graph"
+import { PerfAnalyzeTool } from "./perf-analyze"
+import { ChangelogTool } from "./changelog"
 import { Session } from "../session"
 import { QuestionTool } from "./question"
 import { BashTool } from "./bash"
@@ -156,6 +160,10 @@ export const layer = Layer.effect(
     const refactorTool = yield* RefactorTool
     const envCheckTool = yield* EnvCheckTool
     const codeReviewTool = yield* CodeReviewTool
+    const contextTool = yield* ContextTool
+    const depGraphTool = yield* DepGraphTool
+    const perfAnalyzeTool = yield* PerfAnalyzeTool
+    const changelogTool = yield* ChangelogTool
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -229,6 +237,10 @@ export const layer = Layer.effect(
           refactor: Tool.init(refactorTool),
           env_check: Tool.init(envCheckTool),
           code_review: Tool.init(codeReviewTool),
+          context: Tool.init(contextTool),
+          dep_graph: Tool.init(depGraphTool),
+          perf_analyze: Tool.init(perfAnalyzeTool),
+          changelog: Tool.init(changelogTool),
           bash: Tool.init(bash),
           read: Tool.init(read),
           glob: Tool.init(globtool),
@@ -263,6 +275,10 @@ export const layer = Layer.effect(
             tool.refactor,
             tool.env_check,
             tool.code_review,
+            tool.context,
+            tool.dep_graph,
+            tool.perf_analyze,
+            tool.changelog,
             ...(questionEnabled ? [tool.question] : []),
             tool.bash,
             tool.read,

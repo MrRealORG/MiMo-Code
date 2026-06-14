@@ -179,7 +179,7 @@ export const layer = Layer.effect(
             name: "agent",
             color: "#00d4aa",
             description:
-              "Agent mode. Fully autonomous agent with plan-first workflow, auto model selection, version tracking, and auto-commit. Creates plan.md, asks for approval, then executes step by step.",
+              "Agent mode. Context-aware autonomous agent — gathers full dependency graph, runs code review + performance analysis, detects bugs, generates changelogs. 10-phase workflow: Research → Plan → Approve → Execute → Dep Verify → Test → Code Review → Perf Check → Document → Commit.",
             options: {},
             permission: Permission.merge(
               defaults,
