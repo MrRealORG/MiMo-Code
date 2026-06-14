@@ -70,13 +70,6 @@ export function validateCustomProvider(input: ValidateArgs) {
       ? input.t("provider.custom.error.baseURL.format")
       : undefined
 
-  const disabled = input.disabledProviders.includes(providerID)
-  const existsError = idError
-    ? undefined
-    : input.existingProviderIDs.has(providerID) && !disabled
-      ? input.t("provider.custom.error.providerID.exists")
-      : undefined
-
   const seenModels = new Set<string>()
   const models = input.form.models.map((m) => {
     const id = m.id.trim()
@@ -120,12 +113,12 @@ export function validateCustomProvider(input: ValidateArgs) {
   )
 
   const err = {
-    providerID: idError ?? existsError,
+    providerID: idError,
     name: nameError,
     baseURL: urlError,
   }
 
-  const ok = !idError && !existsError && !nameError && !urlError && modelsValid && headersValid
+  const ok = !idError && !nameError && !urlError && modelsValid && headersValid
   if (!ok) return { err, models, headers }
 
   return {

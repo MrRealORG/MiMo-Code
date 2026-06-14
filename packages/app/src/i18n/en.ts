@@ -960,10 +960,12 @@ export const dict = {
   "openrouter.loading": "Loading models from OpenRouter...",
   "openrouter.empty.noModels": "No models found from OpenRouter.",
   "openrouter.empty.filtered": "No models match your filter.",
+  "openrouter.empty.fetchError": "Failed to fetch models from OpenRouter.",
   "openrouter.model.context": "context",
   "openrouter.model.prompt": "Prompt",
   "openrouter.model.completion": "Completion",
   "openrouter.action.enableAll": "Show all visible models",
   "openrouter.action.disableAll": "Hide all visible models",
+  "openrouter.action.retry": "Retry",
   "openrouter.footer": "Showing {{count}} of {{total}} models from OpenRouter",
 }

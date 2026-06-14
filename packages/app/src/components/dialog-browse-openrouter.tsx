@@ -59,13 +59,18 @@ export const DialogBrowseOpenRouter: Component = () => {
   const [filter, setFilter] = createSignal<PricingFilter>("all")
   const [search, setSearch] = createSignal("")
 
-  const [resource] = createResource(async () => {
+  const [error, setError] = createSignal<string | undefined>()
+
+  const [resource, { refetch }] = createResource(async () => {
+    setError(undefined)
     try {
-      const res = await fetch(OPENROUTER_MODELS_URL)
+      const res = await fetch(OPENROUTER_MODELS_URL, { signal: AbortSignal.timeout(15000) })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json: OpenRouterResponse = await res.json()
       return json.data ?? []
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      setError(message)
       return []
     }
   })
@@ -208,19 +213,35 @@ export const DialogBrowseOpenRouter: Component = () => {
             }
           >
             <Show
-              when={filteredModels().length > 0}
+              when={!error()}
               fallback={
-                <div class="flex flex-col items-center justify-center py-16 text-center">
+                <div class="flex flex-col items-center justify-center py-16 text-center gap-3">
                   <span class="text-14-regular text-text-weak">
-                    {search() || filter() !== "all"
-                      ? language.t("openrouter.empty.filtered")
-                      : language.t("openrouter.empty.noModels")}
+                    {language.t("openrouter.empty.fetchError")}
                   </span>
-                  <Show when={search()}>
-                    <span class="text-14-regular text-text-strong mt-1">&quot;{search()}&quot;</span>
+                  <Show when={error()}>
+                    <span class="text-12-regular text-text-weak">{error()}</span>
                   </Show>
+                  <Button size="small" variant="secondary" onClick={() => refetch()}>
+                    {language.t("openrouter.action.retry")}
+                  </Button>
                 </div>
               }
+            >
+              <Show
+                when={filteredModels().length > 0}
+                fallback={
+                  <div class="flex flex-col items-center justify-center py-16 text-center">
+                    <span class="text-14-regular text-text-weak">
+                      {search() || filter() !== "all"
+                        ? language.t("openrouter.empty.filtered")
+                        : language.t("openrouter.empty.noModels")}
+                    </span>
+                    <Show when={search()}>
+                      <span class="text-14-regular text-text-strong mt-1">&quot;{search()}&quot;</span>
+                    </Show>
+                  </div>
+                }
             >
               <For each={filteredModels()}>
                 {(model) => (
@@ -231,6 +252,9 @@ export const DialogBrowseOpenRouter: Component = () => {
                         <Show when={isFree(model)}>
                           <Tag>{language.t("model.tag.free")}</Tag>
                         </Show>
+                      </div>
+                      <div class="text-12-regular text-text-weak truncate font-mono" style={{ opacity: 0.7 }}>
+                        {model.id}
                       </div>
                       <div class="flex items-center gap-3 text-12-regular text-text-weak">
                         <span class="truncate">
@@ -256,6 +280,7 @@ export const DialogBrowseOpenRouter: Component = () => {
                   </div>
                 )}
               </For>
+            </Show>
             </Show>
           </Show>
         </div>

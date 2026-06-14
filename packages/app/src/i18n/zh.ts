@@ -926,10 +926,12 @@ export const dict = {
   "openrouter.loading": "正在从 OpenRouter 加载模型...",
   "openrouter.empty.noModels": "未找到 OpenRouter 模型。",
   "openrouter.empty.filtered": "没有匹配筛选条件的模型。",
+  "openrouter.empty.fetchError": "从 OpenRouter 获取模型失败。",
   "openrouter.model.context": "上下文",
   "openrouter.model.prompt": "提示",
   "openrouter.model.completion": "补全",
   "openrouter.action.enableAll": "显示所有可见模型",
   "openrouter.action.disableAll": "隐藏所有可见模型",
+  "openrouter.action.retry": "重试",
   "openrouter.footer": "显示 OpenRouter 中的 {{count}} / {{total}} 个模型",
 } satisfies Partial<Record<Keys, string>>
