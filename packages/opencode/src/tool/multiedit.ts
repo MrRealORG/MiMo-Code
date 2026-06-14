@@ -25,6 +25,7 @@ export const MultiEditTool = Tool.define(
               replaceAll: z.boolean().optional().describe("Replace all occurrences of oldString (default false)"),
             }),
           )
+          .min(1)
           .describe("Array of edit operations to perform sequentially on the file"),
       }),
       execute: (
@@ -53,7 +54,7 @@ export const MultiEditTool = Tool.define(
             metadata: {
               results: results.map((r) => r.metadata),
             },
-            output: results.at(-1)!.output,
+            output: results.length > 0 ? results.at(-1)!.output : "(no edits applied)",
           }
         }),
     }
