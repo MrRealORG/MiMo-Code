@@ -357,4 +357,7 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+
+  // Welcome / intro tip
+  "tui.tips.welcome": "歡迎使用 MiMo Code！在上方輸入程式設計任務即可開始，或執行 {highlight}/help{/highlight} 查看所有命令和快捷鍵。",
 } satisfies Partial<Record<Keys, string>>

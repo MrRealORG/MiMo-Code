@@ -394,4 +394,7 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Welcome / intro tip
+  "tui.tips.welcome": "Welcome to MiMo Code! Type a coding task above to get started, or run {highlight}/help{/highlight} to see all commands and shortcuts.",
 }
