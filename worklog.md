@@ -55,3 +55,23 @@ Stage Summary:
 - New file: dialog-browse-openrouter.tsx (270 lines)
 - Modified: settings-providers.tsx, en.ts, zh.ts
 - 4 files changed, 332 insertions, 12 deletions
+---
+Task ID: 4
+Agent: Main
+Task: Add TUI-native OpenRouter model browser (terminal UI, no new window)
+
+Work Log:
+- User requested the OpenRouter browser work inside TUI, not as a separate window/tab
+- Explored TUI architecture: @opentui/core + @opentui/solid for terminal rendering
+- Created DialogBrowseOpenRouter TUI component using terminal primitives (box, text, scrollbox)
+- Fetches from OpenRouter API using globalThis.fetch in Node.js
+- Filter modes via keyboard: 1=All, 2=Free, 3=Paid with count badges
+- Select a model to enable it in mimocode.json config via SDK
+- Added model_browse_openrouter keybind (ctrl+o) to keybinds config
+- Wired into DialogModel with proper disabled state when OpenRouter not connected
+- Created PR #576: https://github.com/XiaomiMiMo/MiMo-Code/pull/576
+
+Stage Summary:
+- New file: dialog-browse-openrouter.tsx (TUI, 226 lines)
+- Modified: dialog-model.tsx, keybinds.ts
+- 3 files changed, 241 insertions

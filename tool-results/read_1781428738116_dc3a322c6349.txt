@@ -1,0 +1,1131 @@
+     1→import { render, TimeToFirstDraw, useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
+     2→import * as Clipboard from "@tui/util/clipboard"
+     3→import * as Selection from "@tui/util/selection"
+     4→import { createCliRenderer, MouseButton, type CliRendererConfig } from "@opentui/core"
+     5→import { RouteProvider, useRoute } from "@tui/context/route"
+     6→import {
+     7→  Switch,
+     8→  Match,
+     9→  createEffect,
+    10→  createMemo,
+    11→  ErrorBoundary,
+    12→  createSignal,
+    13→  onMount,
+    14→  batch,
+    15→  Show,
+    16→} from "solid-js"
+    17→import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
+    18→import { Flag } from "@/flag/flag"
+    19→import semver from "semver"
+    20→import { DialogProvider, useDialog } from "@tui/ui/dialog"
+    21→import { DialogMimoLogin } from "@tui/component/dialog-mimo-login"
+    22→import { ErrorComponent } from "@tui/component/error-component"
+    23→import { PluginRouteMissing } from "@tui/component/plugin-route-missing"
+    24→import { ProjectProvider } from "@tui/context/project"
+    25→import { useEvent } from "@tui/context/event"
+    26→import { SDKProvider, useSDK } from "@tui/context/sdk"
+    27→import { StartupLoading } from "@tui/component/startup-loading"
+    28→import { SyncProvider, useSync } from "@tui/context/sync"
+    29→import { LocalProvider, useLocal } from "@tui/context/local"
+    30→import { DialogModel, useConnected } from "@tui/component/dialog-model"
+    31→import { DialogMcp } from "@tui/component/dialog-mcp"
+    32→import { DialogStatus } from "@tui/component/dialog-status"
+    33→import { DialogWorktree } from "@tui/component/dialog-worktree"
+    34→import { DialogThemeList } from "@tui/component/dialog-theme-list"
+    35→import { DialogImageList } from "@tui/component/dialog-image-list"
+    36→import { DialogLogoDesign } from "@tui/component/dialog-logo-design"
+    37→import { DialogHelp } from "./ui/dialog-help"
+    38→import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command"
+    39→import { DialogAgent } from "@tui/component/dialog-agent"
+    40→import { DialogSessionList } from "@tui/component/dialog-session-list"
+    41→import { DialogWorkflows } from "@tui/component/dialog-workflows"
+    42→import { DialogConsoleOrg } from "@tui/component/dialog-console-org"
+    43→import { KeybindProvider, useKeybind } from "@tui/context/keybind"
+    44→import { ThemeProvider, useTheme } from "@tui/context/theme"
+    45→import { Home } from "@tui/routes/home"
+    46→import { Session } from "@tui/routes/session"
+    47→import { PromptHistoryProvider } from "./component/prompt/history"
+    48→import { FrecencyProvider } from "./component/prompt/frecency"
+    49→import { PromptStashProvider } from "./component/prompt/stash"
+    50→import { DialogAlert } from "./ui/dialog-alert"
+    51→import { DialogConfirm } from "./ui/dialog-confirm"
+    52→import { ToastProvider, useToast } from "./ui/toast"
+    53→import { ExitProvider, useExit } from "./context/exit"
+    54→import { Session as SessionApi } from "@/session"
+    55→import { TuiEvent } from "./event"
+    56→import { KVProvider, useKV } from "./context/kv"
+    57→import { LanguageProvider, UiI18nBridge, useLanguage } from "./context/language"
+    58→import type { Locale } from "./i18n/locales"
+    59→import { LOCALES } from "./i18n/locales"
+    60→import { DialogSelect } from "./ui/dialog-select"
+    61→import { Provider } from "@/provider"
+    62→import { ArgsProvider, useArgs, type Args } from "./context/args"
+    63→import open from "open"
+    64→import { Process } from "@/util"
+    65→import { PromptRefProvider, usePromptRef } from "./context/prompt"
+    66→import { TuiConfigProvider, useTuiConfig } from "./context/tui-config"
+    67→import { TuiConfig } from "@/cli/cmd/tui/config/tui"
+    68→import { createTuiApi, TuiPluginRuntime, type RouteMap } from "./plugin"
+    69→import { FormatError, FormatUnknownError } from "@/cli/error"
+    70→import { isPlainTerminal } from "./util/terminal"
+    71→
+    72→import type { EventSource } from "./context/sdk"
+    73→import { DialogVariant } from "./component/dialog-variant"
+    74→
+    75→function rendererConfig(_config: TuiConfig.Info, plainTerminal: boolean): CliRendererConfig {
+    76→  const mouseEnabled = !plainTerminal && !Flag.MIMOCODE_DISABLE_MOUSE && (_config.mouse ?? true)
+    77→
+    78→  return {
+    79→    externalOutputMode: "passthrough",
+    80→    targetFps: plainTerminal ? 10 : 60,
+    81→    gatherStats: false,
+    82→    exitOnCtrlC: false,
+    83→    useKittyKeyboard: plainTerminal ? null : {},
+    84→    autoFocus: false,
+    85→    openConsoleOnError: false,
+    86→    enableMouseMovement: mouseEnabled,
+    87→    useMouse: mouseEnabled,
+    88→    ...(plainTerminal
+    89→      ? {
+    90→          maxFps: 15,
+    91→          screenMode: "main-screen" as const,
+    92→          useThread: false,
+    93→          backgroundColor: "transparent",
+    94→        }
+    95→      : {
+    96→          maxFps: 60,
+    97→        }),
+    98→    consoleOptions: {
+    99→      keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
+   100→      onCopySelection: (text) => {
+   101→        Clipboard.copy(text).catch((error) => {
+   102→          console.error(`Failed to copy console selection to clipboard: ${error}`)
+   103→        })
+   104→      },
+   105→    },
+   106→  }
+   107→}
+   108→
+   109→function errorMessage(error: unknown) {
+   110→  const formatted = FormatError(error)
+   111→  if (formatted !== undefined) return formatted
+   112→  if (
+   113→    typeof error === "object" &&
+   114→    error !== null &&
+   115→    "data" in error &&
+   116→    typeof error.data === "object" &&
+   117→    error.data !== null &&
+   118→    "message" in error.data &&
+   119→    typeof error.data.message === "string"
+   120→  ) {
+   121→    return error.data.message
+   122→  }
+   123→  return FormatUnknownError(error)
+   124→}
+   125→
+   126→export function tui(input: {
+   127→  url: string
+   128→  args: Args
+   129→  config: TuiConfig.Info
+   130→  onSnapshot?: () => Promise<string[]>
+   131→  directory?: string
+   132→  fetch?: typeof fetch
+   133→  headers?: RequestInit["headers"]
+   134→  events?: EventSource
+   135→}) {
+   136→  // promise to prevent immediate exit
+   137→  // oxlint-disable-next-line no-async-promise-executor -- intentional: async executor used for sequential setup before resolve
+   138→  return new Promise<void>(async (resolve) => {
+   139→    const unguard = win32InstallCtrlCGuard()
+   140→    win32DisableProcessedInput()
+   141→
+   142→    const onExit = async () => {
+   143→      unguard?.()
+   144→      resolve()
+   145→    }
+   146→
+   147→    const onBeforeExit = async () => {
+   148→      await TuiPluginRuntime.dispose()
+   149→    }
+   150→
+   151→    const plainTerminal = isPlainTerminal()
+   152→    const renderer = await createCliRenderer(rendererConfig(input.config, plainTerminal))
+   153→    // 默认使用 dark 模式(不跟随终端背景);用户手动切换后会被 theme_mode_lock 记住并优先。
+   154→    const mode = "dark"
+   155→
+   156→    await render(() => {
+   157→      return (
+   158→        <ErrorBoundary
+   159→          fallback={(error, reset) => (
+   160→            <ErrorComponent error={error} reset={reset} onBeforeExit={onBeforeExit} onExit={onExit} mode={mode} />
+   161→          )}
+   162→        >
+   163→          <ArgsProvider {...input.args}>
+   164→            <ExitProvider onBeforeExit={onBeforeExit} onExit={onExit}>
+   165→              <KVProvider>
+   166→                <LanguageProvider>
+   167→                  <UiI18nBridge>
+   168→                <ToastProvider>
+   169→                  <RouteProvider
+   170→                    initialRoute={
+   171→                      input.args.continue
+   172→                        ? {
+   173→                            type: "session",
+   174→                            sessionID: "dummy",
+   175→                          }
+   176→                        : undefined
+   177→                    }
+   178→                  >
+   179→                    <TuiConfigProvider config={input.config}>
+   180→                      <SDKProvider
+   181→                        url={input.url}
+   182→                        directory={input.directory}
+   183→                        fetch={input.fetch}
+   184→                        headers={input.headers}
+   185→                        events={input.events}
+   186→                      >
+   187→                        <ProjectProvider>
+   188→                          <SyncProvider>
+   189→                            <ThemeProvider mode={mode} plain={plainTerminal}>
+   190→                              <LocalProvider>
+   191→                                <KeybindProvider>
+   192→                                  <PromptStashProvider>
+   193→                                    <DialogProvider>
+   194→                                      <CommandProvider>
+   195→                                        <FrecencyProvider>
+   196→                                          <PromptHistoryProvider>
+   197→                                            <PromptRefProvider>
+   198→                                              <App onSnapshot={input.onSnapshot} />
+   199→                                            </PromptRefProvider>
+   200→                                          </PromptHistoryProvider>
+   201→                                        </FrecencyProvider>
+   202→                                      </CommandProvider>
+   203→                                    </DialogProvider>
+   204→                                  </PromptStashProvider>
+   205→                                </KeybindProvider>
+   206→                              </LocalProvider>
+   207→                            </ThemeProvider>
+   208→                          </SyncProvider>
+   209→                        </ProjectProvider>
+   210→                      </SDKProvider>
+   211→                    </TuiConfigProvider>
+   212→                  </RouteProvider>
+   213→                </ToastProvider>
+   214→                  </UiI18nBridge>
+   215→                </LanguageProvider>
+   216→              </KVProvider>
+   217→            </ExitProvider>
+   218→          </ArgsProvider>
+   219→        </ErrorBoundary>
+   220→      )
+   221→    }, renderer)
+   222→  })
+   223→}
+   224→
+   225→function App(props: { onSnapshot?: () => Promise<string[]> }) {
+   226→  const tuiConfig = useTuiConfig()
+   227→  const plainTerminal = isPlainTerminal()
+   228→  const route = useRoute()
+   229→  const dimensions = useTerminalDimensions()
+   230→  const renderer = useRenderer()
+   231→  const dialog = useDialog()
+   232→  const local = useLocal()
+   233→  const kv = useKV()
+   234→  const command = useCommandDialog()
+   235→  const keybind = useKeybind()
+   236→  const event = useEvent()
+   237→  const sdk = useSDK()
+   238→  const toast = useToast()
+   239→  const themeState = useTheme()
+   240→  const { theme, setMode, locked, lock, unlock } = themeState
+   241→  const sync = useSync()
+   242→  const exit = useExit()
+   243→  const promptRef = usePromptRef()
+   244→  const lang = useLanguage()
+   245→  const t = lang.t
+   246→  const routes: RouteMap = new Map()
+   247→  const [routeRev, setRouteRev] = createSignal(0)
+   248→  const routeView = (name: string) => {
+   249→    routeRev()
+   250→    return routes.get(name)?.at(-1)?.render
+   251→  }
+   252→
+   253→  const api = createTuiApi({
+   254→    command,
+   255→    tuiConfig,
+   256→    dialog,
+   257→    keybind,
+   258→    kv,
+   259→    route,
+   260→    routes,
+   261→    bump: () => setRouteRev((x) => x + 1),
+   262→    event,
+   263→    sdk,
+   264→    sync,
+   265→    theme: themeState,
+   266→    toast,
+   267→    renderer,
+   268→  })
+   269→  const [ready, setReady] = createSignal(false)
+   270→  TuiPluginRuntime.init({
+   271→    api,
+   272→    config: tuiConfig,
+   273→  })
+   274→    .catch((error) => {
+   275→      console.error("Failed to load TUI plugins", error)
+   276→    })
+   277→    .finally(() => {
+   278→      setReady(true)
+   279→    })
+   280→
+   281→  useKeyboard((evt) => {
+   282→    if (!Flag.MIMOCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT) return
+   283→    const sel = renderer.getSelection()
+   284→    if (!sel) return
+   285→
+   286→    // Windows Terminal-like behavior:
+   287→    // - Ctrl+C copies and dismisses selection
+   288→    // - Esc dismisses selection
+   289→    // - Most other key input dismisses selection and is passed through
+   290→    if (evt.ctrl && evt.name === "c") {
+   291→      if (!Selection.copy(renderer, toast, t("tui.toast.copied_to_clipboard"))) {
+   292→        renderer.clearSelection()
+   293→        return
+   294→      }
+   295→
+   296→      evt.preventDefault()
+   297→      evt.stopPropagation()
+   298→      return
+   299→    }
+   300→
+   301→    if (evt.name === "escape") {
+   302→      renderer.clearSelection()
+   303→      evt.preventDefault()
+   304→      evt.stopPropagation()
+   305→      return
+   306→    }
+   307→
+   308→    const focus = renderer.currentFocusedRenderable
+   309→    if (focus?.hasSelection() && sel.selectedRenderables.includes(focus)) {
+   310→      return
+   311→    }
+   312→
+   313→    renderer.clearSelection()
+   314→  })
+   315→
+   316→  // Wire up console copy-to-clipboard via opentui's onCopySelection callback
+   317→  renderer.console.onCopySelection = async (text: string) => {
+   318→    if (!text || text.length === 0) return
+   319→
+   320→    await Clipboard.copy(text)
+   321→      .then(() => toast.show({ message: t("tui.toast.copied_to_clipboard"), variant: "info" }))
+   322→      .catch(toast.error)
+   323→
+   324→    renderer.clearSelection()
+   325→  }
+   326→  const [terminalTitleEnabled, setTerminalTitleEnabled] = createSignal(kv.get("terminal_title_enabled", true))
+   327→
+   328→  // Update terminal window title based on current route and session
+   329→  createEffect(() => {
+   330→    if (!terminalTitleEnabled() || Flag.MIMOCODE_DISABLE_TERMINAL_TITLE) return
+   331→
+   332→    if (route.data.type === "home") {
+   333→      renderer.setTerminalTitle("MiMoCode")
+   334→      return
+   335→    }
+   336→
+   337→    if (route.data.type === "session") {
+   338→      const session = sync.session.get(route.data.sessionID)
+   339→      if (!session || SessionApi.isDefaultTitle(session.title)) {
+   340→        renderer.setTerminalTitle("MiMoCode")
+   341→        return
+   342→      }
+   343→
+   344→      const title = session.title.length > 40 ? session.title.slice(0, 37) + "..." : session.title
+   345→      renderer.setTerminalTitle(`MC | ${title}`)
+   346→      return
+   347→    }
+   348→
+   349→    if (route.data.type === "plugin") {
+   350→      renderer.setTerminalTitle(`OC | ${route.data.id}`)
+   351→    }
+   352→  })
+   353→
+   354→  const args = useArgs()
+   355→  onMount(() => {
+   356→    batch(() => {
+   357→      if (args.agent) local.agent.set(args.agent)
+   358→      if (args.model) {
+   359→        const { providerID, modelID } = Provider.parseModel(args.model)
+   360→        if (!providerID || !modelID)
+   361→          return toast.show({
+   362→            variant: "warning",
+   363→            message: `Invalid model format: ${args.model}`,
+   364→            duration: 3000,
+   365→          })
+   366→        local.model.set({ providerID, modelID }, { recent: true })
+   367→      }
+   368→      if (args.sessionID && !args.fork) {
+   369→        route.navigate({
+   370→          type: "session",
+   371→          sessionID: args.sessionID,
+   372→        })
+   373→      }
+   374→    })
+   375→  })
+   376→
+   377→  let continued = false
+   378→  createEffect(() => {
+   379→    // When using -c, session list is loaded in blocking phase, so we can navigate at "partial"
+   380→    if (continued || sync.status === "loading" || !args.continue) return
+   381→    const match = sync.data.session
+   382→      .toSorted((a, b) => b.time.updated - a.time.updated)
+   383→      .find((x) => x.parentID === undefined)?.id
+   384→    if (match) {
+   385→      continued = true
+   386→      if (args.fork) {
+   387→        void sdk.client.session.fork({ sessionID: match }).then((result) => {
+   388→          if (result.data?.id) {
+   389→            route.navigate({ type: "session", sessionID: result.data.id })
+   390→          } else {
+   391→            toast.show({ message: "Failed to fork session", variant: "error" })
+   392→          }
+   393→        })
+   394→      } else {
+   395→        route.navigate({ type: "session", sessionID: match })
+   396→      }
+   397→    }
+   398→  })
+   399→
+   400→  // Handle --session with --fork: wait for sync to be fully complete before forking
+   401→  // (session list loads in non-blocking phase for --session, so we must wait for "complete"
+   402→  // to avoid a race where reconcile overwrites the newly forked session)
+   403→  let forked = false
+   404→  createEffect(() => {
+   405→    if (forked || sync.status !== "complete" || !args.sessionID || !args.fork) return
+   406→    forked = true
+   407→    void sdk.client.session.fork({ sessionID: args.sessionID }).then((result) => {
+   408→      if (result.data?.id) {
+   409→        route.navigate({ type: "session", sessionID: result.data.id })
+   410→      } else {
+   411→        toast.show({ message: "Failed to fork session", variant: "error" })
+   412→      }
+   413→    })
+   414→  })
+   415→
+   416→
+   417→  const connected = useConnected()
+   418→
+   419→  // Seed never-ask from the launch flag once connected (the server starts with
+   420→  // it off; this mirrors --never-ask-questions to the question service).
+   421→  let seededNeverAsk = false
+   422→  createEffect(() => {
+   423→    if (seededNeverAsk || !args.neverAsk || !connected()) return
+   424→    seededNeverAsk = true
+   425→    local.neverAsk.set(true)
+   426→  })
+   427→
+   428→  command.register(() => [
+   429→    {
+   430→      title: t("tui.command.session.list.title"),
+   431→      value: "session.list",
+   432→      keybind: "session_list",
+   433→      category: "session",
+   434→      suggested: sync.data.session.length > 0,
+   435→      slash: {
+   436→        name: "sessions",
+   437→        aliases: ["resume", "continue"],
+   438→      },
+   439→      onSelect: () => {
+   440→        dialog.replace(() => <DialogSessionList />)
+   441→      },
+   442→    },
+   443→    {
+   444→      title: t("tui.command.workflow.list.title"),
+   445→      value: "workflow.list",
+   446→      category: "session",
+   447→      enabled: Flag.MIMOCODE_EXPERIMENTAL_WORKFLOW_TOOL,
+   448→      slash: {
+   449→        name: "workflows",
+   450→      },
+   451→      onSelect: () => {
+   452→        dialog.replace(() => <DialogWorkflows />)
+   453→      },
+   454→    },
+   455→    {
+   456→      title: t("tui.command.session.new.title"),
+   457→      suggested: route.data.type === "session",
+   458→      value: "session.new",
+   459→      keybind: "session_new",
+   460→      category: "session",
+   461→      slash: {
+   462→        name: "new",
+   463→        aliases: ["clear"],
+   464→      },
+   465→      onSelect: () => {
+   466→        route.navigate({
+   467→          type: "home",
+   468→        })
+   469→        dialog.clear()
+   470→      },
+   471→    },
+   472→    {
+   473→      title: t("tui.command.model.list.title"),
+   474→      value: "model.list",
+   475→      keybind: "model_list",
+   476→      suggested: true,
+   477→      category: "agent",
+   478→      slash: {
+   479→        name: "models",
+   480→      },
+   481→      onSelect: () => {
+   482→        dialog.replace(() => <DialogModel />)
+   483→      },
+   484→    },
+   485→    {
+   486→      title: t("tui.command.model.cycle_recent.title"),
+   487→      value: "model.cycle_recent",
+   488→      keybind: "model_cycle_recent",
+   489→      category: "agent",
+   490→      hidden: true,
+   491→      onSelect: () => {
+   492→        local.model.cycle(1)
+   493→      },
+   494→    },
+   495→    {
+   496→      title: t("tui.command.model.cycle_recent_reverse.title"),
+   497→      value: "model.cycle_recent_reverse",
+   498→      keybind: "model_cycle_recent_reverse",
+   499→      category: "agent",
+   500→      hidden: true,
+   501→      onSelect: () => {
+   502→        local.model.cycle(-1)
+   503→      },
+   504→    },
+   505→    {
+   506→      title: t("tui.command.model.cycle_favorite.title"),
+   507→      value: "model.cycle_favorite",
+   508→      keybind: "model_cycle_favorite",
+   509→      category: "agent",
+   510→      hidden: true,
+   511→      onSelect: () => {
+   512→        local.model.cycleFavorite(1)
+   513→      },
+   514→    },
+   515→    {
+   516→      title: t("tui.command.model.cycle_favorite_reverse.title"),
+   517→      value: "model.cycle_favorite_reverse",
+   518→      keybind: "model_cycle_favorite_reverse",
+   519→      category: "agent",
+   520→      hidden: true,
+   521→      onSelect: () => {
+   522→        local.model.cycleFavorite(-1)
+   523→      },
+   524→    },
+   525→    {
+   526→      title: t("tui.command.agent.list.title"),
+   527→      value: "agent.list",
+   528→      keybind: "agent_list",
+   529→      category: "agent",
+   530→      slash: {
+   531→        name: "agents",
+   532→      },
+   533→      onSelect: () => {
+   534→        dialog.replace(() => <DialogAgent />)
+   535→      },
+   536→    },
+   537→    {
+   538→      title: local.neverAsk.current()
+   539→        ? t("tui.command.never_ask.title_on")
+   540→        : t("tui.command.never_ask.title_off"),
+   541→      value: "question.never_ask.toggle",
+   542→      category: "agent",
+   543→      slash: {
+   544→        name: "never-ask-questions",
+   545→        aliases: ["never-ask"],
+   546→      },
+   547→      onSelect: () => {
+   548→        const next = !local.neverAsk.current()
+   549→        local.neverAsk.set(next)
+   550→        toast.show({
+   551→          variant: next ? "warning" : "info",
+   552→          message: next ? t("tui.command.never_ask.toast_on") : t("tui.command.never_ask.toast_off"),
+   553→          duration: 4000,
+   554→        })
+   555→      },
+   556→    },
+   557→    {
+   558→      title: t("tui.command.mcp.list.title"),
+   559→      value: "mcp.list",
+   560→      category: "agent",
+   561→      slash: {
+   562→        name: "mcps",
+   563→      },
+   564→      onSelect: () => {
+   565→        dialog.replace(() => <DialogMcp />)
+   566→      },
+   567→    },
+   568→    {
+   569→      title: t("tui.command.agent.cycle.title"),
+   570→      value: "agent.cycle",
+   571→      keybind: "agent_cycle",
+   572→      category: "agent",
+   573→      hidden: true,
+   574→      onSelect: () => {
+   575→        local.agent.move(1)
+   576→      },
+   577→    },
+   578→    {
+   579→      title: t("tui.command.variant.cycle.title"),
+   580→      value: "variant.cycle",
+   581→      keybind: "variant_cycle",
+   582→      category: "agent",
+   583→      onSelect: () => {
+   584→        local.model.variant.cycle()
+   585→      },
+   586→    },
+   587→    {
+   588→      title: t("tui.command.variant.list.title"),
+   589→      value: "variant.list",
+   590→      keybind: "variant_list",
+   591→      category: "agent",
+   592→      hidden: local.model.variant.list().length === 0,
+   593→      slash: {
+   594→        name: "variants",
+   595→      },
+   596→      onSelect: () => {
+   597→        dialog.replace(() => <DialogVariant />)
+   598→      },
+   599→    },
+   600→    {
+   601→      title: t("tui.command.agent.cycle.reverse.title"),
+   602→      value: "agent.cycle.reverse",
+   603→      keybind: "agent_cycle_reverse",
+   604→      category: "agent",
+   605→      hidden: true,
+   606→      onSelect: () => {
+   607→        local.agent.move(-1)
+   608→      },
+   609→    },
+   610→    {
+   611→      title: t("tui.command.provider.login.title"),
+   612→      value: "provider.login",
+   613→      slash: {
+   614→        name: "login",
+   615→      },
+   616→      onSelect: () => {
+   617→        dialog.replace(() => <DialogMimoLogin />)
+   618→      },
+   619→      category: "provider",
+   620→    },
+   621→    {
+   622→      title: t("tui.command.provider.connect.title"),
+   623→      value: "provider.connect",
+   624→      suggested: !connected(),
+   625→      slash: {
+   626→        name: "connect",
+   627→      },
+   628→      onSelect: () => {
+   629→        dialog.replace(() => <DialogMimoLogin />)
+   630→      },
+   631→      category: "provider",
+   632→    },
+   633→    {
+   634→      title: t("tui.command.provider.logout.title"),
+   635→      value: "provider.logout",
+   636→      slash: {
+   637→        name: "logout",
+   638→      },
+   639→      onSelect: async () => {
+   640→        await sdk.client.auth.remove({ providerID: "xiaomi" })
+   641→        await sdk.client.instance.dispose()
+   642→        await sync.bootstrap()
+   643→        toast.show({ message: t("tui.command.logout.toast"), variant: "info" })
+   644→        dialog.clear()
+   645→      },
+   646→      category: "provider",
+   647→    },
+   648→    ...(sync.data.console_state.switchableOrgCount > 1
+   649→      ? [
+   650→          {
+   651→            title: t("tui.command.console.org.switch.title"),
+   652→            value: "console.org.switch",
+   653→            suggested: Boolean(sync.data.console_state.activeOrgName),
+   654→            slash: {
+   655→              name: "org",
+   656→              aliases: ["orgs", "switch-org"],
+   657→            },
+   658→            onSelect: () => {
+   659→              dialog.replace(() => <DialogConsoleOrg />)
+   660→            },
+   661→            category: "provider",
+   662→          },
+   663→        ]
+   664→      : []),
+   665→    {
+   666→      title: t("tui.command.opencode.status.title"),
+   667→      keybind: "status_view",
+   668→      value: "opencode.status",
+   669→      slash: {
+   670→        name: "status",
+   671→      },
+   672→      onSelect: () => {
+   673→        dialog.replace(() => <DialogStatus />)
+   674→      },
+   675→      category: "system",
+   676→    },
+   677→    {
+   678→      title: t("tui.command.worktree.list.title"),
+   679→      value: "worktree.list",
+   680→      slash: {
+   681→        name: "worktree",
+   682→        aliases: ["wt"],
+   683→      },
+   684→      onSelect: () => {
+   685→        dialog.replace(() => <DialogWorktree />)
+   686→      },
+   687→      category: "system",
+   688→    },
+   689→    {
+   690→      title: t("tui.command.theme.switch.title"),
+   691→      value: "theme.switch",
+   692→      keybind: "theme_list",
+   693→      slash: {
+   694→        name: "themes",
+   695→      },
+   696→      onSelect: () => {
+   697→        dialog.replace(() => <DialogThemeList />)
+   698→      },
+   699→      category: "system",
+   700→    },
+   701→    {
+   702→      title: t("tui.command.image.switch.title"),
+   703→      value: "background.switch",
+   704→      slash: {
+   705→        name: "background",
+   706→      },
+   707→      onSelect: () => {
+   708→        dialog.replace(() => <DialogImageList />)
+   709→      },
+   710→      category: "system",
+   711→    },
+   712→    {
+   713→      title: t("tui.command.logo.switch.title"),
+   714→      value: "logo.switch",
+   715→      slash: {
+   716→        name: "logo",
+   717→      },
+   718→      onSelect: () => {
+   719→        dialog.replace(() => <DialogLogoDesign />)
+   720→      },
+   721→      category: "system",
+   722→    },
+   723→    {
+   724→      title: t("tui.command.theme.switch_mode.to_dark"),
+   725→      value: "theme.switch_mode.dark",
+   726→      slash: {
+   727→        name: "dark",
+   728→      },
+   729→      onSelect: (dialog) => {
+   730→        setMode("dark")
+   731→        dialog.clear()
+   732→      },
+   733→      category: "system",
+   734→    },
+   735→    {
+   736→      title: t("tui.command.theme.switch_mode.to_light"),
+   737→      value: "theme.switch_mode.light",
+   738→      slash: {
+   739→        name: "light",
+   740→      },
+   741→      onSelect: (dialog) => {
+   742→        setMode("light")
+   743→        dialog.clear()
+   744→      },
+   745→      category: "system",
+   746→    },
+   747→    {
+   748→      title: t(locked() ? "tui.command.theme.mode.unlock" : "tui.command.theme.mode.lock"),
+   749→      value: "theme.mode.lock",
+   750→      onSelect: (dialog) => {
+   751→        if (locked()) unlock()
+   752→        else lock()
+   753→        dialog.clear()
+   754→      },
+   755→      category: "system",
+   756→    },
+   757→    {
+   758→      title: t("tui.command.help.show.title"),
+   759→      value: "help.show",
+   760→      slash: {
+   761→        name: "help",
+   762→      },
+   763→      onSelect: () => {
+   764→        dialog.replace(() => <DialogHelp />)
+   765→      },
+   766→      category: "system",
+   767→    },
+   768→    {
+   769→      title: t("tui.command.docs.open.title"),
+   770→      value: "docs.open",
+   771→      slash: {
+   772→        name: "doc",
+   773→        aliases: ["docs"],
+   774→      },
+   775→      onSelect: () => {
+   776→        open("https://mimo.xiaomi.com/coder/docs").catch(() => {})
+   777→        dialog.clear()
+   778→      },
+   779→      category: "system",
+   780→    },
+   781→    {
+   782→      title: t("tui.command.app.exit.title"),
+   783→      value: "app.exit",
+   784→      slash: {
+   785→        name: "exit",
+   786→        aliases: ["quit", "q"],
+   787→      },
+   788→      onSelect: () => exit(),
+   789→      category: "system",
+   790→    },
+   791→    {
+   792→      title: t("tui.command.app.debug.title"),
+   793→      category: "system",
+   794→      value: "app.debug",
+   795→      onSelect: (dialog) => {
+   796→        renderer.toggleDebugOverlay()
+   797→        dialog.clear()
+   798→      },
+   799→    },
+   800→    {
+   801→      title: t("tui.command.app.console.title"),
+   802→      category: "system",
+   803→      value: "app.console",
+   804→      onSelect: (dialog) => {
+   805→        renderer.console.toggle()
+   806→        dialog.clear()
+   807→      },
+   808→    },
+   809→    {
+   810→      title: t("tui.command.app.heap_snapshot.title"),
+   811→      category: "system",
+   812→      value: "app.heap_snapshot",
+   813→      onSelect: async (dialog) => {
+   814→        const files = await props.onSnapshot?.()
+   815→        toast.show({
+   816→          variant: "info",
+   817→          message: `Heap snapshot written to ${files?.join(", ")}`,
+   818→          duration: 5000,
+   819→        })
+   820→        dialog.clear()
+   821→      },
+   822→    },
+   823→    {
+   824→      title: t("tui.command.terminal.suspend.title"),
+   825→      value: "terminal.suspend",
+   826→      keybind: "terminal_suspend",
+   827→      category: "system",
+   828→      hidden: true,
+   829→      enabled: tuiConfig.keybinds?.terminal_suspend !== "none",
+   830→      onSelect: () => {
+   831→        process.once("SIGCONT", () => {
+   832→          renderer.resume()
+   833→        })
+   834→
+   835→        renderer.suspend()
+   836→        // pid=0 means send the signal to all processes in the process group
+   837→        process.kill(0, "SIGTSTP")
+   838→      },
+   839→    },
+   840→    {
+   841→      title: t(terminalTitleEnabled() ? "tui.command.terminal.title.disable" : "tui.command.terminal.title.enable"),
+   842→      value: "terminal.title.toggle",
+   843→      keybind: "terminal_title_toggle",
+   844→      category: "system",
+   845→      onSelect: (dialog) => {
+   846→        setTerminalTitleEnabled((prev) => {
+   847→          const next = !prev
+   848→          kv.set("terminal_title_enabled", next)
+   849→          if (!next) renderer.setTerminalTitle("")
+   850→          return next
+   851→        })
+   852→        dialog.clear()
+   853→      },
+   854→    },
+   855→    {
+   856→      title: t(
+   857→        kv.get("animations_enabled", true)
+   858→          ? "tui.command.app.toggle.animations.disable"
+   859→          : "tui.command.app.toggle.animations.enable",
+   860→      ),
+   861→      value: "app.toggle.animations",
+   862→      category: "system",
+   863→      onSelect: (dialog) => {
+   864→        kv.set("animations_enabled", !kv.get("animations_enabled", true))
+   865→        dialog.clear()
+   866→      },
+   867→    },
+   868→    {
+   869→      title: t(
+   870→        kv.get("diff_wrap_mode", "word") === "word"
+   871→          ? "tui.command.app.toggle.diffwrap.disable"
+   872→          : "tui.command.app.toggle.diffwrap.enable",
+   873→      ),
+   874→      value: "app.toggle.diffwrap",
+   875→      category: "system",
+   876→      onSelect: (dialog) => {
+   877→        const current = kv.get("diff_wrap_mode", "word")
+   878→        kv.set("diff_wrap_mode", current === "word" ? "none" : "word")
+   879→        dialog.clear()
+   880→      },
+   881→    },
+   882→    {
+   883→      title: t("tui.command.language.switch.title"),
+   884→      description: t("tui.command.language.switch.description"),
+   885→      value: "language.switch",
+   886→      slash: {
+   887→        name: "language",
+   888→        aliases: ["lang"],
+   889→      },
+   890→      category: "system",
+   891→      onSelect: (dialog) => {
+   892→        dialog.replace(() => (
+   893→          <DialogSelect<Locale | "auto">
+   894→            title={t("tui.command.language.dialog.title")}
+   895→            current={lang.preference()}
+   896→            options={(["auto", ...LOCALES] as const).map((locale) => ({
+   897→              value: locale,
+   898→              title: locale === "auto" ? t("tui.language.auto") : lang.label(locale as Locale),
+   899→              description: locale === lang.preference() ? t("tui.language.current") : undefined,
+   900→              onSelect: (ctx) => {
+   901→                lang.setLocale(locale as Locale | "auto")
+   902→                ctx.clear()
+   903→              },
+   904→            }))}
+   905→          />
+   906→        ))
+   907→      },
+   908→    },
+   909→  ])
+   910→
+   911→  event.on(TuiEvent.CommandExecute.type, (evt) => {
+   912→    command.trigger(evt.properties.command)
+   913→  })
+   914→
+   915→  event.on(TuiEvent.ToastShow.type, (evt) => {
+   916→    toast.show({
+   917→      title: evt.properties.title,
+   918→      message: evt.properties.message,
+   919→      variant: evt.properties.variant,
+   920→      duration: evt.properties.duration,
+   921→    })
+   922→  })
+   923→
+   924→  event.on(TuiEvent.InstructionsLoaded.type, (evt) => {
+   925→    toast.show({
+   926→      message: t("tui.toast.instructions_loaded", { files: evt.properties.files.join(", ") }),
+   927→      variant: "info",
+   928→    })
+   929→  })
+   930→
+   931→  event.on(TuiEvent.SessionSelect.type, (evt) => {
+   932→    route.navigate({
+   933→      type: "session",
+   934→      sessionID: evt.properties.sessionID,
+   935→    })
+   936→  })
+   937→
+   938→  event.on("session.deleted", (evt) => {
+   939→    if (route.data.type === "session" && route.data.sessionID === evt.properties.info.id) {
+   940→      route.navigate({ type: "home" })
+   941→      toast.show({
+   942→        variant: "info",
+   943→        message: "The current session was deleted",
+   944→      })
+   945→    }
+   946→  })
+   947→
+   948→  event.on("session.error", (evt) => {
+   949→    const error = evt.properties.error
+   950→    if (error && typeof error === "object" && error.name === "MessageAbortedError") return
+   951→    const message = errorMessage(error)
+   952→
+   953→    toast.show({
+   954→      variant: "error",
+   955→      message,
+   956→      duration: 5000,
+   957→    })
+   958→  })
+   959→
+   960→  event.on("installation.update-available", async (evt) => {
+   961→    const version = evt.properties.version
+   962→
+   963→    const skipped = kv.get("skipped_version")
+   964→    if (skipped && !semver.gt(version, skipped)) return
+   965→
+   966→    const choice = await DialogConfirm.show(
+   967→      dialog,
+   968→      `Update Available`,
+   969→      `A new release v${version} is available. Would you like to update now?`,
+   970→      "skip",
+   971→    )
+   972→
+   973→    if (choice === false) {
+   974→      kv.set("skipped_version", version)
+   975→      return
+   976→    }
+   977→
+   978→    if (choice !== true) return
+   979→
+   980→    toast.show({
+   981→      variant: "info",
+   982→      message: `Updating to v${version}...`,
+   983→      duration: 30000,
+   984→    })
+   985→
+   986→    const result = await sdk.client.global.upgrade({ target: version })
+   987→
+   988→    if (result.error || !result.data?.success) {
+   989→      toast.show({
+   990→        variant: "error",
+   991→        title: "Update Failed",
+   992→        message: "Update failed",
+   993→        duration: 10000,
+   994→      })
+   995→      return
+   996→    }
+   997→
+   998→    await DialogAlert.show(
+   999→      dialog,
+  1000→      "Update Complete",
+  1001→      `Successfully updated to MiMoCode v${result.data.version}. Please restart the application.`,
+  1002→    )
+  1003→
+  1004→    void exit()
+  1005→  })
+  1006→
+  1007→  // Handle interactive bash commands: suspend TUI, let user interact directly in terminal
+  1008→  event.subscribe((evt) => {
+  1009→    if ((evt.type as string) !== "bash.interactive.asked") return
+  1010→    const props = evt.properties as Record<string, unknown>
+  1011→    const id = typeof props.id === "string" ? props.id : undefined
+  1012→    const command = typeof props.command === "string" ? props.command : undefined
+  1013→    const cwd = typeof props.cwd === "string" ? props.cwd : undefined
+  1014→    const description = typeof props.description === "string" ? props.description : "(interactive)"
+  1015→    const env = props.env && typeof props.env === "object" ? (props.env as Record<string, string>) : undefined
+  1016→    if (!id || !command || !cwd) return
+  1017→
+  1018→    const abort = new AbortController()
+  1019→    void (async () => {
+  1020→      renderer.suspend()
+  1021→      renderer.currentRenderBuffer.clear()
+  1022→      let exitCode = 1
+  1023→      let output = ""
+  1024→      try {
+  1025→        const shell = process.platform === "win32" ? "cmd" : "sh"
+  1026→        const args = process.platform === "win32" ? ["/c", command] : ["-c", command]
+  1027→        process.stdout.write(`\x1b[2J\x1b[H`) // clear screen
+  1028→        process.stdout.write(`\x1b[1m[Interactive] ${description}\x1b[0m\n`)
+  1029→        process.stdout.write(`\x1b[2m$ ${command}\x1b[0m\n\n`)
+  1030→        const proc = Process.spawn([shell, ...args], {
+  1031→          stdin: "inherit",
+  1032→          stdout: "inherit",
+  1033→          stderr: "inherit",
+  1034→          cwd,
+  1035→          env: env ?? undefined,
+  1036→          abort: abort.signal,
+  1037→        })
+  1038→        exitCode = await proc.exited
+  1039→        output = `(interactive command completed with exit code ${exitCode})`
+  1040→      } catch (err: any) {
+  1041→        output = `(interactive command failed: ${err?.message ?? "unknown error"})`
+  1042→      } finally {
+  1043→        renderer.currentRenderBuffer.clear()
+  1044→        renderer.resume()
+  1045→        renderer.requestRender()
+  1046→      }
+  1047→
+  1048→      // Send result back to the server — if this fails, agent hangs forever, so retry once
+  1049→      const url = `${sdk.url}/bash-interactive/${id}/reply`
+  1050→      const body = JSON.stringify({ output, exitCode })
+  1051→      const doReply = () =>
+  1052→        (sdk.fetch ?? fetch)(url, {
+  1053→          method: "POST",
+  1054→          headers: { "Content-Type": "application/json" },
+  1055→          body,
+  1056→        })
+  1057→      try {
+  1058→        const res = await doReply()
+  1059→        if (!res.ok) throw new Error(`reply failed: ${res.status}`)
+  1060→      } catch {
+  1061→        // Retry once after a short delay
+  1062→        await new Promise((r) => setTimeout(r, 500))
+  1063→        try {
+  1064→          await doReply()
+  1065→        } catch (retryErr: any) {
+  1066→          toast.show({
+  1067→            variant: "error",
+  1068→            message: `Interactive command reply failed: ${retryErr?.message ?? "unknown"}`,
+  1069→          })
+  1070→        }
+  1071→      }
+  1072→    })()
+  1073→  })
+  1074→
+  1075→  const plugin = createMemo(() => {
+  1076→    if (!ready()) return
+  1077→    if (route.data.type !== "plugin") return
+  1078→    const render = routeView(route.data.id)
+  1079→    if (!render) return <PluginRouteMissing id={route.data.id} onHome={() => route.navigate({ type: "home" })} />
+  1080→    return render({ params: route.data.data })
+  1081→  })
+  1082→
+  1083→  return (
+  1084→    <box
+  1085→      width={dimensions().width}
+  1086→      height={dimensions().height}
+  1087→      backgroundColor={plainTerminal ? undefined : theme.background}
+  1088→      onMouseDown={(evt) => {
+  1089→        if (evt.button !== MouseButton.RIGHT) return
+  1090→
+  1091→        // When copy-on-mousedown is enabled, prefer copying an active selection;
+  1092→        // fall through to paste when there is nothing selected.
+  1093→        if (
+  1094→          Flag.MIMOCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT &&
+  1095→          Selection.copy(renderer, toast, t("tui.toast.copied_to_clipboard"))
+  1096→        ) {
+  1097→          evt.preventDefault()
+  1098→          evt.stopPropagation()
+  1099→          return
+  1100→        }
+  1101→
+  1102→        promptRef.current?.paste()
+  1103→        evt.preventDefault()
+  1104→        evt.stopPropagation()
+  1105→      }}
+  1106→      onMouseUp={
+  1107→        Flag.MIMOCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT
+  1108→          ? undefined
+  1109→          : () => Selection.copy(renderer, toast, t("tui.toast.copied_to_clipboard"))
+  1110→      }
+  1111→    >
+  1112→      <Show when={Flag.MIMOCODE_SHOW_TTFD}>
+  1113→        <TimeToFirstDraw />
+  1114→      </Show>
+  1115→      <Show when={ready()}>
+  1116→        <Switch>
+  1117→          <Match when={route.data.type === "home"}>
+  1118→            <Home />
+  1119→          </Match>
+  1120→          <Match when={route.data.type === "session"}>
+  1121→            <Session />
+  1122→          </Match>
+  1123→        </Switch>
+  1124→      </Show>
+  1125→      {plugin()}
+  1126→      <TuiPluginRuntime.Slot name="app" />
+  1127→      <StartupLoading ready={ready} />
+  1128→    </box>
+  1129→  )
+  1130→}
+  1131→
