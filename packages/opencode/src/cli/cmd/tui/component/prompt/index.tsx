@@ -1429,6 +1429,33 @@ export function Prompt(props: PromptProps) {
               }}
               keyBindings={textareaKeybindings()}
               onKeyDown={async (e) => {
+                // Workaround: @opentui/core parseKeypress only maps UPPERCASE SS3
+                // sequences (e.g. \x1bOP → "f1") but numpad keys send lowercase
+                // (e.g. \x1bOp → kp0). Map them to their character equivalents
+                // so numpad input works in terminals without kitty keyboard protocol.
+                if (!e.name && e.sequence && e.sequence.length === 3 && e.sequence[0] === "\x1b" && e.sequence[1] === "O") {
+                  const ss3NumpadMap: Record<string, string> = {
+                    p: "0", q: "1", r: "2", s: "3", t: "4",
+                    u: "5", v: "6", w: "7", x: "8", y: "9",
+                    l: ",", m: "-", n: ".", j: "+", k: "*",
+                    M: "return", X: "=",
+                  }
+                  const ch = ss3NumpadMap[e.sequence[2]]
+                  if (ch) {
+                    if (ch === "return") {
+                      e.preventDefault()
+                      void submit()
+                      return
+                    }
+                    input.insertText(ch)
+                    const value = input.plainText
+                    setStore("prompt", "input", value)
+                    autocomplete.onInput(value)
+                    e.preventDefault()
+                    return
+                  }
+                }
+
                 if (props.disabled) {
                   e.preventDefault()
                   return
