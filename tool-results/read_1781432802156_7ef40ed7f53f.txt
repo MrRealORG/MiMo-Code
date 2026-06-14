@@ -1,0 +1,829 @@
+     1→import type {
+     2→  Message,
+     3→  Agent,
+     4→  Provider,
+     5→  Session,
+     6→  Part,
+     7→  Config,
+     8→  Todo,
+     9→  SessionTaskResponse,
+    10→  Command,
+    11→  PermissionRequest,
+    12→  QuestionRequest,
+    13→  LspStatus,
+    14→  McpStatus,
+    15→  McpResource,
+    16→  FormatterStatus,
+    17→  SessionStatus,
+    18→  ProviderListResponse,
+    19→  ProviderAuthMethod,
+    20→  VcsInfo,
+    21→} from "@mimo-ai/sdk/v2"
+    22→import { createStore, produce, reconcile } from "solid-js/store"
+    23→import { useProject } from "@tui/context/project"
+    24→import { useEvent } from "@tui/context/event"
+    25→import { useSDK } from "@tui/context/sdk"
+    26→import { Binary } from "@mimo-ai/shared/util/binary"
+    27→import { createSimpleContext } from "./helper"
+    28→import type { Snapshot } from "@/snapshot"
+    29→import { useExit } from "./exit"
+    30→import { useArgs } from "./args"
+    31→import { batch, onMount } from "solid-js"
+    32→import { Log } from "@/util"
+    33→import { emptyConsoleState, type ConsoleState } from "@/config/console-state"
+    34→
+    35→/**
+    36→ * The SDK regenerated the task list as an inline anonymous array on
+    37→ * `SessionTaskResponse` rather than a named `Task` export (the zod schema is not
+    38→ * surfaced as a reusable component). Derive the element type so the store and
+    39→ * plugin API stay in lockstep with the server's `GET /:sessionID/task` shape.
+    40→ */
+    41→export type Task = SessionTaskResponse[number]
+    42→
+    43→/**
+    44→ * TUI-side view of a dynamic-workflow run (server route `GET /workflows`, bus
+    45→ * events `workflow.started/phase/finished`). The list route serializes the
+    46→ * runtime's `RunSummary` but is described as `z.array(z.any())`, so the SDK gen
+    47→ * surfaces it as `Array<unknown>` rather than a named export — mirror the
+    48→ * server's `RunSummary` shape here so the store and the dialog stay in lockstep.
+    49→ */
+    50→export type WorkflowRun = {
+    51→  runID: string
+    52→  sessionID: string
+    53→  name: string
+    54→  status: string
+    55→  running: number
+    56→  succeeded: number
+    57→  failed: number
+    58→  currentPhase?: string
+    59→  parentActorID?: string
+    60→  args?: unknown
+    61→  error?: string
+    62→  createdAt?: number
+    63→  updatedAt?: number
+    64→}
+    65→
+    66→/**
+    67→ * TUI-side view of a session's stop-condition goal (server event `session.goal`).
+    68→ * `condition` is the active goal (undefined once cleared/satisfied/impossible).
+    69→ * `verdicts` accumulates each judge verdict keyed by the assistant message it
+    70→ * evaluated, so a per-turn marker can be rendered against the right turn and the
+    71→ * user can trace back which turn failed the check. `lastMessageID` points at the
+    72→ * most recently judged turn.
+    73→ */
+    74→export type GoalVerdict = {
+    75→  ok: boolean
+    76→  impossible?: boolean
+    77→  reason: string
+    78→  attempt: number
+    79→  error?: boolean
+    80→}
+    81→
+    82→export type SessionGoal = {
+    83→  condition?: string
+    84→  verdicts: { [messageID: string]: GoalVerdict }
+    85→  lastMessageID?: string
+    86→}
+    87→
+    88→export type ActorEntry = {
+    89→  actor_id: string
+    90→  session_id: string
+    91→  mode: "subagent" | "peer" | "main"
+    92→  status: "pending" | "running" | "completed" | "failed" | "cancelled" | "unknown"
+    93→  agent: string
+    94→  description: string
+    95→  parent_actor_id: string | null
+    96→  time_created: number
+    97→  time_updated: number
+    98→  turn_count: number
+    99→  last_turn_time: number | null
+   100→}
+   101→
+   102→function actorStatusFromEvent(
+   103→  s: "pending" | "running" | "idle",
+   104→  outcome: "success" | "failure" | "cancelled" | undefined,
+   105→): ActorEntry["status"] {
+   106→  if (s === "pending") return "pending"
+   107→  if (s === "running") return "running"
+   108→  if (outcome === "success") return "completed"
+   109→  if (outcome === "failure") return "failed"
+   110→  if (outcome === "cancelled") return "cancelled"
+   111→  return "unknown"
+   112→}
+   113→
+   114→export function bucketMessages<M extends { agentID?: string | null }>(
+   115→  msgs: M[],
+   116→): Record<string, M[]> {
+   117→  const out: Record<string, M[]> = {}
+   118→  for (const m of msgs) {
+   119→    const k = m.agentID ?? "main"
+   120→    if (!out[k]) out[k] = []
+   121→    out[k].push(m)
+   122→  }
+   123→  return out
+   124→}
+   125→
+   126→export const { use: useSync, provider: SyncProvider } = createSimpleContext({
+   127→  name: "Sync",
+   128→  init: () => {
+   129→    const [store, setStore] = createStore<{
+   130→      status: "loading" | "partial" | "complete"
+   131→      provider: Provider[]
+   132→      provider_default: Record<string, string>
+   133→      provider_next: ProviderListResponse
+   134→      console_state: ConsoleState
+   135→      provider_auth: Record<string, ProviderAuthMethod[]>
+   136→      agent: Agent[]
+   137→      command: Command[]
+   138→      permission: {
+   139→        [sessionID: string]: PermissionRequest[]
+   140→      }
+   141→      question: {
+   142→        [sessionID: string]: QuestionRequest[]
+   143→      }
+   144→      config: Config
+   145→      session: Session[]
+   146→      session_status: {
+   147→        [sessionID: string]: SessionStatus
+   148→      }
+   149→      session_goal: {
+   150→        [sessionID: string]: SessionGoal
+   151→      }
+   152→      session_diff: {
+   153→        [sessionID: string]: Snapshot.FileDiff[]
+   154→      }
+   155→      session_cwd: {
+   156→        [sessionID: string]: string
+   157→      }
+   158→      todo: {
+   159→        [sessionID: string]: Todo[]
+   160→      }
+   161→      task: {
+   162→        [sessionID: string]: Task[]
+   163→      }
+   164→      message: {
+   165→        [sessionID: string]: {
+   166→          [agentID: string]: Message[]
+   167→        }
+   168→      }
+   169→      part: {
+   170→        [messageID: string]: Part[]
+   171→      }
+   172→      lsp: LspStatus[]
+   173→      mcp: {
+   174→        [key: string]: McpStatus
+   175→      }
+   176→      mcp_resource: {
+   177→        [key: string]: McpResource
+   178→      }
+   179→      instructions: string[]
+   180→      formatter: FormatterStatus[]
+   181→      vcs: VcsInfo | undefined
+   182→      actor: {
+   183→        [sessionID: string]: ActorEntry[]
+   184→      }
+   185→      workflow: {
+   186→        [runID: string]: WorkflowRun
+   187→      }
+   188→    }>({
+   189→      provider_next: {
+   190→        all: [],
+   191→        default: {},
+   192→        connected: [],
+   193→      },
+   194→      console_state: emptyConsoleState,
+   195→      provider_auth: {},
+   196→      config: {},
+   197→      status: "loading",
+   198→      agent: [],
+   199→      permission: {},
+   200→      question: {},
+   201→      command: [],
+   202→      provider: [],
+   203→      provider_default: {},
+   204→      session: [],
+   205→      session_status: {},
+   206→      session_goal: {},
+   207→      session_diff: {},
+   208→      session_cwd: {},
+   209→      todo: {},
+   210→      task: {},
+   211→      message: {},
+   212→      part: {},
+   213→      lsp: [],
+   214→      mcp: {},
+   215→      mcp_resource: {},
+   216→      instructions: [],
+   217→      formatter: [],
+   218→      vcs: undefined,
+   219→      actor: {},
+   220→      workflow: {},
+   221→    })
+   222→
+   223→    const event = useEvent()
+   224→    const project = useProject()
+   225→    const sdk = useSDK()
+   226→
+   227→    const fullSyncedSessions = new Set<string>()
+   228→    let syncedWorkspace = project.workspace.current()
+   229→
+   230→    event.subscribe((event) => {
+   231→      switch (event.type) {
+   232→        case "server.instance.disposed":
+   233→          void bootstrap()
+   234→          break
+   235→        case "permission.replied": {
+   236→          const requests = store.permission[event.properties.sessionID]
+   237→          if (!requests) break
+   238→          const match = Binary.search(requests, event.properties.requestID, (r) => r.id)
+   239→          if (!match.found) break
+   240→          setStore(
+   241→            "permission",
+   242→            event.properties.sessionID,
+   243→            produce((draft) => {
+   244→              draft.splice(match.index, 1)
+   245→            }),
+   246→          )
+   247→          break
+   248→        }
+   249→
+   250→        case "permission.asked": {
+   251→          const request = event.properties
+   252→          const requests = store.permission[request.sessionID]
+   253→          if (!requests) {
+   254→            setStore("permission", request.sessionID, [request])
+   255→            break
+   256→          }
+   257→          const match = Binary.search(requests, request.id, (r) => r.id)
+   258→          if (match.found) {
+   259→            setStore("permission", request.sessionID, match.index, reconcile(request))
+   260→            break
+   261→          }
+   262→          setStore(
+   263→            "permission",
+   264→            request.sessionID,
+   265→            produce((draft) => {
+   266→              draft.splice(match.index, 0, request)
+   267→            }),
+   268→          )
+   269→          break
+   270→        }
+   271→
+   272→        case "question.replied":
+   273→        case "question.rejected": {
+   274→          const requests = store.question[event.properties.sessionID]
+   275→          if (!requests) break
+   276→          const match = Binary.search(requests, event.properties.requestID, (r) => r.id)
+   277→          if (!match.found) break
+   278→          setStore(
+   279→            "question",
+   280→            event.properties.sessionID,
+   281→            produce((draft) => {
+   282→              draft.splice(match.index, 1)
+   283→            }),
+   284→          )
+   285→          break
+   286→        }
+   287→
+   288→        case "question.asked": {
+   289→          const request = event.properties
+   290→          const requests = store.question[request.sessionID]
+   291→          if (!requests) {
+   292→            setStore("question", request.sessionID, [request])
+   293→            break
+   294→          }
+   295→          const match = Binary.search(requests, request.id, (r) => r.id)
+   296→          if (match.found) {
+   297→            setStore("question", request.sessionID, match.index, reconcile(request))
+   298→            break
+   299→          }
+   300→          setStore(
+   301→            "question",
+   302→            request.sessionID,
+   303→            produce((draft) => {
+   304→              draft.splice(match.index, 0, request)
+   305→            }),
+   306→          )
+   307→          break
+   308→        }
+   309→
+   310→        case "todo.updated":
+   311→          setStore("todo", event.properties.sessionID, event.properties.todos)
+   312→          break
+   313→
+   314→        case "task.created": {
+   315→          const { sessionID, task } = event.properties
+   316→          const list = store.task[sessionID]
+   317→          if (!list) {
+   318→            setStore("task", sessionID, [task])
+   319→            break
+   320→          }
+   321→          const idx = list.findIndex((t) => t.id === task.id)
+   322→          setStore(
+   323→            "task",
+   324→            sessionID,
+   325→            produce((draft) => {
+   326→              if (idx >= 0) draft[idx] = task
+   327→              else draft.push(task)
+   328→            }),
+   329→          )
+   330→          break
+   331→        }
+   332→
+   333→        case "task.updated": {
+   334→          const { sessionID, task } = event.properties
+   335→          const list = store.task[sessionID]
+   336→          if (!list) {
+   337→            setStore("task", sessionID, [task])
+   338→            break
+   339→          }
+   340→          const idx = list.findIndex((t) => t.id === task.id)
+   341→          if (idx < 0) {
+   342→            setStore(
+   343→              "task",
+   344→              sessionID,
+   345→              produce((draft) => {
+   346→                draft.push(task)
+   347→              }),
+   348→            )
+   349→            break
+   350→          }
+   351→          setStore("task", sessionID, idx, reconcile(task))
+   352→          break
+   353→        }
+   354→
+   355→        case "session.diff":
+   356→          setStore("session_diff", event.properties.sessionID, event.properties.diff)
+   357→          break
+   358→
+   359→        case "session.cwd":
+   360→          setStore("session_cwd", event.properties.sessionID, event.properties.cwd)
+   361→          break
+   362→
+   363→        case "session.deleted": {
+   364→          const result = Binary.search(store.session, event.properties.info.id, (s) => s.id)
+   365→          if (result.found) {
+   366→            setStore(
+   367→              "session",
+   368→              produce((draft) => {
+   369→                draft.splice(result.index, 1)
+   370→              }),
+   371→            )
+   372→          }
+   373→          break
+   374→        }
+   375→        case "session.updated": {
+   376→          const result = Binary.search(store.session, event.properties.info.id, (s) => s.id)
+   377→          if (result.found) {
+   378→            setStore("session", result.index, reconcile(event.properties.info))
+   379→            break
+   380→          }
+   381→          setStore(
+   382→            "session",
+   383→            produce((draft) => {
+   384→              draft.splice(result.index, 0, event.properties.info)
+   385→            }),
+   386→          )
+   387→          break
+   388→        }
+   389→
+   390→        case "session.status": {
+   391→          setStore("session_status", event.properties.sessionID, event.properties.status)
+   392→          break
+   393→        }
+   394→
+   395→        case "session.goal": {
+   396→          // Merge: a clear event (goal:undefined) keeps the accumulated verdicts
+   397→          // (so per-turn markers persist for traceback); a verdict carrying a
+   398→          // messageID is recorded against that turn.
+   399→          setStore("session_goal", event.properties.sessionID, (prev) => {
+   400→            const verdicts = { ...(prev?.verdicts ?? {}) }
+   401→            const v = event.properties.lastVerdict
+   402→            let lastMessageID = prev?.lastMessageID
+   403→            if (v?.messageID) {
+   404→              verdicts[v.messageID] = {
+   405→                ok: v.ok,
+   406→                impossible: v.impossible,
+   407→                reason: v.reason,
+   408→                attempt: v.attempt,
+   409→                error: v.error,
+   410→              }
+   411→              lastMessageID = v.messageID
+   412→            }
+   413→            return {
+   414→              condition: event.properties.goal?.condition,
+   415→              verdicts,
+   416→              lastMessageID,
+   417→            }
+   418→          })
+   419→          break
+   420→        }
+   421→
+   422→        case "message.updated": {
+   423→          // Bucket every message by agentID. Pre-rewire the TUI dropped non-main
+   424→          // messages here; now subagent slices are first-class buckets and the
+   425→          // session view renders whichever bucket matches route.agentID.
+   426→          const sid = event.properties.info.sessionID
+   427→          const aid = event.properties.info.agentID ?? "main"
+   428→          if (!store.message[sid]) {
+   429→            setStore("message", sid, { [aid]: [event.properties.info] })
+   430→            break
+   431→          }
+   432→          if (!store.message[sid][aid]) {
+   433→            setStore("message", sid, aid, [event.properties.info])
+   434→            break
+   435→          }
+   436→          const messages = store.message[sid][aid]
+   437→          const result = Binary.search(messages, event.properties.info.id, (m) => m.id)
+   438→          if (result.found) {
+   439→            setStore("message", sid, aid, result.index, reconcile(event.properties.info))
+   440→            break
+   441→          }
+   442→          setStore(
+   443→            "message",
+   444→            sid,
+   445→            aid,
+   446→            produce((draft) => {
+   447→              draft.splice(result.index, 0, event.properties.info)
+   448→            }),
+   449→          )
+   450→          const updated = store.message[sid][aid]
+   451→          if (updated.length > 100) {
+   452→            const oldest = updated[0]
+   453→            batch(() => {
+   454→              setStore(
+   455→                "message",
+   456→                sid,
+   457→                aid,
+   458→                produce((draft) => {
+   459→                  draft.shift()
+   460→                }),
+   461→              )
+   462→              setStore(
+   463→                "part",
+   464→                produce((draft) => {
+   465→                  delete draft[oldest.id]
+   466→                }),
+   467→              )
+   468→            })
+   469→          }
+   470→          break
+   471→        }
+   472→        case "message.removed": {
+   473→          const sid = event.properties.sessionID
+   474→          const buckets = store.message[sid]
+   475→          if (!buckets) break
+   476→          for (const aid of Object.keys(buckets)) {
+   477→            const messages = buckets[aid]
+   478→            const result = Binary.search(messages, event.properties.messageID, (m) => m.id)
+   479→            if (result.found) {
+   480→              setStore(
+   481→                "message",
+   482→                sid,
+   483→                aid,
+   484→                produce((draft) => {
+   485→                  draft.splice(result.index, 1)
+   486→                }),
+   487→              )
+   488→              break
+   489→            }
+   490→          }
+   491→          break
+   492→        }
+   493→        case "message.part.updated": {
+   494→          const parts = store.part[event.properties.part.messageID]
+   495→          if (!parts) {
+   496→            setStore("part", event.properties.part.messageID, [event.properties.part])
+   497→            break
+   498→          }
+   499→          const result = Binary.search(parts, event.properties.part.id, (p) => p.id)
+   500→          if (result.found) {
+   501→            setStore("part", event.properties.part.messageID, result.index, reconcile(event.properties.part))
+   502→            break
+   503→          }
+   504→          setStore(
+   505→            "part",
+   506→            event.properties.part.messageID,
+   507→            produce((draft) => {
+   508→              draft.splice(result.index, 0, event.properties.part)
+   509→            }),
+   510→          )
+   511→          break
+   512→        }
+   513→
+   514→        case "message.part.delta": {
+   515→          const parts = store.part[event.properties.messageID]
+   516→          if (!parts) break
+   517→          const result = Binary.search(parts, event.properties.partID, (p) => p.id)
+   518→          if (!result.found) break
+   519→          setStore(
+   520→            "part",
+   521→            event.properties.messageID,
+   522→            produce((draft) => {
+   523→              const part = draft[result.index]
+   524→              const field = event.properties.field as keyof typeof part
+   525→              const existing = part[field] as string | undefined
+   526→              ;(part[field] as string) = (existing ?? "") + event.properties.delta
+   527→            }),
+   528→          )
+   529→          break
+   530→        }
+   531→
+   532→        case "message.part.removed": {
+   533→          const parts = store.part[event.properties.messageID]
+   534→          const result = Binary.search(parts, event.properties.partID, (p) => p.id)
+   535→          if (result.found)
+   536→            setStore(
+   537→              "part",
+   538→              event.properties.messageID,
+   539→              produce((draft) => {
+   540→                draft.splice(result.index, 1)
+   541→              }),
+   542→            )
+   543→          break
+   544→        }
+   545→
+   546→        case "tui.instructions.loaded": {
+   547→          setStore("instructions", reconcile(event.properties.files))
+   548→          break
+   549→        }
+   550→
+   551→        case "lsp.updated": {
+   552→          const workspace = project.workspace.current()
+   553→          void sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", x.data ?? []))
+   554→          break
+   555→        }
+   556→
+   557→        case "vcs.branch.updated": {
+   558→          setStore("vcs", { branch: event.properties.branch })
+   559→          break
+   560→        }
+   561→
+   562→        case "actor.registered": {
+   563→          const sid = event.properties.sessionID
+   564→          const list = store.actor[sid] ?? []
+   565→          if (list.find((a) => a.actor_id === event.properties.actorID)) break
+   566→          const entry: ActorEntry = {
+   567→            actor_id: event.properties.actorID,
+   568→            session_id: event.properties.sessionID,
+   569→            mode: event.properties.mode as ActorEntry["mode"],
+   570→            status: "pending",
+   571→            agent: event.properties.agent,
+   572→            description: event.properties.description,
+   573→            parent_actor_id: event.properties.parentActorID ?? null,
+   574→            time_created: Date.now(),
+   575→            time_updated: Date.now(),
+   576→            turn_count: 0,
+   577→            last_turn_time: null,
+   578→          }
+   579→          setStore("actor", sid, [...list, entry].toSorted((a, b) => a.time_created - b.time_created))
+   580→          break
+   581→        }
+   582→
+   583→        case "actor.status": {
+   584→          const sid = event.properties.sessionID
+   585→          const list = store.actor[sid] ?? []
+   586→          const idx = list.findIndex((a) => a.actor_id === event.properties.actorID)
+   587→          if (idx === -1) break
+   588→          setStore("actor", sid, idx, {
+   589→            status: actorStatusFromEvent(
+   590→              event.properties.status,
+   591→              event.properties.lastOutcome,
+   592→            ),
+   593→            turn_count: event.properties.turnCount,
+   594→            last_turn_time: event.properties.lastTurnTime,
+   595→            time_updated: Date.now(),
+   596→          })
+   597→          break
+   598→        }
+   599→
+   600→        case "workflow.started": {
+   601→          // Upsert a fresh run row; counters stay zero until loadWorkflows /
+   602→          // the dialog's poll (T7) refreshes them from the list route.
+   603→          setStore("workflow", event.properties.runID, {
+   604→            runID: event.properties.runID,
+   605→            sessionID: event.properties.sessionID,
+   606→            name: event.properties.name,
+   607→            status: "running",
+   608→            running: 0,
+   609→            succeeded: 0,
+   610→            failed: 0,
+   611→          })
+   612→          break
+   613→        }
+   614→
+   615→        case "workflow.phase": {
+   616→          if (!store.workflow[event.properties.runID]) break
+   617→          setStore("workflow", event.properties.runID, "currentPhase", event.properties.title)
+   618→          break
+   619→        }
+   620→
+   621→        case "workflow.finished": {
+   622→          if (!store.workflow[event.properties.runID]) break
+   623→          setStore("workflow", event.properties.runID, "status", event.properties.status)
+   624→          break
+   625→        }
+   626→      }
+   627→    })
+   628→
+   629→    const exit = useExit()
+   630→    const args = useArgs()
+   631→
+   632→    async function bootstrap(input: { fatal?: boolean } = {}) {
+   633→      const fatal = input.fatal ?? true
+   634→      const workspace = project.workspace.current()
+   635→      if (workspace !== syncedWorkspace) {
+   636→        fullSyncedSessions.clear()
+   637→        syncedWorkspace = workspace
+   638→      }
+   639→      const start = Date.now() - 30 * 24 * 60 * 60 * 1000
+   640→      const sessionListPromise = sdk.client.session
+   641→        .list({ start: start })
+   642→        .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id)))
+   643→
+   644→      // blocking - include session.list when continuing a session
+   645→      const providersPromise = sdk.client.config.providers({ workspace }, { throwOnError: true })
+   646→      const providerListPromise = sdk.client.provider.list({ workspace }, { throwOnError: true })
+   647→      const consoleStatePromise = sdk.client.experimental.console
+   648→        .get({ workspace }, { throwOnError: true })
+   649→        .then((x) => x.data)
+   650→        .catch(() => emptyConsoleState)
+   651→      const agentsPromise = sdk.client.app.agents({ workspace }, { throwOnError: true })
+   652→      const configPromise = sdk.client.config.get({ workspace }, { throwOnError: true })
+   653→      const projectPromise = project.sync()
+   654→      const blockingRequests: Promise<unknown>[] = [
+   655→        providersPromise,
+   656→        providerListPromise,
+   657→        agentsPromise,
+   658→        configPromise,
+   659→        projectPromise,
+   660→        ...(args.continue ? [sessionListPromise] : []),
+   661→      ]
+   662→
+   663→      await Promise.all(blockingRequests)
+   664→        .then(async () => {
+   665→          const providersResponse = providersPromise.then((x) => x.data!)
+   666→          const providerListResponse = providerListPromise.then((x) => x.data!)
+   667→          const consoleStateResponse = consoleStatePromise
+   668→          const agentsResponse = agentsPromise.then((x) => x.data ?? [])
+   669→          const configResponse = configPromise.then((x) => x.data!)
+   670→          const sessionListResponse = args.continue ? sessionListPromise : undefined
+   671→
+   672→          return Promise.all([
+   673→            providersResponse,
+   674→            providerListResponse,
+   675→            consoleStateResponse,
+   676→            agentsResponse,
+   677→            configResponse,
+   678→            ...(sessionListResponse ? [sessionListResponse] : []),
+   679→          ]).then((responses) => {
+   680→            const providers = responses[0]
+   681→            const providerList = responses[1]
+   682→            const consoleState = responses[2]
+   683→            const agents = responses[3]
+   684→            const config = responses[4]
+   685→            const sessions = responses[5]
+   686→
+   687→            batch(() => {
+   688→              setStore("provider", reconcile(providers.providers))
+   689→              setStore("provider_default", reconcile(providers.default))
+   690→              setStore("provider_next", reconcile(providerList))
+   691→              setStore("console_state", reconcile(consoleState))
+   692→              setStore("agent", reconcile(agents))
+   693→              setStore("config", reconcile(config))
+   694→              if (sessions !== undefined) setStore("session", reconcile(sessions))
+   695→            })
+   696→          })
+   697→        })
+   698→        .then(() => {
+   699→          if (store.status !== "complete") setStore("status", "partial")
+   700→          // non-blocking
+   701→          void Promise.all([
+   702→            ...(args.continue ? [] : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
+   703→            consoleStatePromise.then((consoleState) => setStore("console_state", reconcile(consoleState))),
+   704→            sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),
+   705→            sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", reconcile(x.data ?? []))),
+   706→            sdk.client.mcp.status({ workspace }).then((x) => setStore("mcp", reconcile(x.data ?? {}))),
+   707→            sdk.client.experimental.resource
+   708→              .list({ workspace })
+   709→              .then((x) => setStore("mcp_resource", reconcile(x.data ?? {}))),
+   710→            sdk.client.formatter.status({ workspace }).then((x) => setStore("formatter", reconcile(x.data ?? []))),
+   711→            sdk.client.session.status({ workspace }).then((x) => {
+   712→              setStore("session_status", reconcile(x.data ?? {}))
+   713→            }),
+   714→            sdk.client.provider.auth({ workspace }).then((x) => setStore("provider_auth", reconcile(x.data ?? {}))),
+   715→            sdk.client.vcs.get({ workspace }).then((x) => setStore("vcs", reconcile(x.data))),
+   716→            project.workspace.sync(),
+   717→          ]).then(() => {
+   718→            setStore("status", "complete")
+   719→          })
+   720→        })
+   721→        .catch(async (e) => {
+   722→          Log.Default.error("tui bootstrap failed", {
+   723→            error: e instanceof Error ? e.message : String(e),
+   724→            name: e instanceof Error ? e.name : undefined,
+   725→            stack: e instanceof Error ? e.stack : undefined,
+   726→          })
+   727→          if (fatal) {
+   728→            await exit(e)
+   729→          } else {
+   730→            throw e
+   731→          }
+   732→        })
+   733→    }
+   734→
+   735→    onMount(() => {
+   736→      void bootstrap()
+   737→    })
+   738→
+   739→    const result = {
+   740→      data: store,
+   741→      set: setStore,
+   742→      get status() {
+   743→        return store.status
+   744→      },
+   745→      get ready() {
+   746→        if (process.env.MIMOCODE_FAST_BOOT) return true
+   747→        return store.status !== "loading"
+   748→      },
+   749→      get path() {
+   750→        return project.instance.path()
+   751→      },
+   752→      session: {
+   753→        get(sessionID: string) {
+   754→          const match = Binary.search(store.session, sessionID, (s) => s.id)
+   755→          if (match.found) return store.session[match.index]
+   756→          return undefined
+   757→        },
+   758→        async refresh() {
+   759→          const start = Date.now() - 30 * 24 * 60 * 60 * 1000
+   760→          const list = await sdk.client.session
+   761→            .list({ start })
+   762→            .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id)))
+   763→          setStore("session", reconcile(list))
+   764→        },
+   765→        status(sessionID: string) {
+   766→          const session = result.session.get(sessionID)
+   767→          if (!session) return "idle"
+   768→          if (session.time.compacting) return "compacting"
+   769→          const messages = store.message[sessionID]?.["main"] ?? []
+   770→          const last = messages.at(-1)
+   771→          if (!last) return "idle"
+   772→          if (last.role === "user") return "working"
+   773→          return last.time.completed ? "idle" : "working"
+   774→        },
+   775→        async sync(sessionID: string) {
+   776→          if (fullSyncedSessions.has(sessionID)) return
+   777→          const [session, messages, todo, diff, actors, task] = await Promise.all([
+   778→            sdk.client.session.get({ sessionID }, { throwOnError: true }),
+   779→            sdk.client.session.messages({ sessionID, limit: 100, agent_id: "*" }),
+   780→            sdk.client.session.todo({ sessionID }),
+   781→            sdk.client.session.diff({ sessionID }),
+   782→            sdk.client.session.actors({ sessionID }),
+   783→            sdk.client.session.task({ sessionID }),
+   784→          ])
+   785→          setStore(
+   786→            produce((draft) => {
+   787→              const match = Binary.search(draft.session, sessionID, (s) => s.id)
+   788→              if (match.found) draft.session[match.index] = session.data!
+   789→              if (!match.found) draft.session.splice(match.index, 0, session.data!)
+   790→              draft.todo[sessionID] = todo.data ?? []
+   791→              draft.task[sessionID] = task.data ?? []
+   792→              const flat = (messages.data ?? []).map((x) => x.info)
+   793→              draft.message[sessionID] = bucketMessages(flat)
+   794→              for (const message of messages.data ?? []) {
+   795→                draft.part[message.info.id] = message.parts
+   796→              }
+   797→              draft.session_diff[sessionID] = diff.data ?? []
+   798→              draft.actor[sessionID] = ((actors.data ?? []) as any[]).map((row): ActorEntry => ({
+   799→                actor_id: row.actorID,
+   800→                session_id: row.sessionID,
+   801→                mode: row.mode,
+   802→                status: actorStatusFromEvent(row.status, row.lastOutcome),
+   803→                agent: row.agent,
+   804→                description: row.description,
+   805→                parent_actor_id: row.parentActorID ?? null,
+   806→                time_created: row.time?.created ?? Date.now(),
+   807→                time_updated: row.time?.updated ?? Date.now(),
+   808→                turn_count: row.turnCount ?? 0,
+   809→                last_turn_time: row.lastTurnTime ?? null,
+   810→              }))
+   811→            }),
+   812→          )
+   813→          fullSyncedSessions.add(sessionID)
+   814→        },
+   815→      },
+   816→      bootstrap,
+   817→      loadWorkflows(sessionID: string) {
+   818→        void sdk.client.workflow.list({ sessionID }).then((res) => {
+   819→          for (const run of (res.data ?? []) as WorkflowRun[]) setStore("workflow", run.runID, reconcile(run))
+   820→        })
+   821→      },
+   822→      resumeWorkflow(runID: string) {
+   823→        return sdk.client.workflow.resume({ runID })
+   824→      },
+   825→    }
+   826→    return result
+   827→  },
+   828→})
+   829→

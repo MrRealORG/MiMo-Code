@@ -1,0 +1,2002 @@
+     1→import {
+     2→  batch,
+     3→  createContext,
+     4→  createEffect,
+     5→  createMemo,
+     6→  createSignal,
+     7→  For,
+     8→  Match,
+     9→  on,
+    10→  onCleanup,
+    11→  onMount,
+    12→  Show,
+    13→  Switch,
+    14→  useContext,
+    15→} from "solid-js"
+    16→import { Dynamic } from "solid-js/web"
+    17→import path from "path"
+    18→import { useCurrentAgentID, useRoute, useRouteData } from "@tui/context/route"
+    19→import { useProject } from "@tui/context/project"
+    20→import { useSync } from "@tui/context/sync"
+    21→import { useEvent } from "@tui/context/event"
+    22→import { SplitBorder } from "@tui/component/border"
+    23→import { Spinner } from "@tui/component/spinner"
+    24→import { selectedForeground, useTheme } from "@tui/context/theme"
+    25→import { BoxRenderable, ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA, MouseEvent } from "@opentui/core"
+    26→import { Prompt, type PromptRef } from "@tui/component/prompt"
+    27→import type {
+    28→  AssistantMessage,
+    29→  Part,
+    30→  Provider,
+    31→  ToolPart,
+    32→  UserMessage,
+    33→  TextPart,
+    34→  ReasoningPart,
+    35→} from "@mimo-ai/sdk/v2"
+    36→import { useLocal } from "@tui/context/local"
+    37→import { Locale } from "@/util"
+    38→import type { Tool } from "@/tool"
+    39→import type { ReadTool } from "@/tool/read"
+    40→import type { WriteTool } from "@/tool/write"
+    41→import { BashTool } from "@/tool/bash"
+    42→import type { GlobTool } from "@/tool/glob"
+    43→import type { GrepTool } from "@/tool/grep"
+    44→import type { EditTool } from "@/tool/edit"
+    45→import type { ApplyPatchTool } from "@/tool/apply_patch"
+    46→import type { WebFetchTool } from "@/tool/webfetch"
+    47→import type { CodeSearchTool } from "@/tool/codesearch"
+    48→import type { WebSearchTool } from "@/tool/websearch"
+    49→import type { ActorTool } from "@/tool/actor"
+    50→import type { TaskTool } from "@/tool/task"
+    51→import type { QuestionTool } from "@/tool/question"
+    52→import type { SkillTool } from "@/tool/skill"
+    53→import { useKeyboard, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
+    54→import { useSDK } from "@tui/context/sdk"
+    55→import { useCommandDialog } from "@tui/component/dialog-command"
+    56→import { useLanguage } from "@tui/context/language"
+    57→import type { DialogContext } from "@tui/ui/dialog"
+    58→import { useKeybind } from "@tui/context/keybind"
+    59→import { useDialog } from "../../ui/dialog"
+    60→import { DialogMessage } from "./dialog-message"
+    61→import type { PromptInfo } from "../../component/prompt/history"
+    62→import { DialogConfirm } from "@tui/ui/dialog-confirm"
+    63→import { DialogTimeline } from "./dialog-timeline"
+    64→import { DialogForkFromTimeline } from "./dialog-fork-from-timeline"
+    65→import { DialogSessionRename } from "../../component/dialog-session-rename"
+    66→import { Sidebar } from "./sidebar"
+    67→import { SubagentFooter } from "./subagent-footer.tsx"
+    68→import { DialogSubagent } from "./dialog-subagent.tsx"
+    69→import { Flag } from "@/flag/flag"
+    70→import { LANGUAGE_EXTENSIONS } from "@/lsp/language"
+    71→import parsers from "../../../../../../parsers-config.ts"
+    72→import * as Clipboard from "../../util/clipboard"
+    73→import { Toast, useToast } from "../../ui/toast"
+    74→import { useKV } from "../../context/kv.tsx"
+    75→import * as Editor from "../../util/editor"
+    76→import stripAnsi from "strip-ansi"
+    77→import { usePromptRef } from "../../context/prompt"
+    78→import { useExit } from "../../context/exit"
+    79→import { Filesystem } from "@/util"
+    80→import { Global } from "@/global"
+    81→import { PermissionPrompt } from "./permission"
+    82→import { QuestionPrompt } from "./question"
+    83→import { DialogExportOptions } from "../../ui/dialog-export-options"
+    84→import * as Model from "../../util/model"
+    85→import { formatTranscript } from "../../util/transcript"
+    86→import { UI } from "@/cli/ui.ts"
+    87→import { useTuiConfig } from "../../context/tui-config"
+    88→import { getScrollAcceleration } from "../../util/scroll"
+    89→import { nextThinkingMode, reasoningSummary, useThinkingMode, type ThinkingMode } from "../../context/thinking"
+    90→import { TuiPluginRuntime } from "../../plugin"
+    91→import { DialogGoUpsell } from "../../component/dialog-go-upsell"
+    92→import { SessionRetry } from "@/session/retry"
+    93→import { getRevertDiffFiles } from "../../util/revert-diff"
+    94→
+    95→addDefaultParsers(parsers.parsers)
+    96→
+    97→const GO_UPSELL_LAST_SEEN_AT = "go_upsell_last_seen_at"
+    98→const GO_UPSELL_DONT_SHOW = "go_upsell_dont_show"
+    99→const GO_UPSELL_WINDOW = 86_400_000 // 24 hrs
+   100→
+   101→const context = createContext<{
+   102→  width: number
+   103→  sessionID: string
+   104→  conceal: () => boolean
+   105→  thinkingMode: () => ThinkingMode
+   106→  showThinking: () => boolean
+   107→  showTimestamps: () => boolean
+   108→  showDetails: () => boolean
+   109→  showGenericToolOutput: () => boolean
+   110→  diffWrapMode: () => "word" | "none"
+   111→  providers: () => ReadonlyMap<string, Provider>
+   112→  sync: ReturnType<typeof useSync>
+   113→  tui: ReturnType<typeof useTuiConfig>
+   114→}>()
+   115→
+   116→function use() {
+   117→  const ctx = useContext(context)
+   118→  if (!ctx) throw new Error("useContext must be used within a Session component")
+   119→  return ctx
+   120→}
+   121→
+   122→export function Session() {
+   123→  const route = useRouteData("session")
+   124→  const fullRoute = useRoute()
+   125→  const navigate = fullRoute.navigate
+   126→  const sync = useSync()
+   127→  const event = useEvent()
+   128→  const project = useProject()
+   129→  const tuiConfig = useTuiConfig()
+   130→  const kv = useKV()
+   131→  const { theme } = useTheme()
+   132→  const promptRef = usePromptRef()
+   133→  const session = createMemo(() => sync.session.get(route.sessionID))
+   134→  const currentAgentID = useCurrentAgentID()
+   135→  const actors = createMemo(() => sync.data.actor[route.sessionID] ?? [])
+   136→  const messages = createMemo(() => sync.data.message[route.sessionID]?.[currentAgentID()] ?? [])
+   137→  const permissions = createMemo(() => sync.data.permission[route.sessionID] ?? [])
+   138→  const questions = createMemo(() => sync.data.question[route.sessionID] ?? [])
+   139→  const visible = createMemo(
+   140→    () =>
+   141→      !session()?.parentID &&
+   142→      currentAgentID() === "main" &&
+   143→      permissions().length === 0 &&
+   144→      questions().length === 0,
+   145→  )
+   146→  const disabled = createMemo(() => permissions().length > 0 || questions().length > 0)
+   147→
+   148→  const pending = createMemo(() => {
+   149→    return messages().findLast((x) => x.role === "assistant" && !x.time.completed)?.id
+   150→  })
+   151→
+   152→  const lastAssistant = createMemo(() => {
+   153→    return messages().findLast((x) => x.role === "assistant")
+   154→  })
+   155→
+   156→  const dimensions = useTerminalDimensions()
+   157→  const [sidebar, setSidebar] = kv.signal<"auto" | "hide">("sidebar", "auto")
+   158→  const [sidebarOpen, setSidebarOpen] = createSignal(false)
+   159→  const [conceal, setConceal] = createSignal(true)
+   160→  const thinking = useThinkingMode()
+   161→  const thinkingMode = thinking.mode
+   162→  const showThinking = createMemo(() => true)
+   163→  const [timestamps, setTimestamps] = kv.signal<"hide" | "show">("timestamps", "hide")
+   164→  const [showDetails, setShowDetails] = kv.signal("tool_details_visibility", true)
+   165→  const [showAssistantMetadata, _setShowAssistantMetadata] = kv.signal("assistant_metadata_visibility", true)
+   166→  const [showScrollbar, setShowScrollbar] = kv.signal("scrollbar_visible", false)
+   167→  const [scrolling, setScrolling] = createSignal(false)
+   168→  let scrollHideTimer: ReturnType<typeof setTimeout> | undefined
+   169→  const scrollbarVisible = createMemo(() => showScrollbar() || scrolling())
+   170→  const onWheel = (evt: MouseEvent) => {
+   171→    if (evt.type !== "scroll") return
+   172→    setScrolling(true)
+   173→    if (scrollHideTimer) clearTimeout(scrollHideTimer)
+   174→    scrollHideTimer = setTimeout(() => setScrolling(false), 1000)
+   175→  }
+   176→  onCleanup(() => {
+   177→    if (scrollHideTimer) clearTimeout(scrollHideTimer)
+   178→  })
+   179→  const [diffWrapMode] = kv.signal<"word" | "none">("diff_wrap_mode", "word")
+   180→  const [_animationsEnabled, _setAnimationsEnabled] = kv.signal("animations_enabled", true)
+   181→  const [showGenericToolOutput, setShowGenericToolOutput] = kv.signal("generic_tool_output_visibility", false)
+   182→
+   183→  const wide = createMemo(() => dimensions().width > 120)
+   184→  const sidebarVisible = createMemo(() => {
+   185→    if (session()?.parentID) return false
+   186→    if (currentAgentID() !== "main") return false
+   187→    if (sidebarOpen()) return true
+   188→    if (sidebar() === "auto" && wide()) return true
+   189→    return false
+   190→  })
+   191→  const showTimestamps = createMemo(() => timestamps() === "show")
+   192→  const contentWidth = createMemo(() => dimensions().width - (sidebarVisible() ? 42 : 0) - 4)
+   193→  const providers = createMemo(() => Model.index(sync.data.provider))
+   194→
+   195→  const scrollAcceleration = createMemo(() => getScrollAcceleration(tuiConfig))
+   196→  const toast = useToast()
+   197→  const sdk = useSDK()
+   198→
+   199→  createEffect(async () => {
+   200→    const previousWorkspace = project.workspace.current()
+   201→    const result = await sdk.client.session.get({ sessionID: route.sessionID }, { throwOnError: true })
+   202→    if (!result.data) {
+   203→      toast.show({
+   204→        message: `Session not found: ${route.sessionID}`,
+   205→        variant: "error",
+   206→      })
+   207→      navigate({ type: "home" })
+   208→      return
+   209→    }
+   210→
+   211→    if (result.data.workspaceID !== previousWorkspace) {
+   212→      project.workspace.set(result.data.workspaceID)
+   213→
+   214→      // Sync all the data for this workspace. Note that this
+   215→      // workspace may not exist anymore which is why this is not
+   216→      // fatal. If it doesn't we still want to show the session
+   217→      // (which will be non-interactive)
+   218→      try {
+   219→        await sync.bootstrap({ fatal: false })
+   220→      } catch (e) {}
+   221→    }
+   222→    await sync.session.sync(route.sessionID)
+   223→    if (scroll) scroll.scrollBy(100_000)
+   224→  })
+   225→
+   226→  let lastSwitch: string | undefined = undefined
+   227→  event.on("message.part.updated", (evt) => {
+   228→    const part = evt.properties.part
+   229→    if (part.type !== "tool") return
+   230→    if (part.sessionID !== route.sessionID) return
+   231→    if (part.state.status !== "completed") return
+   232→    if (part.id === lastSwitch) return
+   233→
+   234→    if (part.tool === "plan_exit" && part.state.metadata?.switched) {
+   235→      local.agent.set("build")
+   236→      lastSwitch = part.id
+   237→    } else if (part.tool === "plan_enter") {
+   238→      local.agent.set("plan")
+   239→      lastSwitch = part.id
+   240→    }
+   241→  })
+   242→
+   243→  let seeded = false
+   244→  let scroll: ScrollBoxRenderable
+   245→  let prompt: PromptRef | undefined
+   246→  const bind = (r: PromptRef | undefined) => {
+   247→    prompt = r
+   248→    promptRef.set(r)
+   249→    if (seeded || !route.prompt || !r) return
+   250→    seeded = true
+   251→    r.set(route.prompt)
+   252→  }
+   253→  const keybind = useKeybind()
+   254→  const dialog = useDialog()
+   255→  const renderer = useRenderer()
+   256→
+   257→  event.on("session.status", (evt) => {
+   258→    if (evt.properties.sessionID !== route.sessionID) return
+   259→    if (evt.properties.status.type !== "retry") return
+   260→    if (evt.properties.status.message !== SessionRetry.GO_UPSELL_MESSAGE) return
+   261→    if (dialog.stack.length > 0) return
+   262→
+   263→    const seen = kv.get(GO_UPSELL_LAST_SEEN_AT)
+   264→    if (typeof seen === "number" && Date.now() - seen < GO_UPSELL_WINDOW) return
+   265→
+   266→    if (kv.get(GO_UPSELL_DONT_SHOW)) return
+   267→
+   268→    void DialogGoUpsell.show(dialog).then((dontShowAgain) => {
+   269→      if (dontShowAgain) kv.set(GO_UPSELL_DONT_SHOW, true)
+   270→      kv.set(GO_UPSELL_LAST_SEEN_AT, Date.now())
+   271→    })
+   272→  })
+   273→
+   274→  // Allow exit when in child session (prompt is hidden)
+   275→  const exit = useExit()
+   276→
+   277→  createEffect(() => {
+   278→    const title = Locale.truncate(session()?.title ?? "", 50)
+   279→    const pad = (text: string) => text.padEnd(10, " ")
+   280→    const weak = (text: string) => UI.Style.TEXT_DIM + pad(text) + UI.Style.TEXT_NORMAL
+   281→    const logo = UI.logo("  ").split(/\r?\n/)
+   282→    return exit.message.set(
+   283→      [
+   284→        ...logo,
+   285→        ``,
+   286→        `  ${weak("Session")}${UI.Style.TEXT_NORMAL_BOLD}${title}${UI.Style.TEXT_NORMAL}`,
+   287→        `  ${weak("Continue")}${UI.Style.TEXT_NORMAL_BOLD}mimo -s ${session()?.id}${UI.Style.TEXT_NORMAL}`,
+   288→        ``,
+   289→      ].join("\n"),
+   290→    )
+   291→  })
+   292→
+   293→  useKeyboard((evt) => {
+   294→    if (!session()?.parentID && currentAgentID() === "main") return
+   295→    if (keybind.match("app_exit", evt)) {
+   296→      const status = sync.data.session_status?.[route.sessionID]
+   297→      if (status && status.type !== "idle") {
+   298→        void sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
+   299→        return
+   300→      }
+   301→      void exit()
+   302→    }
+   303→  })
+   304→
+   305→  // Helper: Find next visible message boundary in direction
+   306→  const findNextVisibleMessage = (direction: "next" | "prev"): string | null => {
+   307→    const children = scroll.getChildren()
+   308→    const messagesList = messages()
+   309→    const scrollTop = scroll.y
+   310→
+   311→    // Get visible messages sorted by position, filtering for valid non-synthetic, non-ignored content
+   312→    const visibleMessages = children
+   313→      .filter((c) => {
+   314→        if (!c.id) return false
+   315→        const message = messagesList.find((m) => m.id === c.id)
+   316→        if (!message) return false
+   317→
+   318→        // Check if message has valid non-synthetic, non-ignored text parts
+   319→        const parts = sync.data.part[message.id]
+   320→        if (!parts || !Array.isArray(parts)) return false
+   321→
+   322→        return parts.some((part) => part && part.type === "text" && !part.synthetic && !part.ignored)
+   323→      })
+   324→      .sort((a, b) => a.y - b.y)
+   325→
+   326→    if (visibleMessages.length === 0) return null
+   327→
+   328→    if (direction === "next") {
+   329→      // Find first message below current position
+   330→      return visibleMessages.find((c) => c.y > scrollTop + 10)?.id ?? null
+   331→    }
+   332→    // Find last message above current position
+   333→    return [...visibleMessages].reverse().find((c) => c.y < scrollTop - 10)?.id ?? null
+   334→  }
+   335→
+   336→  // Helper: Scroll to message in direction or fallback to page scroll
+   337→  const scrollToMessage = (direction: "next" | "prev", dialog: ReturnType<typeof useDialog>) => {
+   338→    const targetID = findNextVisibleMessage(direction)
+   339→
+   340→    if (!targetID) {
+   341→      scroll.scrollBy(direction === "next" ? scroll.height : -scroll.height)
+   342→      dialog.clear()
+   343→      return
+   344→    }
+   345→
+   346→    const child = scroll.getChildren().find((c) => c.id === targetID)
+   347→    if (child) scroll.scrollBy(child.y - scroll.y - 1)
+   348→    dialog.clear()
+   349→  }
+   350→
+   351→  function toBottom() {
+   352→    setTimeout(() => {
+   353→      if (!scroll || scroll.isDestroyed) return
+   354→      scroll.scrollTo(scroll.scrollHeight)
+   355→    }, 50)
+   356→  }
+   357→
+   358→  const local = useLocal()
+   359→
+   360→  function moveFirstChild() {
+   361→    const list = actors().filter((a) => a.mode === "subagent")
+   362→    if (list.length === 0) {
+   363→      dialog.replace(() => <DialogSubagent sessionID={route.sessionID} />)
+   364→      return
+   365→    }
+   366→    if (fullRoute.data.type !== "session") return
+   367→    navigate({ ...fullRoute.data, agentID: list[0].actor_id })
+   368→  }
+   369→
+   370→  function moveChild(direction: 1 | -1) {
+   371→    const list = actors().filter((a) => a.mode === "subagent")
+   372→    if (list.length === 0) return
+   373→    if (fullRoute.data.type !== "session") return
+   374→    const cur = currentAgentID()
+   375→    const idx = list.findIndex((a) => a.actor_id === cur)
+   376→    const next =
+   377→      idx === -1
+   378→        ? direction === 1
+   379→          ? 0
+   380→          : list.length - 1
+   381→        : (idx + direction + list.length) % list.length
+   382→    navigate({ ...fullRoute.data, agentID: list[next].actor_id })
+   383→  }
+   384→
+   385→  const command = useCommandDialog()
+   386→  const t = useLanguage().t
+   387→  command.register(() => [
+   388→    {
+   389→      title: t(session()?.share?.url ? "tui.command.session.share.copy_link" : "tui.command.session.share.title"),
+   390→      value: "session.share",
+   391→      suggested: route.type === "session",
+   392→      keybind: "session_share",
+   393→      category: "session",
+   394→      enabled: sync.data.config.share !== "disabled",
+   395→      slash: {
+   396→        name: "share",
+   397→      },
+   398→      onSelect: async (dialog) => {
+   399→        const copy = (url: string) =>
+   400→          Clipboard.copy(url)
+   401→            .then(() => toast.show({ message: "Share URL copied to clipboard!", variant: "success" }))
+   402→            .catch(() => toast.show({ message: "Failed to copy URL to clipboard", variant: "error" }))
+   403→        const url = session()?.share?.url
+   404→        if (url) {
+   405→          await copy(url)
+   406→          dialog.clear()
+   407→          return
+   408→        }
+   409→        if (!kv.get("share_consent", false)) {
+   410→          const ok = await DialogConfirm.show(dialog, "Share Session", "Are you sure you want to share it?")
+   411→          if (ok !== true) return
+   412→          kv.set("share_consent", true)
+   413→        }
+   414→        await sdk.client.session
+   415→          .share({
+   416→            sessionID: route.sessionID,
+   417→          })
+   418→          .then((res) => copy(res.data!.share!.url))
+   419→          .catch((error) => {
+   420→            toast.show({
+   421→              message: error instanceof Error ? error.message : "Failed to share session",
+   422→              variant: "error",
+   423→            })
+   424→          })
+   425→        dialog.clear()
+   426→      },
+   427→    },
+   428→    {
+   429→      title: t("tui.command.session.rename.title"),
+   430→      value: "session.rename",
+   431→      keybind: "session_rename",
+   432→      category: "session",
+   433→      slash: {
+   434→        name: "rename",
+   435→      },
+   436→      onSelect: (dialog) => {
+   437→        dialog.replace(() => <DialogSessionRename session={route.sessionID} />)
+   438→      },
+   439→    },
+   440→    {
+   441→      title: t("tui.command.session.timeline.title"),
+   442→      value: "session.timeline",
+   443→      keybind: "session_timeline",
+   444→      category: "session",
+   445→      slash: {
+   446→        name: "timeline",
+   447→      },
+   448→      onSelect: (dialog) => {
+   449→        dialog.replace(() => (
+   450→          <DialogTimeline
+   451→            onMove={(messageID) => {
+   452→              const child = scroll.getChildren().find((child) => {
+   453→                return child.id === messageID
+   454→              })
+   455→              if (child) scroll.scrollBy(child.y - scroll.y - 1)
+   456→            }}
+   457→            sessionID={route.sessionID}
+   458→            setPrompt={(promptInfo) => prompt?.set(promptInfo)}
+   459→          />
+   460→        ))
+   461→      },
+   462→    },
+   463→    {
+   464→      title: t("tui.command.session.fork.title"),
+   465→      value: "session.fork",
+   466→      keybind: "session_fork",
+   467→      category: "session",
+   468→      slash: {
+   469→        name: "fork",
+   470→      },
+   471→      onSelect: (dialog) => {
+   472→        dialog.replace(() => (
+   473→          <DialogForkFromTimeline
+   474→            onMove={(messageID) => {
+   475→              if (!messageID) return
+   476→              const child = scroll.getChildren().find((child) => {
+   477→                return child.id === messageID
+   478→              })
+   479→              if (child) scroll.scrollBy(child.y - scroll.y - 1)
+   480→            }}
+   481→            sessionID={route.sessionID}
+   482→          />
+   483→        ))
+   484→      },
+   485→    },
+   486→    {
+   487→      title: t("tui.command.session.compact.title"),
+   488→      value: "session.compact",
+   489→      keybind: "session_compact",
+   490→      category: "session",
+   491→      slash: {
+   492→        name: "compact",
+   493→        aliases: ["summarize"],
+   494→      },
+   495→      onSelect: (dialog) => {
+   496→        const selectedModel = local.model.current()
+   497→        if (!selectedModel) {
+   498→          toast.show({
+   499→            variant: "warning",
+   500→            message: "Connect a provider to summarize this session",
+   501→            duration: 3000,
+   502→          })
+   503→          return
+   504→        }
+   505→        void sdk.client.session.summarize({
+   506→          sessionID: route.sessionID,
+   507→          modelID: selectedModel.modelID,
+   508→          providerID: selectedModel.providerID,
+   509→        })
+   510→        dialog.clear()
+   511→      },
+   512→    },
+   513→    {
+   514→      title: t("tui.command.session.unshare.title"),
+   515→      value: "session.unshare",
+   516→      keybind: "session_unshare",
+   517→      category: "session",
+   518→      enabled: !!session()?.share?.url,
+   519→      slash: {
+   520→        name: "unshare",
+   521→      },
+   522→      onSelect: async (dialog) => {
+   523→        await sdk.client.session
+   524→          .unshare({
+   525→            sessionID: route.sessionID,
+   526→          })
+   527→          .then(() => toast.show({ message: "Session unshared successfully", variant: "success" }))
+   528→          .catch((error) => {
+   529→            toast.show({
+   530→              message: error instanceof Error ? error.message : "Failed to unshare session",
+   531→              variant: "error",
+   532→            })
+   533→          })
+   534→        dialog.clear()
+   535→      },
+   536→    },
+   537→    {
+   538→      title: t("tui.command.session.undo.title"),
+   539→      value: "session.undo",
+   540→      keybind: "messages_undo",
+   541→      category: "session",
+   542→      slash: {
+   543→        name: "undo",
+   544→      },
+   545→      onSelect: async (dialog) => {
+   546→        const status = sync.data.session_status?.[route.sessionID]
+   547→        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
+   548→        const revert = session()?.revert?.messageID
+   549→        const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
+   550→        if (!message) return
+   551→        void sdk.client.session
+   552→          .revert({
+   553→            sessionID: route.sessionID,
+   554→            messageID: message.id,
+   555→          })
+   556→          .then(() => {
+   557→            toBottom()
+   558→          })
+   559→        const parts = sync.data.part[message.id]
+   560→        prompt?.set(
+   561→          parts.reduce(
+   562→            (agg, part) => {
+   563→              if (part.type === "text") {
+   564→                if (!part.synthetic) agg.input += part.text
+   565→              }
+   566→              if (part.type === "file") agg.parts.push(part)
+   567→              return agg
+   568→            },
+   569→            { input: "", parts: [] as PromptInfo["parts"] },
+   570→          ),
+   571→        )
+   572→        dialog.clear()
+   573→      },
+   574→    },
+   575→    {
+   576→      title: t("tui.command.session.redo.title"),
+   577→      value: "session.redo",
+   578→      keybind: "messages_redo",
+   579→      category: "session",
+   580→      enabled: !!session()?.revert?.messageID,
+   581→      slash: {
+   582→        name: "redo",
+   583→      },
+   584→      onSelect: (dialog) => {
+   585→        dialog.clear()
+   586→        const messageID = session()?.revert?.messageID
+   587→        if (!messageID) return
+   588→        const message = messages().find((x) => x.role === "user" && x.id > messageID)
+   589→        if (!message) {
+   590→          void sdk.client.session.unrevert({
+   591→            sessionID: route.sessionID,
+   592→          })
+   593→          prompt?.set({ input: "", parts: [] })
+   594→          return
+   595→        }
+   596→        void sdk.client.session.revert({
+   597→          sessionID: route.sessionID,
+   598→          messageID: message.id,
+   599→        })
+   600→      },
+   601→    },
+   602→    {
+   603→      title: t(sidebarVisible() ? "tui.command.session.sidebar.hide" : "tui.command.session.sidebar.show"),
+   604→      value: "session.sidebar.toggle",
+   605→      keybind: "sidebar_toggle",
+   606→      category: "session",
+   607→      onSelect: (dialog) => {
+   608→        batch(() => {
+   609→          const isVisible = sidebarVisible()
+   610→          setSidebar(() => (isVisible ? "hide" : "auto"))
+   611→          setSidebarOpen(!isVisible)
+   612→        })
+   613→        dialog.clear()
+   614→      },
+   615→    },
+   616→    {
+   617→      title: t(conceal() ? "tui.command.session.conceal.disable" : "tui.command.session.conceal.enable"),
+   618→      value: "session.toggle.conceal",
+   619→      keybind: "messages_toggle_conceal",
+   620→      category: "session",
+   621→      onSelect: (dialog) => {
+   622→        setConceal((prev) => !prev)
+   623→        dialog.clear()
+   624→      },
+   625→    },
+   626→    {
+   627→      title: t(showTimestamps() ? "tui.command.session.timestamps.hide" : "tui.command.session.timestamps.show"),
+   628→      value: "session.toggle.timestamps",
+   629→      category: "session",
+   630→      slash: {
+   631→        name: "timestamps",
+   632→        aliases: ["toggle-timestamps"],
+   633→      },
+   634→      onSelect: (dialog) => {
+   635→        setTimestamps((prev) => (prev === "show" ? "hide" : "show"))
+   636→        dialog.clear()
+   637→      },
+   638→    },
+   639→    {
+   640→      title: t(
+   641→        nextThinkingMode(thinkingMode()) === "hide"
+   642→          ? "tui.command.session.thinking.collapse"
+   643→          : "tui.command.session.thinking.expand",
+   644→      ),
+   645→      value: "session.toggle.thinking",
+   646→      keybind: "display_thinking",
+   647→      category: "session",
+   648→      slash: {
+   649→        name: "thinking",
+   650→        aliases: ["toggle-thinking"],
+   651→      },
+   652→      onSelect: (dialog) => {
+   653→        thinking.set(nextThinkingMode(thinkingMode()))
+   654→        dialog.clear()
+   655→      },
+   656→    },
+   657→    {
+   658→      title: t(showDetails() ? "tui.command.session.tool_details.hide" : "tui.command.session.tool_details.show"),
+   659→      value: "session.toggle.actions",
+   660→      keybind: "tool_details",
+   661→      category: "session",
+   662→      onSelect: (dialog) => {
+   663→        setShowDetails((prev) => !prev)
+   664→        dialog.clear()
+   665→      },
+   666→    },
+   667→    {
+   668→      title: t("tui.command.session.scrollbar.toggle"),
+   669→      value: "session.toggle.scrollbar",
+   670→      keybind: "scrollbar_toggle",
+   671→      category: "session",
+   672→      onSelect: (dialog) => {
+   673→        setShowScrollbar((prev) => !prev)
+   674→        dialog.clear()
+   675→      },
+   676→    },
+   677→    {
+   678→      title: t(
+   679→        showGenericToolOutput()
+   680→          ? "tui.command.session.generic_tool_output.hide"
+   681→          : "tui.command.session.generic_tool_output.show",
+   682→      ),
+   683→      value: "session.toggle.generic_tool_output",
+   684→      category: "session",
+   685→      onSelect: (dialog) => {
+   686→        setShowGenericToolOutput((prev) => !prev)
+   687→        dialog.clear()
+   688→      },
+   689→    },
+   690→    {
+   691→      title: t("tui.command.session.page_up.title"),
+   692→      value: "session.page.up",
+   693→      keybind: "messages_page_up",
+   694→      category: "session",
+   695→      hidden: true,
+   696→      onSelect: (dialog) => {
+   697→        scroll.scrollBy(-scroll.height / 2)
+   698→        dialog.clear()
+   699→      },
+   700→    },
+   701→    {
+   702→      title: t("tui.command.session.page_down.title"),
+   703→      value: "session.page.down",
+   704→      keybind: "messages_page_down",
+   705→      category: "session",
+   706→      hidden: true,
+   707→      onSelect: (dialog) => {
+   708→        scroll.scrollBy(scroll.height / 2)
+   709→        dialog.clear()
+   710→      },
+   711→    },
+   712→    {
+   713→      title: t("tui.command.session.line_up.title"),
+   714→      value: "session.line.up",
+   715→      keybind: "messages_line_up",
+   716→      category: "session",
+   717→      disabled: true,
+   718→      onSelect: (dialog) => {
+   719→        scroll.scrollBy(-1)
+   720→        dialog.clear()
+   721→      },
+   722→    },
+   723→    {
+   724→      title: t("tui.command.session.line_down.title"),
+   725→      value: "session.line.down",
+   726→      keybind: "messages_line_down",
+   727→      category: "session",
+   728→      disabled: true,
+   729→      onSelect: (dialog) => {
+   730→        scroll.scrollBy(1)
+   731→        dialog.clear()
+   732→      },
+   733→    },
+   734→    {
+   735→      title: t("tui.command.session.half_page_up.title"),
+   736→      value: "session.half.page.up",
+   737→      keybind: "messages_half_page_up",
+   738→      category: "session",
+   739→      hidden: true,
+   740→      onSelect: (dialog) => {
+   741→        scroll.scrollBy(-scroll.height / 4)
+   742→        dialog.clear()
+   743→      },
+   744→    },
+   745→    {
+   746→      title: t("tui.command.session.half_page_down.title"),
+   747→      value: "session.half.page.down",
+   748→      keybind: "messages_half_page_down",
+   749→      category: "session",
+   750→      hidden: true,
+   751→      onSelect: (dialog) => {
+   752→        scroll.scrollBy(scroll.height / 4)
+   753→        dialog.clear()
+   754→      },
+   755→    },
+   756→    {
+   757→      title: t("tui.command.session.first.title"),
+   758→      value: "session.first",
+   759→      keybind: "messages_first",
+   760→      category: "session",
+   761→      hidden: true,
+   762→      onSelect: (dialog) => {
+   763→        scroll.scrollTo(0)
+   764→        dialog.clear()
+   765→      },
+   766→    },
+   767→    {
+   768→      title: t("tui.command.session.last.title"),
+   769→      value: "session.last",
+   770→      keybind: "messages_last",
+   771→      category: "session",
+   772→      hidden: true,
+   773→      onSelect: (dialog) => {
+   774→        scroll.scrollTo(scroll.scrollHeight)
+   775→        dialog.clear()
+   776→      },
+   777→    },
+   778→    {
+   779→      title: t("tui.command.session.last_user.title"),
+   780→      value: "session.messages_last_user",
+   781→      keybind: "messages_last_user",
+   782→      category: "session",
+   783→      hidden: true,
+   784→      onSelect: () => {
+   785→        const msgs = messages()
+   786→        if (!msgs || !msgs.length) return
+   787→
+   788→        // Find the most recent user message with non-ignored, non-synthetic text parts
+   789→        for (let i = msgs.length - 1; i >= 0; i--) {
+   790→          const message = msgs[i]
+   791→          if (!message || message.role !== "user") continue
+   792→
+   793→          const parts = sync.data.part[message.id]
+   794→          if (!parts || !Array.isArray(parts)) continue
+   795→
+   796→          const hasValidTextPart = parts.some(
+   797→            (part) => part && part.type === "text" && !part.synthetic && !part.ignored,
+   798→          )
+   799→
+   800→          if (hasValidTextPart) {
+   801→            const child = scroll.getChildren().find((child) => {
+   802→              return child.id === message.id
+   803→            })
+   804→            if (child) scroll.scrollBy(child.y - scroll.y - 1)
+   805→            break
+   806→          }
+   807→        }
+   808→      },
+   809→    },
+   810→    {
+   811→      title: t("tui.command.session.message_next.title"),
+   812→      value: "session.message.next",
+   813→      keybind: "messages_next",
+   814→      category: "session",
+   815→      hidden: true,
+   816→      onSelect: (dialog) => scrollToMessage("next", dialog),
+   817→    },
+   818→    {
+   819→      title: t("tui.command.session.message_previous.title"),
+   820→      value: "session.message.previous",
+   821→      keybind: "messages_previous",
+   822→      category: "session",
+   823→      hidden: true,
+   824→      onSelect: (dialog) => scrollToMessage("prev", dialog),
+   825→    },
+   826→    {
+   827→      title: t("tui.command.messages.copy.title"),
+   828→      value: "messages.copy",
+   829→      keybind: "messages_copy",
+   830→      category: "session",
+   831→      onSelect: (dialog) => {
+   832→        const revertID = session()?.revert?.messageID
+   833→        const lastAssistantMessage = messages().findLast(
+   834→          (msg) => msg.role === "assistant" && (!revertID || msg.id < revertID),
+   835→        )
+   836→        if (!lastAssistantMessage) {
+   837→          toast.show({ message: "No assistant messages found", variant: "error" })
+   838→          dialog.clear()
+   839→          return
+   840→        }
+   841→
+   842→        const parts = sync.data.part[lastAssistantMessage.id] ?? []
+   843→        const textParts = parts.filter((part) => part.type === "text")
+   844→        if (textParts.length === 0) {
+   845→          toast.show({ message: "No text parts found in last assistant message", variant: "error" })
+   846→          dialog.clear()
+   847→          return
+   848→        }
+   849→
+   850→        const text = textParts
+   851→          .map((part) => part.text)
+   852→          .join("\n")
+   853→          .trim()
+   854→        if (!text) {
+   855→          toast.show({
+   856→            message: "No text content found in last assistant message",
+   857→            variant: "error",
+   858→          })
+   859→          dialog.clear()
+   860→          return
+   861→        }
+   862→
+   863→        Clipboard.copy(text)
+   864→          .then(() => toast.show({ message: "Message copied to clipboard!", variant: "success" }))
+   865→          .catch(() => toast.show({ message: "Failed to copy to clipboard", variant: "error" }))
+   866→        dialog.clear()
+   867→      },
+   868→    },
+   869→    {
+   870→      title: t("tui.command.session.copy.title"),
+   871→      value: "session.copy",
+   872→      category: "session",
+   873→      slash: {
+   874→        name: "copy",
+   875→      },
+   876→      onSelect: async (dialog) => {
+   877→        try {
+   878→          const sessionData = session()
+   879→          if (!sessionData) return
+   880→          const sessionMessages = messages()
+   881→          const transcript = formatTranscript(
+   882→            sessionData,
+   883→            sessionMessages.map((msg) => ({ info: msg, parts: sync.data.part[msg.id] ?? [] })),
+   884→            {
+   885→              thinking: showThinking(),
+   886→              toolDetails: showDetails(),
+   887→              assistantMetadata: showAssistantMetadata(),
+   888→              providers: sync.data.provider,
+   889→            },
+   890→          )
+   891→          await Clipboard.copy(transcript)
+   892→          toast.show({ message: "Session transcript copied to clipboard!", variant: "success" })
+   893→        } catch {
+   894→          toast.show({ message: "Failed to copy session transcript", variant: "error" })
+   895→        }
+   896→        dialog.clear()
+   897→      },
+   898→    },
+   899→    {
+   900→      title: t("tui.command.session.export.title"),
+   901→      value: "session.export",
+   902→      keybind: "session_export",
+   903→      category: "session",
+   904→      slash: {
+   905→        name: "export",
+   906→      },
+   907→      onSelect: async (dialog) => {
+   908→        try {
+   909→          const sessionData = session()
+   910→          if (!sessionData) return
+   911→          const sessionMessages = messages()
+   912→
+   913→          const defaultFilename = `session-${sessionData.id.slice(0, 8)}.md`
+   914→
+   915→          const options = await DialogExportOptions.show(
+   916→            dialog,
+   917→            defaultFilename,
+   918→            showThinking(),
+   919→            showDetails(),
+   920→            showAssistantMetadata(),
+   921→            false,
+   922→          )
+   923→
+   924→          if (options === null) return
+   925→
+   926→          const transcript = formatTranscript(
+   927→            sessionData,
+   928→            sessionMessages.map((msg) => ({ info: msg, parts: sync.data.part[msg.id] ?? [] })),
+   929→            {
+   930→              thinking: options.thinking,
+   931→              toolDetails: options.toolDetails,
+   932→              assistantMetadata: options.assistantMetadata,
+   933→              providers: sync.data.provider,
+   934→            },
+   935→          )
+   936→
+   937→          if (options.openWithoutSaving) {
+   938→            // Just open in editor without saving
+   939→            await Editor.open({ value: transcript, renderer })
+   940→          } else {
+   941→            const exportDir = process.cwd()
+   942→            const filename = options.filename.trim()
+   943→            const filepath = path.join(exportDir, filename)
+   944→
+   945→            await Filesystem.write(filepath, transcript)
+   946→
+   947→            // Open with EDITOR if available
+   948→            const result = await Editor.open({ value: transcript, renderer })
+   949→            if (result !== undefined) {
+   950→              await Filesystem.write(filepath, result)
+   951→            }
+   952→
+   953→            toast.show({ message: `Session exported to ${filename}`, variant: "success" })
+   954→          }
+   955→        } catch {
+   956→          toast.show({ message: "Failed to export session", variant: "error" })
+   957→        }
+   958→        dialog.clear()
+   959→      },
+   960→    },
+   961→    {
+   962→      title: t("tui.command.session.child_first.title"),
+   963→      value: "session.child.first",
+   964→      keybind: "session_child_first",
+   965→      category: "session",
+   966→      hidden: true,
+   967→      onSelect: (dialog) => {
+   968→        moveFirstChild()
+   969→        dialog.clear()
+   970→      },
+   971→    },
+   972→    {
+   973→      title: t("tui.command.session.parent.title"),
+   974→      value: "session.parent",
+   975→      keybind: "session_parent",
+   976→      category: "session",
+   977→      hidden: true,
+   978→      enabled: currentAgentID() !== "main" || !!session()?.parentID,
+   979→      onSelect: (dialog) => {
+   980→        if (fullRoute.data.type === "session" && currentAgentID() !== "main") {
+   981→          navigate({ ...fullRoute.data, agentID: undefined })
+   982→          dialog.clear()
+   983→          return
+   984→        }
+   985→        const parentID = session()?.parentID
+   986→        if (parentID) {
+   987→          navigate({
+   988→            type: "session",
+   989→            sessionID: parentID,
+   990→          })
+   991→        }
+   992→        dialog.clear()
+   993→      },
+   994→    },
+   995→    {
+   996→      title: t("tui.command.session.child_next.title"),
+   997→      value: "session.child.next",
+   998→      keybind: "session_child_cycle",
+   999→      category: "session",
+  1000→      hidden: true,
+  1001→      onSelect: (dialog) => {
+  1002→        moveChild(1)
+  1003→        dialog.clear()
+  1004→      },
+  1005→    },
+  1006→    {
+  1007→      title: t("tui.command.session.child_previous.title"),
+  1008→      value: "session.child.previous",
+  1009→      keybind: "session_child_cycle_reverse",
+  1010→      category: "session",
+  1011→      hidden: true,
+  1012→      onSelect: (dialog) => {
+  1013→        moveChild(-1)
+  1014→        dialog.clear()
+  1015→      },
+  1016→    },
+  1017→  ])
+  1018→
+  1019→  const revertInfo = createMemo(() => session()?.revert)
+  1020→  const revertMessageID = createMemo(() => revertInfo()?.messageID)
+  1021→
+  1022→  const revertDiffFiles = createMemo(() => getRevertDiffFiles(revertInfo()?.diff ?? ""))
+  1023→
+  1024→  const revertRevertedMessages = createMemo(() => {
+  1025→    const messageID = revertMessageID()
+  1026→    if (!messageID) return []
+  1027→    return messages().filter((x) => x.id >= messageID && x.role === "user")
+  1028→  })
+  1029→
+  1030→  const revert = createMemo(() => {
+  1031→    const info = revertInfo()
+  1032→    if (!info) return
+  1033→    if (!info.messageID) return
+  1034→    return {
+  1035→      messageID: info.messageID,
+  1036→      reverted: revertRevertedMessages(),
+  1037→      diff: info.diff,
+  1038→      diffFiles: revertDiffFiles(),
+  1039→    }
+  1040→  })
+  1041→
+  1042→  // snap to bottom when session changes
+  1043→  createEffect(on(() => route.sessionID, toBottom))
+  1044→
+  1045→  return (
+  1046→    <context.Provider
+  1047→      value={{
+  1048→        get width() {
+  1049→          return contentWidth()
+  1050→        },
+  1051→        sessionID: route.sessionID,
+  1052→        conceal,
+  1053→        thinkingMode,
+  1054→        showThinking,
+  1055→        showTimestamps,
+  1056→        showDetails,
+  1057→        showGenericToolOutput,
+  1058→        diffWrapMode,
+  1059→        providers,
+  1060→        sync,
+  1061→        tui: tuiConfig,
+  1062→      }}
+  1063→    >
+  1064→      <box flexDirection="row">
+  1065→        <box flexGrow={1} paddingBottom={1} paddingLeft={2} paddingRight={2} gap={1} onMouse={onWheel}>
+  1066→          <Show when={session()}>
+  1067→            <scrollbox
+  1068→              ref={(r) => (scroll = r)}
+  1069→              viewportOptions={{
+  1070→                paddingRight: 1,
+  1071→              }}
+  1072→              verticalScrollbarOptions={{
+  1073→                paddingLeft: 1,
+  1074→                visible: true,
+  1075→                trackOptions: {
+  1076→                  backgroundColor: scrollbarVisible() ? theme.backgroundElement : theme.background,
+  1077→                  foregroundColor: scrollbarVisible() ? theme.border : theme.background,
+  1078→                },
+  1079→              }}
+  1080→              stickyScroll={true}
+  1081→              stickyStart="bottom"
+  1082→              flexGrow={1}
+  1083→              scrollAcceleration={scrollAcceleration()}
+  1084→            >
+  1085→              <box height={1} />
+  1086→              <For each={messages()}>
+  1087→                {(message, index) => (
+  1088→                  <Switch>
+  1089→                    <Match when={message.id === revert()?.messageID}>
+  1090→                      {(function () {
+  1091→                        const command = useCommandDialog()
+  1092→                        const [hover, setHover] = createSignal(false)
+  1093→                        const dialog = useDialog()
+  1094→
+  1095→                        const handleUnrevert = async () => {
+  1096→                          const confirmed = await DialogConfirm.show(
+  1097→                            dialog,
+  1098→                            "Confirm Redo",
+  1099→                            "Are you sure you want to restore the reverted messages?",
+  1100→                          )
+  1101→                          if (confirmed) {
+  1102→                            command.trigger("session.redo")
+  1103→                          }
+  1104→                        }
+  1105→
+  1106→                        return (
+  1107→                          <box
+  1108→                            onMouseOver={() => setHover(true)}
+  1109→                            onMouseOut={() => setHover(false)}
+  1110→                            onMouseUp={handleUnrevert}
+  1111→                            marginTop={1}
+  1112→                            flexShrink={0}
+  1113→                            border={["left"]}
+  1114→                            customBorderChars={SplitBorder.customBorderChars}
+  1115→                            borderColor={theme.backgroundPanel}
+  1116→                          >
+  1117→                            <box
+  1118→                              paddingTop={1}
+  1119→                              paddingBottom={1}
+  1120→                              paddingLeft={2}
+  1121→                              backgroundColor={hover() ? theme.backgroundElement : theme.backgroundPanel}
+  1122→                            >
+  1123→                              <text fg={theme.textMuted}>{revert()!.reverted.length} message reverted</text>
+  1124→                              <text fg={theme.textMuted}>
+  1125→                                <span style={{ fg: theme.text }}>{keybind.print("messages_redo")}</span> or /redo to
+  1126→                                restore
+  1127→                              </text>
+  1128→                              <Show when={revert()!.diffFiles?.length}>
+  1129→                                <box marginTop={1}>
+  1130→                                  <For each={revert()!.diffFiles}>
+  1131→                                    {(file) => (
+  1132→                                      <text fg={theme.text}>
+  1133→                                        {file.filename}
+  1134→                                        <Show when={file.additions > 0}>
+  1135→                                          <span style={{ fg: theme.diffAdded }}> +{file.additions}</span>
+  1136→                                        </Show>
+  1137→                                        <Show when={file.deletions > 0}>
+  1138→                                          <span style={{ fg: theme.diffRemoved }}> -{file.deletions}</span>
+  1139→                                        </Show>
+  1140→                                      </text>
+  1141→                                    )}
+  1142→                                  </For>
+  1143→                                </box>
+  1144→                              </Show>
+  1145→                            </box>
+  1146→                          </box>
+  1147→                        )
+  1148→                      })()}
+  1149→                    </Match>
+  1150→                    <Match when={revert()?.messageID && message.id >= revert()!.messageID}>
+  1151→                      <></>
+  1152→                    </Match>
+  1153→                    <Match when={message.role === "user"}>
+  1154→                      <UserMessage
+  1155→                        index={index()}
+  1156→                        onMouseUp={() => {
+  1157→                          if (renderer.getSelection()?.getSelectedText()) return
+  1158→                          dialog.replace(() => (
+  1159→                            <DialogMessage
+  1160→                              messageID={message.id}
+  1161→                              sessionID={route.sessionID}
+  1162→                              setPrompt={(promptInfo) => prompt?.set(promptInfo)}
+  1163→                            />
+  1164→                          ))
+  1165→                        }}
+  1166→                        message={message as UserMessage}
+  1167→                        parts={sync.data.part[message.id] ?? []}
+  1168→                        pending={pending()}
+  1169→                      />
+  1170→                    </Match>
+  1171→                    <Match when={message.role === "assistant"}>
+  1172→                      <AssistantMessage
+  1173→                        last={lastAssistant()?.id === message.id}
+  1174→                        message={message as AssistantMessage}
+  1175→                        parts={sync.data.part[message.id] ?? []}
+  1176→                      />
+  1177→                    </Match>
+  1178→                  </Switch>
+  1179→                )}
+  1180→              </For>
+  1181→            </scrollbox>
+  1182→            <box flexShrink={0}>
+  1183→              <Show when={permissions().length > 0}>
+  1184→                <PermissionPrompt request={permissions()[0]} />
+  1185→              </Show>
+  1186→              <Show when={permissions().length === 0 && questions().length > 0}>
+  1187→                <QuestionPrompt request={questions()[0]} />
+  1188→              </Show>
+  1189→              <Show when={session()?.parentID || currentAgentID() !== "main"}>
+  1190→                <SubagentFooter />
+  1191→              </Show>
+  1192→              <Show when={visible()}>
+  1193→                <TuiPluginRuntime.Slot
+  1194→                  name="session_prompt"
+  1195→                  mode="replace"
+  1196→                  session_id={route.sessionID}
+  1197→                  visible={visible()}
+  1198→                  disabled={disabled()}
+  1199→                  on_submit={toBottom}
+  1200→                  ref={bind}
+  1201→                >
+  1202→                  <Prompt
+  1203→                    visible={visible()}
+  1204→                    ref={bind}
+  1205→                    disabled={disabled()}
+  1206→                    onSubmit={() => {
+  1207→                      toBottom()
+  1208→                    }}
+  1209→                    sessionID={route.sessionID}
+  1210→                    right={<TuiPluginRuntime.Slot name="session_prompt_right" session_id={route.sessionID} />}
+  1211→                  />
+  1212→                </TuiPluginRuntime.Slot>
+  1213→              </Show>
+  1214→            </box>
+  1215→          </Show>
+  1216→          <Toast />
+  1217→        </box>
+  1218→        <Show when={sidebarVisible()}>
+  1219→          <Switch>
+  1220→            <Match when={wide()}>
+  1221→              <Sidebar sessionID={route.sessionID} />
+  1222→            </Match>
+  1223→            <Match when={!wide()}>
+  1224→              <box
+  1225→                position="absolute"
+  1226→                top={0}
+  1227→                left={0}
+  1228→                right={0}
+  1229→                bottom={0}
+  1230→                alignItems="flex-end"
+  1231→                backgroundColor={RGBA.fromInts(0, 0, 0, 70)}
+  1232→              >
+  1233→                <Sidebar sessionID={route.sessionID} />
+  1234→              </box>
+  1235→            </Match>
+  1236→          </Switch>
+  1237→        </Show>
+  1238→      </box>
+  1239→    </context.Provider>
+  1240→  )
+  1241→}
+  1242→
+  1243→const MIME_BADGE: Record<string, string> = {
+  1244→  "text/plain": "txt",
+  1245→  "image/png": "img",
+  1246→  "image/jpeg": "img",
+  1247→  "image/gif": "img",
+  1248→  "image/webp": "img",
+  1249→  "application/pdf": "pdf",
+  1250→  "application/x-directory": "dir",
+  1251→}
+  1252→
+  1253→function UserMessage(props: {
+  1254→  message: UserMessage
+  1255→  parts: Part[]
+  1256→  onMouseUp: () => void
+  1257→  index: number
+  1258→  pending?: string
+  1259→}) {
+  1260→  const ctx = use()
+  1261→  const local = useLocal()
+  1262→  const text = createMemo(() => props.parts.flatMap((x) => (x.type === "text" && !x.synthetic ? [x] : []))[0])
+  1263→  const files = createMemo(() => props.parts.flatMap((x) => (x.type === "file" ? [x] : [])))
+  1264→  const { theme } = useTheme()
+  1265→  const [hover, setHover] = createSignal(false)
+  1266→  const queued = createMemo(() => props.pending && props.message.id > props.pending)
+  1267→  const color = createMemo(() => local.agent.color(props.message.agent))
+  1268→  const queuedFg = createMemo(() => selectedForeground(theme, color()))
+  1269→  const metadataVisible = createMemo(() => queued() || ctx.showTimestamps())
+  1270→
+  1271→  return (
+  1272→    <>
+  1273→      <Show when={text()}>
+  1274→        <box
+  1275→          id={props.message.id}
+  1276→          border={["left"]}
+  1277→          borderColor={color()}
+  1278→          customBorderChars={SplitBorder.customBorderChars}
+  1279→          marginTop={props.index === 0 ? 0 : 1}
+  1280→        >
+  1281→          <box
+  1282→            onMouseOver={() => {
+  1283→              setHover(true)
+  1284→            }}
+  1285→            onMouseOut={() => {
+  1286→              setHover(false)
+  1287→            }}
+  1288→            onMouseUp={props.onMouseUp}
+  1289→            paddingTop={1}
+  1290→            paddingBottom={1}
+  1291→            paddingLeft={2}
+  1292→            backgroundColor={hover() ? theme.backgroundElement : theme.backgroundPanel}
+  1293→            flexShrink={0}
+  1294→          >
+  1295→            <text fg={theme.text}>{text()?.text}</text>
+  1296→            <Show when={files().length}>
+  1297→              <box flexDirection="row" paddingBottom={metadataVisible() ? 1 : 0} paddingTop={1} gap={1} flexWrap="wrap">
+  1298→                <For each={files()}>
+  1299→                  {(file) => {
+  1300→                    const bg = createMemo(() => {
+  1301→                      if (file.mime.startsWith("image/")) return theme.accent
+  1302→                      if (file.mime === "application/pdf") return theme.primary
+  1303→                      return theme.secondary
+  1304→                    })
+  1305→                    return (
+  1306→                      <text fg={theme.text}>
+  1307→                        <span style={{ bg: bg(), fg: theme.background }}> {MIME_BADGE[file.mime] ?? file.mime} </span>
+  1308→                        <span style={{ bg: theme.backgroundElement, fg: theme.textMuted }}> {file.filename} </span>
+  1309→                      </text>
+  1310→                    )
+  1311→                  }}
+  1312→                </For>
+  1313→              </box>
+  1314→            </Show>
+  1315→            <Show
+  1316→              when={queued()}
+  1317→              fallback={
+  1318→                <Show when={ctx.showTimestamps()}>
+  1319→                  <text fg={theme.textMuted}>
+  1320→                    <span style={{ fg: theme.textMuted }}>
+  1321→                      {Locale.todayTimeOrDateTime(props.message.time.created)}
+  1322→                    </span>
+  1323→                  </text>
+  1324→                </Show>
+  1325→              }
+  1326→            >
+  1327→              <text fg={theme.textMuted}>
+  1328→                <span style={{ bg: color(), fg: queuedFg(), bold: true }}> QUEUED </span>
+  1329→              </text>
+  1330→            </Show>
+  1331→          </box>
+  1332→        </box>
+  1333→      </Show>
+  1334→    </>
+  1335→  )
+  1336→}
+  1337→
+  1338→function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; last: boolean }) {
+  1339→  const ctx = use()
+  1340→  const local = useLocal()
+  1341→  const { theme } = useTheme()
+  1342→  const sync = useSync()
+  1343→  const messages = createMemo(() => sync.data.message[props.message.sessionID]?.[props.message.agentID ?? "main"] ?? [])
+  1344→  const model = createMemo(() => Model.name(ctx.providers(), props.message.providerID, props.message.modelID))
+  1345→
+  1346→  const final = createMemo(() => {
+  1347→    return props.message.finish && props.message.finish !== "tool-calls"
+  1348→  })
+  1349→
+  1350→  const duration = createMemo(() => {
+  1351→    if (!final()) return 0
+  1352→    if (!props.message.time.completed) return 0
+  1353→    const user = messages().find((x) => x.role === "user" && x.id === props.message.parentID)
+  1354→    if (!user || !user.time) return 0
+  1355→    return props.message.time.completed - user.time.created
+  1356→  })
+  1357→
+  1358→  const keybind = useKeybind()
+  1359→
+  1360→  // Goal judge verdict for this specific turn, if the stop-condition judge
+  1361→  // evaluated it. Rendered as a foldable per-turn marker so the user can trace
+  1362→  // back which turn failed the check — without polluting the message stream.
+  1363→  const verdict = createMemo(() => sync.data.session_goal?.[props.message.sessionID]?.verdicts?.[props.message.id])
+  1364→  const [verdictOpen, setVerdictOpen] = createSignal(false)
+  1365→  const verdictMark = createMemo(() => {
+  1366→    const v = verdict()
+  1367→    if (!v) return undefined
+  1368→    if (v.error) return { icon: "!", fg: theme.textMuted, label: "Judge: error (stopped)" }
+  1369→    if (v.ok) return { icon: "✓", fg: theme.success, label: "Judge: met" }
+  1370→    if (v.impossible) return { icon: "⊘", fg: theme.error, label: "Judge: impossible" }
+  1371→    return { icon: "⟳", fg: theme.warning, label: `Judge [round ${v.attempt}]: not met` }
+  1372→  })
+  1373→
+  1374→  return (
+  1375→    <>
+  1376→      <For each={props.parts}>
+  1377→        {(part, index) => {
+  1378→          const component = createMemo(() => PART_MAPPING[part.type as keyof typeof PART_MAPPING])
+  1379→          return (
+  1380→            <Show when={component()}>
+  1381→              <Dynamic
+  1382→                last={index() === props.parts.length - 1}
+  1383→                component={component()}
+  1384→                part={part as any}
+  1385→                message={props.message}
+  1386→              />
+  1387→            </Show>
+  1388→          )
+  1389→        }}
+  1390→      </For>
+  1391→      <Show when={props.parts.some((x) => x.type === "tool" && x.tool === "actor")}>
+  1392→        <box paddingTop={1} paddingLeft={3}>
+  1393→          <text fg={theme.text}>
+  1394→            {keybind.print("session_child_first")}
+  1395→            <span style={{ fg: theme.textMuted }}> view subagents</span>
+  1396→          </text>
+  1397→        </box>
+  1398→      </Show>
+  1399→      <Show when={props.message.error && props.message.error.name !== "MessageAbortedError"}>
+  1400→        <ErrorBlock error={props.message.error!} />
+  1401→      </Show>
+  1402→      <Switch>
+  1403→        <Match when={props.last || final() || props.message.error?.name === "MessageAbortedError"}>
+  1404→          <box paddingLeft={3}>
+  1405→            <text marginTop={1}>
+  1406→              <span
+  1407→                style={{
+  1408→                  fg:
+  1409→                    props.message.error?.name === "MessageAbortedError"
+  1410→                      ? theme.textMuted
+  1411→                      : local.agent.color(props.message.agent),
+  1412→                }}
+  1413→              >
+  1414→                ▣{" "}
+  1415→              </span>{" "}
+  1416→              <span style={{ fg: theme.text }}>{Locale.titlecase(props.message.mode)}</span>
+  1417→              <span style={{ fg: theme.textMuted }}> · {model()}</span>
+  1418→              <Show when={duration()}>
+  1419→                <span style={{ fg: theme.textMuted }}> · {Locale.duration(duration())}</span>
+  1420→              </Show>
+  1421→              <Show when={props.message.error?.name === "MessageAbortedError"}>
+  1422→                <span style={{ fg: theme.textMuted }}> · interrupted</span>
+  1423→              </Show>
+  1424→            </text>
+  1425→          </box>
+  1426→        </Match>
+  1427→      </Switch>
+  1428→      <Show when={verdictMark()}>
+  1429→        {(mark) => (
+  1430→          <box paddingLeft={3} onMouseUp={() => setVerdictOpen((x) => !x)}>
+  1431→            <text>
+  1432→              <span style={{ fg: theme.textMuted }}>{verdictOpen() ? "▼" : "▶"} </span>
+  1433→              <span style={{ fg: mark().fg }}>
+  1434→                {mark().icon} {mark().label}
+  1435→              </span>
+  1436→            </text>
+  1437→            <Show when={verdictOpen()}>
+  1438→              <box paddingLeft={2}>
+  1439→                <text fg={theme.textMuted} wrapMode="word">
+  1440→                  {verdict()!.reason}
+  1441→                </text>
+  1442→              </box>
+  1443→            </Show>
+  1444→          </box>
+  1445→        )}
+  1446→      </Show>
+  1447→    </>
+  1448→  )
+  1449→}
+  1450→
+  1451→const PART_MAPPING = {
+  1452→  text: TextPart,
+  1453→  tool: ToolPart,
+  1454→  reasoning: ReasoningPart,
+  1455→}
+  1456→
+  1457→type MessageError = NonNullable<AssistantMessage["error"]>
+  1458→
+  1459→function errorBody(error: MessageError): string {
+  1460→  if (error.name === "MessageOutputLengthError") return "Output length limit reached"
+  1461→  return (error.data as { message?: string }).message ?? "Unknown error"
+  1462→}
+  1463→
+  1464→function errorMeta(error: MessageError): string | undefined {
+  1465→  if (error.name === "APIError") {
+  1466→    const parts: string[] = []
+  1467→    if (error.data.statusCode !== undefined) parts.push(`status ${error.data.statusCode}`)
+  1468→    parts.push(error.data.isRetryable ? "retryable" : "non-retryable")
+  1469→    return parts.join(" · ")
+  1470→  }
+  1471→  if (error.name === "ProviderAuthError") return `provider: ${error.data.providerID}`
+  1472→  if (error.name === "StructuredOutputError") return `retries: ${error.data.retries}`
+  1473→  return undefined
+  1474→}
+  1475→
+  1476→function ErrorBlock(props: { error: MessageError }) {
+  1477→  const { theme } = useTheme()
+  1478→  const meta = createMemo(() => errorMeta(props.error))
+  1479→  return (
+  1480→    <box flexDirection="column" paddingLeft={3} marginTop={1}>
+  1481→      <text fg={theme.error} wrapMode="word">
+  1482→        <span style={{ fg: theme.error }}>✗  </span>
+  1483→        {errorBody(props.error)}
+  1484→      </text>
+  1485→      <Show when={meta()}>
+  1486→        <box paddingLeft={3}>
+  1487→          <text fg={theme.textMuted} wrapMode="word">
+  1488→            {meta()}
+  1489→          </text>
+  1490→        </box>
+  1491→      </Show>
+  1492→    </box>
+  1493→  )
+  1494→}
+  1495→
+  1496→function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: AssistantMessage }) {
+  1497→  const { theme, subtleSyntax } = useTheme()
+  1498→  const ctx = use()
+  1499→  const [expanded, setExpanded] = createSignal(false)
+  1500→
+  1501→  const content = createMemo(() => {
+  1502→    return props.part.text.replace("[REDACTED]", "").trim()
+  1503→  })
+  1504→  const isDone = createMemo(() => props.part.time.end !== undefined)
+  1505→  const inMinimal = createMemo(() => ctx.thinkingMode() === "hide")
+  1506→  const duration = createMemo(() => {
+  1507→    const end = props.part.time.end
+  1508→    return end === undefined ? 0 : Math.max(0, end - props.part.time.start)
+  1509→  })
+  1510→  const summary = createMemo(() => reasoningSummary(content()))
+  1511→
+  1512→  const toggle = () => {
+  1513→    if (!inMinimal()) return
+  1514→    setExpanded((prev) => !prev)
+  1515→  }
+  1516→
+  1517→  return (
+  1518→    <Show when={content()}>
+  1519→      <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexDirection="column" flexShrink={0}>
+  1520→        <box onMouseUp={toggle}>
+  1521→          <ReasoningHeader
+  1522→            toggleable={inMinimal()}
+  1523→            open={!inMinimal() || expanded()}
+  1524→            done={isDone()}
+  1525→            title={summary().title}
+  1526→            duration={isDone() ? Locale.duration(duration()) : undefined}
+  1527→          />
+  1528→        </box>
+  1529→        <Show when={(!inMinimal() || expanded()) && summary().body}>
+  1530→          <box paddingLeft={inMinimal() ? 2 : 0} marginTop={1}>
+  1531→            <code
+  1532→              filetype="markdown"
+  1533→              drawUnstyledText={false}
+  1534→              streaming={true}
+  1535→              syntaxStyle={subtleSyntax()}
+  1536→              content={summary().body}
+  1537→              conceal={ctx.conceal()}
+  1538→              fg={theme.textMuted}
+  1539→            />
+  1540→          </box>
+  1541→        </Show>
+  1542→      </box>
+  1543→    </Show>
+  1544→  )
+  1545→}
+  1546→
+  1547→function ReasoningHeader(props: {
+  1548→  toggleable: boolean
+  1549→  open: boolean
+  1550→  done: boolean
+  1551→  title: string | null
+  1552→  duration?: string
+  1553→}) {
+  1554→  const { theme } = useTheme()
+  1555→  const fg = () =>
+  1556→    props.open
+  1557→      ? RGBA.fromValues(theme.warning.r, theme.warning.g, theme.warning.b, theme.thinkingOpacity)
+  1558→      : theme.warning
+  1559→
+  1560→  return (
+  1561→    <Switch>
+  1562→      <Match when={!props.done}>
+  1563→        <box flexDirection="row">
+  1564→          <Spinner color={fg()}>{props.title ? "Thinking: " + props.title : "Thinking"}</Spinner>
+  1565→        </box>
+  1566→      </Match>
+  1567→      <Match when={true}>
+  1568→        <text fg={fg()} wrapMode="none">
+  1569→          <Show when={props.toggleable}>
+  1570→            <span>{props.open ? "- " : "+ "}</span>
+  1571→          </Show>
+  1572→          <span>Thought</span>
+  1573→          <Show when={props.title || props.duration}>
+  1574→            <span>: </span>
+  1575→          </Show>
+  1576→          <Show when={props.title}>
+  1577→            <span>{props.title}</span>
+  1578→          </Show>
+  1579→          <Show when={props.duration}>
+  1580→            <span>
+  1581→              {props.title ? " · " : ""}
+  1582→              {props.duration}
+  1583→            </span>
+  1584→          </Show>
+  1585→        </text>
+  1586→      </Match>
+  1587→    </Switch>
+  1588→  )
+  1589→}
+  1590→
+  1591→function TextPart(props: { last: boolean; part: TextPart; message: AssistantMessage }) {
+  1592→  const ctx = use()
+  1593→  const { theme, syntax } = useTheme()
+  1594→  return (
+  1595→    <Show when={props.part.text.trim()}>
+  1596→      <box id={"text-" + props.part.id} paddingLeft={3} marginTop={1} flexShrink={0}>
+  1597→        <Switch>
+  1598→          <Match when={Flag.MIMOCODE_EXPERIMENTAL_MARKDOWN}>
+  1599→            <markdown
+  1600→              syntaxStyle={syntax()}
+  1601→              streaming={true}
+  1602→              content={props.part.text.trim()}
+  1603→              conceal={ctx.conceal()}
+  1604→              fg={theme.markdownText}
+  1605→              bg={theme.background}
+  1606→            />
+  1607→          </Match>
+  1608→          <Match when={!Flag.MIMOCODE_EXPERIMENTAL_MARKDOWN}>
+  1609→            <code
+  1610→              filetype="markdown"
+  1611→              drawUnstyledText={false}
+  1612→              streaming={true}
+  1613→              syntaxStyle={syntax()}
+  1614→              content={props.part.text.trim()}
+  1615→              conceal={ctx.conceal()}
+  1616→              fg={theme.text}
+  1617→            />
+  1618→          </Match>
+  1619→        </Switch>
+  1620→      </box>
+  1621→    </Show>
+  1622→  )
+  1623→}
+  1624→
+  1625→// Pending messages moved to individual tool pending functions
+  1626→
+  1627→function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMessage }) {
+  1628→  const ctx = use()
+  1629→  const sync = useSync()
+  1630→
+  1631→  // Hide tool if showDetails is false and tool completed successfully
+  1632→  const shouldHide = createMemo(() => {
+  1633→    if (ctx.showDetails()) return false
+  1634→    if (props.part.state.status !== "completed") return false
+  1635→    return true
+  1636→  })
+  1637→
+  1638→  const toolprops = {
+  1639→    get metadata() {
+  1640→      return props.part.state.status === "pending" ? {} : (props.part.state.metadata ?? {})
+  1641→    },
+  1642→    get input() {
+  1643→      return props.part.state.input ?? {}
+  1644→    },
+  1645→    get output() {
+  1646→      return props.part.state.status === "completed" ? props.part.state.output : undefined
+  1647→    },
+  1648→    get permission() {
+  1649→      const permissions = sync.data.permission[props.message.sessionID] ?? []
+  1650→      const permissionIndex = permissions.findIndex((x) => x.tool?.callID === props.part.callID)
+  1651→      return permissions[permissionIndex]
+  1652→    },
+  1653→    get tool() {
+  1654→      return props.part.tool
+  1655→    },
+  1656→    get part() {
+  1657→      return props.part
+  1658→    },
+  1659→  }
+  1660→
+  1661→  return (
+  1662→    <Show when={!shouldHide()}>
+  1663→      <Switch>
+  1664→        <Match when={props.part.tool === "bash"}>
+  1665→          <Bash {...toolprops} />
+  1666→        </Match>
+  1667→        <Match when={props.part.tool === "glob"}>
+  1668→          <Glob {...toolprops} />
+  1669→        </Match>
+  1670→        <Match when={props.part.tool === "read"}>
+  1671→          <Read {...toolprops} />
+  1672→        </Match>
+  1673→        <Match when={props.part.tool === "grep"}>
+  1674→          <Grep {...toolprops} />
+  1675→        </Match>
+  1676→        <Match when={props.part.tool === "webfetch"}>
+  1677→          <WebFetch {...toolprops} />
+  1678→        </Match>
+  1679→        <Match when={props.part.tool === "codesearch"}>
+  1680→          <CodeSearch {...toolprops} />
+  1681→        </Match>
+  1682→        <Match when={props.part.tool === "websearch"}>
+  1683→          <WebSearch {...toolprops} />
+  1684→        </Match>
+  1685→        <Match when={props.part.tool === "write"}>
+  1686→          <Write {...toolprops} />
+  1687→        </Match>
+  1688→        <Match when={props.part.tool === "edit"}>
+  1689→          <Edit {...toolprops} />
+  1690→        </Match>
+  1691→        <Match when={props.part.tool === "actor"}>
+  1692→          <Task {...toolprops} />
+  1693→        </Match>
+  1694→        <Match when={props.part.tool === "task"}>
+  1695→          <WorkItemTask {...toolprops} />
+  1696→        </Match>
+  1697→        <Match when={props.part.tool === "apply_patch"}>
+  1698→          <ApplyPatch {...toolprops} />
+  1699→        </Match>
+  1700→        <Match when={props.part.tool === "question"}>
+  1701→          <Question {...toolprops} />
+  1702→        </Match>
+  1703→        <Match when={props.part.tool === "skill"}>
+  1704→          <Skill {...toolprops} />
+  1705→        </Match>
+  1706→        <Match when={props.part.tool === "plan_exit"}>
+  1707→          <PlanExit {...toolprops} />
+  1708→        </Match>
+  1709→        <Match when={true}>
+  1710→          <GenericTool {...toolprops} />
+  1711→        </Match>
+  1712→      </Switch>
+  1713→    </Show>
+  1714→  )
+  1715→}
+  1716→
+  1717→type ToolProps<T> = {
+  1718→  input: Partial<Tool.InferParameters<T>>
+  1719→  metadata: Partial<Tool.InferMetadata<T>>
+  1720→  permission: Record<string, any>
+  1721→  tool: string
+  1722→  output?: string
+  1723→  part: ToolPart
+  1724→}
+  1725→function PlanExit(props: ToolProps<any>) {
+  1726→  const { theme } = useTheme()
+  1727→  const dismissed = createMemo(
+  1728→    () => props.part.state.status === "completed" && props.part.state.metadata?.switched === false,
+  1729→  )
+  1730→  const feedback = createMemo(() => (dismissed() ? props.metadata.feedback : undefined))
+  1731→
+  1732→  return (
+  1733→    <>
+  1734→      <InlineTool icon="⚙" pending="Asking..." complete={true} part={props.part} dismissed={dismissed()}>
+  1735→        plan_exit
+  1736→      </InlineTool>
+  1737→      <Show when={feedback()}>
+  1738→        <box paddingLeft={6}>
+  1739→          <text fg={theme.textMuted}>{feedback()}</text>
+  1740→        </box>
+  1741→      </Show>
+  1742→    </>
+  1743→  )
+  1744→}
+  1745→
+  1746→function GenericTool(props: ToolProps<any>) {
+  1747→  const { theme } = useTheme()
+  1748→  const ctx = use()
+  1749→  const output = createMemo(() => props.output?.trim() ?? "")
+  1750→  const [expanded, setExpanded] = createSignal(false)
+  1751→  const lines = createMemo(() => output().split("\n"))
+  1752→  const maxLines = 3
+  1753→  const overflow = createMemo(() => lines().length > maxLines)
+  1754→  const limited = createMemo(() => {
+  1755→    if (expanded() || !overflow()) return output()
+  1756→    return [...lines().slice(0, maxLines), "…"].join("\n")
+  1757→  })
+  1758→
+  1759→  return (
+  1760→    <Show
+  1761→      when={props.output && ctx.showGenericToolOutput()}
+  1762→      fallback={
+  1763→        <InlineTool icon="⚙" pending="Writing command..." complete={true} part={props.part}>
+  1764→          {props.tool} {input(props.input)}
+  1765→        </InlineTool>
+  1766→      }
+  1767→    >
+  1768→      <BlockTool
+  1769→        title={`# ${props.tool} ${input(props.input)}`}
+  1770→        part={props.part}
+  1771→        onClick={overflow() ? () => setExpanded((prev) => !prev) : undefined}
+  1772→      >
+  1773→        <box gap={1}>
+  1774→          <text fg={theme.text}>{limited()}</text>
+  1775→          <Show when={overflow()}>
+  1776→            <text fg={theme.textMuted}>{expanded() ? "Click to collapse" : "Click to expand"}</text>
+  1777→          </Show>
+  1778→        </box>
+  1779→      </BlockTool>
+  1780→    </Show>
+  1781→  )
+  1782→}
+  1783→
+  1784→// Inline renderer for the work-item `task` tool (distinct from <Task>, which
+  1785→// renders the subagent-spawning `actor` tool). Shows the operation as a concise
+  1786→// one-liner derived from the nested `{ operation: { action } }` discriminator,
+  1787→// so task create/start/done don't fall through to GenericTool's raw-JSON dump.
+  1788→function WorkItemTask(props: ToolProps<typeof TaskTool>) {
+  1789→  const summary = createMemo(() => {
+  1790→    const op = (props.input as { operation?: Record<string, any> }).operation
+  1791→    if (!op || typeof op !== "object") return "task"
+  1792→    const verb = typeof op.action === "string" ? op.action : "task"
+  1793→    if (verb === "create") return op.summary ? `create "${op.summary}"` : "create"
+  1794→    if (verb === "list") return op.status ? `list ${op.status}` : "list"
+  1795→    if (op.id) return `${verb} ${op.id}`
+  1796→    return verb
+  1797→  })
+  1798→  return (
+  1799→    <InlineTool icon="#" pending="Updating tasks..." complete={true} part={props.part}>
+  1800→      task {summary()}
+  1801→    </InlineTool>
+  1802→  )
+  1803→}
+  1804→
+  1805→function CollapsibleError(props: { error: string; paddingLeft?: number }) {
+  1806→  const { theme } = useTheme()
+  1807→  const renderer = useRenderer()
+  1808→  const [expanded, setExpanded] = createSignal(false)
+  1809→
+  1810→
+  1811→  const lineCount = createMemo(() => props.error.split("\n").length)
+  1812→
+  1813→  return (
+  1814→    <box
+  1815→      paddingLeft={props.paddingLeft}
+  1816→      onMouseUp={(evt) => {
+  1817→        evt.stopPropagation()
+  1818→        if (renderer.getSelection()?.getSelectedText()) return
+  1819→        setExpanded((prev) => !prev)
+  1820→      }}
+  1821→    >
+  1822→      <Show
+  1823→        when={expanded()}
+  1824→        fallback={
+  1825→          <text fg={theme.error}>
+  1826→            + Error ({lineCount()} {lineCount() === 1 ? "line" : "lines"})
+  1827→          </text>
+  1828→        }
+  1829→      >
+  1830→        <text fg={theme.error}>- Error</text>
+  1831→        <box paddingLeft={2}>
+  1832→          <text fg={theme.error}>{props.error}</text>
+  1833→        </box>
+  1834→      </Show>
+  1835→    </box>
+  1836→  )
+  1837→}
+  1838→
+  1839→function InlineTool(props: {
+  1840→  icon: string
+  1841→  iconColor?: RGBA
+  1842→  complete: any
+  1843→  pending: string
+  1844→  spinner?: boolean
+  1845→  dismissed?: boolean
+  1846→  children: JSX.Element
+  1847→  part: ToolPart
+  1848→  onClick?: () => void
+  1849→}) {
+  1850→  const [margin, setMargin] = createSignal(0)
+  1851→  const { theme } = useTheme()
+  1852→  const ctx = use()
+  1853→  const sync = useSync()
+  1854→  const renderer = useRenderer()
+  1855→  const [hover, setHover] = createSignal(false)
+  1856→
+  1857→  const permission = createMemo(() => {
+  1858→    const callID = sync.data.permission[ctx.sessionID]?.at(0)?.tool?.callID
+  1859→    if (!callID) return false
+  1860→    return callID === props.part.callID
+  1861→  })
+  1862→
+  1863→  const fg = createMemo(() => {
+  1864→    if (permission()) return theme.warning
+  1865→    if (hover() && props.onClick) return theme.text
+  1866→    if (props.complete) return theme.textMuted
+  1867→    return theme.text
+  1868→  })
+  1869→
+  1870→  const error = createMemo(() => (props.part.state.status === "error" ? props.part.state.error : undefined))
+  1871→
+  1872→  const denied = createMemo(
+  1873→    () =>
+  1874→      error()?.includes("QuestionRejectedError") ||
+  1875→      error()?.includes("rejected permission") ||
+  1876→      error()?.includes("specified a rule") ||
+  1877→      error()?.includes("user dismissed"),
+  1878→  )
+  1879→
+  1880→  return (
+  1881→    <box
+  1882→      marginTop={margin()}
+  1883→      paddingLeft={3}
+  1884→      onMouseOver={() => props.onClick && setHover(true)}
+  1885→      onMouseOut={() => setHover(false)}
+  1886→      onMouseUp={() => {
+  1887→        if (renderer.getSelection()?.getSelectedText()) return
+  1888→        props.onClick?.()
+  1889→      }}
+  1890→      renderBefore={function () {
+  1891→        const el = this as BoxRenderable
+  1892→        const parent = el.parent
+  1893→        if (!parent) {
+  1894→          return
+  1895→        }
+  1896→        if (el.height > 1) {
+  1897→          setMargin(1)
+  1898→          return
+  1899→        }
+  1900→        const children = parent.getChildren()
+  1901→        const index = children.indexOf(el)
+  1902→        const previous = children[index - 1]
+  1903→        if (!previous) {
+  1904→          setMargin(0)
+  1905→          return
+  1906→        }
+  1907→        if (previous.height > 1 || previous.id.startsWith("text-")) {
+  1908→          setMargin(1)
+  1909→          return
+  1910→        }
+  1911→      }}
+  1912→    >
+  1913→      <Switch>
+  1914→        <Match when={props.spinner}>
+  1915→          <Spinner color={fg()} children={props.children} />
+  1916→        </Match>
+  1917→        <Match when={true}>
+  1918→          <text paddingLeft={3} fg={fg()} attributes={denied() || props.dismissed ? TextAttributes.STRIKETHROUGH : undefined}>
+  1919→            <Show fallback={<>~ {props.pending}</>} when={props.complete}>
+  1920→              <span style={{ fg: props.iconColor }}>{props.icon}</span> {props.children}
+  1921→            </Show>
+  1922→          </text>
+  1923→        </Match>
+  1924→      </Switch>
+  1925→      <Show when={error() && !denied()}>
+  1926→        <CollapsibleError error={error()!} paddingLeft={3} />
+  1927→      </Show>
+  1928→    </box>
+  1929→  )
+  1930→}
+  1931→
+  1932→function BlockTool(props: {
+  1933→  title: string
+  1934→  children: JSX.Element
+  1935→  onClick?: () => void
+  1936→  part?: ToolPart
+  1937→  spinner?: boolean
+  1938→}) {
+  1939→  const { theme } = useTheme()
+  1940→  const renderer = useRenderer()
+  1941→  const [hover, setHover] = createSignal(false)
+  1942→  const error = createMemo(() => (props.part?.state.status === "error" ? props.part.state.error : undefined))
+  1943→  return (
+  1944→    <box
+  1945→      border={["left"]}
+  1946→      paddingTop={1}
+  1947→      paddingBottom={1}
+  1948→      paddingLeft={2}
+  1949→      marginTop={1}
+  1950→      gap={1}
+  1951→      backgroundColor={hover() ? theme.backgroundMenu : theme.backgroundPanel}
+  1952→      customBorderChars={SplitBorder.customBorderChars}
+  1953→      borderColor={theme.background}
+  1954→      onMouseOver={() => props.onClick && setHover(true)}
+  1955→      onMouseOut={() => setHover(false)}
+  1956→      onMouseUp={() => {
+  1957→        if (renderer.getSelection()?.getSelectedText()) return
+  1958→        props.onClick?.()
+  1959→      }}
+  1960→    >
+  1961→      <Show
+  1962→        when={props.spinner}
+  1963→        fallback={
+  1964→          <text paddingLeft={3} fg={theme.textMuted}>
+  1965→            {props.title}
+  1966→          </text>
+  1967→        }
+  1968→      >
+  1969→        <Spinner color={theme.textMuted}>{props.title.replace(/^# /, "")}</Spinner>
+  1970→      </Show>
+  1971→      {props.children}
+  1972→      <Show when={error()}>
+  1973→        <CollapsibleError error={error()!} />
+  1974→      </Show>
+  1975→    </box>
+  1976→  )
+  1977→}
+  1978→
+  1979→const TOOL_COLLAPSE_MAX_LINES = 3
+  1980→const TOOL_COLLAPSE_MAX_LINE_LENGTH = 120
+  1981→
+  1982→function displayLines(content: string) {
+  1983→  if (!content) return []
+  1984→  return content.replace(/\n$/, "").split("\n")
+  1985→}
+  1986→
+  1987→function hasLongDisplayLine(content: string) {
+  1988→  return displayLines(content).some((line) => line.length > TOOL_COLLAPSE_MAX_LINE_LENGTH)
+  1989→}
+  1990→
+  1991→function Bash(props: ToolProps<typeof BashTool>) {
+  1992→  const { theme } = useTheme()
+  1993→  const sync = useSync()
+  1994→  const isRunning = createMemo(() => props.part.state.status === "running")
+  1995→  const output = createMemo(() => stripAnsi(props.metadata.output?.trim() ?? ""))
+  1996→  const [expanded, setExpanded] = createSignal(false)
+  1997→  const lines = createMemo(() => output().split("\n"))
+  1998→  const overflow = createMemo(() => lines().length > 10)
+  1999→  const limited = createMemo(() => {
+  2000→    if (expanded() || !overflow()) return output()
+
+[showing lines 1-2000 of 2533; use offset=2001 with limit to continue reading]
