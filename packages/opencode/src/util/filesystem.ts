@@ -183,10 +183,14 @@ export async function findUp(
   stop?: string,
   options?: { rootFirst?: boolean },
 ) {
+  // Normalize stop path so the boundary comparison works on Windows
+  // where drive-letter casing and separator style may differ between
+  // the worktree (from git/config) and dirname() output.
+  const normalizedStop = stop ? pathResolve(stop) : undefined
   const dirs = [start]
   let current = start
   while (true) {
-    if (stop === current) break
+    if (normalizedStop && pathResolve(current) === normalizedStop) break
     const parent = dirname(current)
     if (parent === current) break
     dirs.push(parent)
@@ -206,13 +210,14 @@ export async function findUp(
 
 export async function* up(options: { targets: string[]; start: string; stop?: string }) {
   const { targets, start, stop } = options
+  const normalizedStop = stop ? pathResolve(stop) : undefined
   let current = start
   while (true) {
     for (const target of targets) {
       const search = join(current, target)
       if (await exists(search)) yield search
     }
-    if (stop === current) break
+    if (normalizedStop && pathResolve(current) === normalizedStop) break
     const parent = dirname(current)
     if (parent === current) break
     current = parent
@@ -220,6 +225,7 @@ export async function* up(options: { targets: string[]; start: string; stop?: st
 }
 
 export async function globUp(pattern: string, start: string, stop?: string) {
+  const normalizedStop = stop ? pathResolve(stop) : undefined
   let current = start
   const result = []
   while (true) {
@@ -234,7 +240,7 @@ export async function globUp(pattern: string, start: string, stop?: string) {
     } catch {
       // Skip invalid glob patterns
     }
-    if (stop === current) break
+    if (normalizedStop && pathResolve(current) === normalizedStop) break
     const parent = dirname(current)
     if (parent === current) break
     current = parent

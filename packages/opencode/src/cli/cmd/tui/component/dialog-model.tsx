@@ -10,7 +10,6 @@ import { useKeybind } from "../context/keybind"
 import { useSDK } from "../context/sdk"
 import { useToast, type ToastContext } from "../ui/toast"
 import { DialogPrompt } from "../ui/dialog-prompt"
-import * as fuzzysort from "fuzzysort"
 
 const ADD_MODEL_SENTINEL = "__add_model__"
 
@@ -141,13 +140,6 @@ export function DialogModel(props: { providerID?: string }) {
         )
       : []
 
-    if (needle) {
-      return [
-        ...fuzzysort.go(needle, providerOptions, { keys: ["title", "category"] }).map((x) => x.obj),
-        ...fuzzysort.go(needle, popularProviders, { keys: ["title"] }).map((x) => x.obj),
-      ]
-    }
-
     return [...favoriteOptions, ...recentOptions, ...providerOptions, ...popularProviders]
   })
 
@@ -200,7 +192,6 @@ export function DialogModel(props: { providerID?: string }) {
       ]}
       onFilter={setQuery}
       flat={true}
-      skipFilter={true}
       title={title()}
       current={local.model.current()}
     />
