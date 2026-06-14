@@ -105,6 +105,10 @@ export function Prompt(props: PromptProps) {
   let input: TextareaRenderable
   let anchor: BoxRenderable
   let autocomplete: AutocompleteRef
+  // Guard flag to suppress autocomplete API calls during paste processing.
+  // Prevents rapid fire sdk.client.find.files() calls when pasted text
+  // contains "@" or "$" triggers (fixes #579).
+  let isPasting = false
 
   const keybind = useKeybind()
   const local = useLocal()
@@ -1154,6 +1158,7 @@ export function Prompt(props: PromptProps) {
   const exit = useExit()
 
   function pasteText(text: string, virtualText: string) {
+    isPasting = true
     const currentOffset = input.visualCursor.offset
     const extmarkStart = currentOffset
     const extmarkEnd = extmarkStart + virtualText.length
@@ -1185,6 +1190,12 @@ export function Prompt(props: PromptProps) {
         draft.extmarkToPartIndex.set(extmarkId, partIndex)
       }),
     )
+    // Re-enable autocomplete after paste is fully processed
+    setTimeout(() => {
+      if (!input || input.isDestroyed) return
+      isPasting = false
+      autocomplete.onInput(input.plainText)
+    }, 0)
   }
 
   async function pastePlainText(normalizedText: string) {
@@ -1237,12 +1248,16 @@ export function Prompt(props: PromptProps) {
       return
     }
 
+    isPasting = true
     input.insertText(normalizedText)
 
     // Force layout update and render for the pasted content
     setTimeout(() => {
       // setTimeout is a workaround and needs to be addressed properly
       if (!input || input.isDestroyed) return
+      isPasting = false
+      // Run a single autocomplete check with the final pasted content
+      autocomplete.onInput(input.plainText)
       input.getLayoutNode().markDirty()
       renderer.requestRender()
     }, 0)
@@ -1424,7 +1439,10 @@ export function Prompt(props: PromptProps) {
                 const value = input.plainText
                 if (value !== "" && ghost()) setGhost("")
                 setStore("prompt", "input", value)
-                autocomplete.onInput(value)
+                // Skip autocomplete during paste to avoid rapid API calls (fixes #579)
+                if (!isPasting) {
+                  autocomplete.onInput(value)
+                }
                 syncExtmarksWithPromptParts()
               }}
               keyBindings={textareaKeybindings()}
