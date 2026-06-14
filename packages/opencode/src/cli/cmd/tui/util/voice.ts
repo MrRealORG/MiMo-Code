@@ -38,10 +38,17 @@ const RECORDERS: Record<string, Array<() => Recorder | null>> = {
 }
 
 let cachedRecorder: Recorder | null | undefined
+let extraRecorders: Array<() => Recorder | null> = []
+
+/** Register an additional recorder (e.g. a downloaded ffmpeg binary). */
+export function registerExtraRecorder(factory: () => Recorder | null) {
+  extraRecorders.push(factory)
+  cachedRecorder = undefined // invalidate cache
+}
 
 function detectRecorder(): Recorder | null {
   if (cachedRecorder !== undefined) return cachedRecorder
-  const candidates = RECORDERS[process.platform] ?? []
+  const candidates = [...(RECORDERS[process.platform] ?? []), ...extraRecorders]
   for (const factory of candidates) {
     const recorder = factory()
     if (recorder) {

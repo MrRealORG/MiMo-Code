@@ -9,12 +9,12 @@
  *   const text = await LocalWhisper.transcribe(audioInt16Array)
  */
 
-import { existsSync, mkdirSync, chmodSync, statSync, writeFileSync, unlinkSync, renameSync, createWriteStream } from "node:fs"
+import { existsSync, mkdirSync, chmodSync, statSync, writeFileSync, unlinkSync, renameSync, createWriteStream, readdirSync, rmSync } from "node:fs"
 import { homedir, tmpdir, platform, arch, cpus } from "node:os"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
 import { Process } from "@/util"
-import { encodeWav, isAvailable as isRecorderAvailable, resetRecorderCache } from "./voice"
+import { encodeWav, isAvailable as isRecorderAvailable, registerExtraRecorder } from "./voice"
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -68,52 +68,179 @@ export type SetupProgress = {
 }
 
 // ---------------------------------------------------------------------------
-// Auto-install recorder (SoX) via system package manager
+// Portable ffmpeg recorder download
 // ---------------------------------------------------------------------------
 
-async function autoInstallRecorder(onProgress?: (msg: string) => void): Promise<boolean> {
+function getFFmpegBinName(): string {
+  if (platform() === "win32") return "ffmpeg.exe"
+  return "ffmpeg"
+}
+
+function getFFmpegBinPath(): string {
+  return join(VOICE_DIR, getFFmpegBinName())
+}
+
+function isFFmpegDownloaded(): boolean {
+  const p = getFFmpegBinPath()
+  return existsSync(p) && statSync(p).size > 1_000_000
+}
+
+function getFFmpegDownloadURLs(): string[] {
   const p = platform()
+  const a = arch() === "arm64" || arch() === "aarch64" ? "arm64" : "amd64"
 
-  // Build the install command based on platform
-  let cmd: string[]
-  let label: string
-
+  if (p === "darwin") {
+    return [
+      "https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip",
+      "https://evermeet.cx/ffmpeg/getrelease/ffmpeg",
+    ]
+  }
   if (p === "linux") {
-    cmd = ["sudo", "-n", "apt-get", "install", "-y", "sox"]
-    label = "SoX (apt)"
-  } else if (p === "darwin") {
-    cmd = ["brew", "install", "sox"]
-    label = "SoX (brew)"
-  } else if (p === "win32") {
-    cmd = ["choco", "install", "sox", "-y"]
-    label = "SoX (choco)"
-  } else {
+    return [
+      `https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${a}-static.tar.xz`,
+    ]
+  }
+  if (p === "win32") {
+    return [
+      "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+    ]
+  }
+  return []
+}
+
+/** Recursively find a file by name in a directory. */
+function findFile(dir: string, name: string): string | null {
+  try {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name)
+      if (!entry.isDirectory() && entry.name === name) return full
+      if (entry.isDirectory()) {
+        const found = findFile(full, name)
+        if (found) return found
+      }
+    }
+  } catch {}
+  return null
+}
+
+/** Download and extract portable ffmpeg into VOICE_DIR, then register it. */
+async function ensureFFmpegRecorder(onProgress?: (p: SetupProgress) => void): Promise<boolean> {
+  if (isFFmpegDownloaded()) {
+    // Already downloaded — just re-register it as a recorder
+    registerDownloadedFFmpeg()
+    return true
+  }
+
+  const urls = getFFmpegDownloadURLs()
+  if (urls.length === 0) return false
+
+  // Download archive
+  onProgress?.({ phase: "installing_recorder", message: "Downloading ffmpeg recorder...", percent: 1 })
+
+  const archivePath = getFFmpegBinPath() + ".dl"
+  let downloaded = false
+  for (const url of urls) {
+    try {
+      await downloadFile(url, archivePath)
+      if (existsSync(archivePath) && statSync(archivePath).size > 100_000) {
+        downloaded = true
+        break
+      }
+    } catch {}
+  }
+  if (!downloaded) {
+    try { unlinkSync(archivePath) } catch {}
     return false
   }
 
-  onProgress?.(`Installing ${label}...`)
+  // Extract
+  onProgress?.({ phase: "installing_recorder", message: "Extracting ffmpeg...", percent: 3 })
+  const binName = getFFmpegBinName()
+  const tmpDir = join(VOICE_DIR, "ffmpeg-extract")
+  let success = false
 
   try {
-    const proc = Process.spawn(cmd, {
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
-    })
-
-    await proc.exited
-    if (proc.exitCode !== 0) {
-      onProgress?.(`${label} install exited with code ${proc.exitCode}`)
-      return false
+    const p = platform()
+    if (p === "win32") {
+      // Windows: zip extraction via PowerShell
+      mkdirSync(tmpDir, { recursive: true })
+      const ps = Process.spawn(
+        ["powershell", "-Command", `Expand-Archive -Path '${archivePath}' -DestinationPath '${tmpDir}' -Force`],
+        { stdin: "ignore", stdout: "pipe", stderr: "pipe" },
+      )
+      await ps.exited
+      const found = findFile(tmpDir, binName)
+      if (found) {
+        renameSync(found, getFFmpegBinPath())
+        success = true
+      }
+    } else if (archivePath.endsWith(".zip")) {
+      // macOS: zip (from evermeet.cx)
+      mkdirSync(tmpDir, { recursive: true })
+      const unzip = Process.spawn(["unzip", "-o", archivePath, "-d", tmpDir], {
+        stdin: "ignore", stdout: "pipe", stderr: "pipe",
+      })
+      await unzip.exited
+      // The zip may contain the binary directly or in a subdir
+      let found = findFile(tmpDir, binName)
+      if (!found) found = findFile(tmpDir, "ffmpeg") // macOS binary has no extension
+      if (found) {
+        renameSync(found, getFFmpegBinPath())
+        chmodSync(getFFmpegBinPath(), 0o755)
+        success = true
+      }
+    } else {
+      // Linux: tar.xz
+      mkdirSync(tmpDir, { recursive: true })
+      const tar = Process.spawn(["tar", "xf", archivePath, "-C", tmpDir], {
+        stdin: "ignore", stdout: "pipe", stderr: "pipe",
+      })
+      await tar.exited
+      const found = findFile(tmpDir, "ffmpeg")
+      if (found) {
+        renameSync(found, getFFmpegBinPath())
+        chmodSync(getFFmpegBinPath(), 0o755)
+        success = true
+      }
     }
+  } catch {}
 
-    // Reset the cached recorder detection so it re-checks
-    resetRecorderCache()
-    return isRecorderAvailable()
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    onProgress?.(`${label} install failed: ${msg}`)
-    return false
+  // Cleanup
+  try { unlinkSync(archivePath) } catch {}
+  try { rmSync(tmpDir, { recursive: true, force: true }) } catch {}
+
+  if (success) {
+    registerDownloadedFFmpeg()
+    return true
   }
+  return false
+}
+
+/** Register the downloaded ffmpeg as a recording backend in voice.ts. */
+function registerDownloadedFFmpeg() {
+  const ffmpegPath = getFFmpegBinPath()
+  const p = platform()
+
+  // Build platform-specific ffmpeg input args
+  let inputArgs: string[]
+  if (p === "darwin") {
+    inputArgs = ["-f", "avfoundation", "-i", ":0"]
+  } else if (p === "linux") {
+    inputArgs = ["-f", "alsa", "-i", "default"]
+  } else {
+    inputArgs = ["-f", "dshow", "-i", "audio="]
+  }
+
+  const extraFlags = ["-nostdin", "-hide_banner", "-loglevel", "error"]
+  const outputFlags = ["-f", "s16le", "-ar", "16000", "-ac", "1", "pipe:1"]
+
+  registerExtraRecorder(() => {
+    if (!existsSync(ffmpegPath)) return null
+    return {
+      cmd: ffmpegPath,
+      pipeArgs: () => [...inputArgs, ...extraFlags, ...outputFlags],
+    }
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -130,23 +257,17 @@ export async function ensureSetup(
   try {
     mkdirSync(VOICE_DIR, { recursive: true })
 
-    // Phase 1: Check recorder (SoX / arecord) — auto-install if missing
+    // Phase 1: Check recorder — use system recorder or download portable ffmpeg
     onProgress?.({ phase: "checking", message: "Checking microphone recorder...", percent: 0 })
 
     if (!isRecorderAvailable()) {
-      const installed = await autoInstallRecorder((msg) => {
-        onProgress?.({ phase: "installing_recorder", message: msg, percent: 2 })
+      const ok = await ensureFFmpegRecorder((p) => {
+        onProgress?.(p)
       })
-      if (!installed) {
-        const manualCmd =
-          platform() === "darwin"
-            ? "brew install sox"
-            : platform() === "linux"
-              ? "sudo apt install sox"
-              : "choco install sox"
+      if (!ok) {
         return {
           success: false,
-          error: `No audio recorder found. Auto-install failed. Please run: ${manualCmd}`,
+          error: "Failed to download ffmpeg recorder. Check your internet connection.",
         }
       }
     }
