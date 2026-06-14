@@ -12,3 +12,8 @@ Call this tool when:
 Do NOT call this tool:
 - For simple, straightforward tasks
 - When the user explicitly wants immediate implementation
+- For questions, explanations, or conversations that do not require code changes
+- When the user is only asking for information, clarification, or a simple answer
+- For single-file edits, typo fixes, or trivial changes
+
+IMPORTANT: Plan mode is ONLY for multi-step implementation tasks. If the user asks a question, requests an explanation, or the task can be completed with a single tool call, do NOT suggest plan mode.
