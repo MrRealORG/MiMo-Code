@@ -1,42 +1,21 @@
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
-import { RunCommand } from "./cli/cmd/run"
-import { GenerateCommand } from "./cli/cmd/generate"
 import { Log } from "./util"
-import { ConsoleCommand } from "./cli/cmd/account"
-import { ProvidersCommand } from "./cli/cmd/providers"
-import { AgentCommand } from "./cli/cmd/agent"
-import { UpgradeCommand } from "./cli/cmd/upgrade"
-import { UninstallCommand } from "./cli/cmd/uninstall"
-import { ModelsCommand } from "./cli/cmd/models"
 import { UI } from "./cli/ui"
 import { Installation } from "./installation"
 import { InstallationVersion } from "./installation/version"
 import { NamedError } from "@mimo-ai/shared/util/error"
 import { FormatError } from "./cli/error"
-import { ServeCommand } from "./cli/cmd/serve"
 import { Filesystem } from "./util"
-import { DebugCommand } from "./cli/cmd/debug"
-import { StatsCommand } from "./cli/cmd/stats"
-import { McpCommand } from "./cli/cmd/mcp"
-import { GithubCommand } from "./cli/cmd/github"
-import { ExportCommand } from "./cli/cmd/export"
-import { ImportCommand } from "./cli/cmd/import"
-import { AttachCommand } from "./cli/cmd/tui/attach"
-import { TuiThreadCommand } from "./cli/cmd/tui/thread"
-import { AcpCommand } from "./cli/cmd/acp"
+import { lazyCommand } from "./cli/cmd/lazy-command"
 import { EOL } from "os"
-import { WebCommand } from "./cli/cmd/web"
-import { PrCommand } from "./cli/cmd/pr"
-import { SessionCommand } from "./cli/cmd/session"
-import { DbCommand } from "./cli/cmd/db"
 import path from "path"
 import { Global } from "./global"
 import { JsonMigration } from "./storage"
 import { Database } from "./storage"
-import { ClaudeImport } from "./session/claude-import"
+// ClaudeImport is loaded lazily inside the middleware to avoid pulling in
+// session-parsing dependencies on every startup (only runs once per install).
 import { errorMessage } from "./util/error"
-import { PluginCommand } from "./cli/cmd/plug"
 import { Heap } from "./cli/heap"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { ensureProcessMetadata } from "./util/mimo-process"
@@ -159,6 +138,7 @@ const cli = yargs(args)
     if (!process.env.MIMOCODE_DISABLE_CLAUDE_IMPORT && !process.env.MIMOCODE_CLAUDE_IMPORTED) {
       process.env.MIMOCODE_CLAUDE_IMPORTED = "1"
       try {
+        const { ClaudeImport } = await import("./session/claude-import")
         await ClaudeImport.run()
       } catch (e) {
         Log.Default.warn("claude-import failed", { e: errorMessage(e) })
@@ -167,29 +147,33 @@ const cli = yargs(args)
   })
   .usage("")
   .completion("completion", "generate shell completion script")
-  .command(AcpCommand)
-  .command(McpCommand)
-  .command(TuiThreadCommand)
-  .command(AttachCommand)
-  .command(RunCommand)
-  .command(GenerateCommand)
-  .command(DebugCommand)
-  .command(ConsoleCommand)
-  .command(ProvidersCommand)
-  .command(AgentCommand)
-  .command(UpgradeCommand)
-  .command(UninstallCommand)
-  .command(ServeCommand)
-  .command(WebCommand)
-  .command(ModelsCommand)
-  .command(StatsCommand)
-  .command(ExportCommand)
-  .command(ImportCommand)
-  .command(GithubCommand)
-  .command(PrCommand)
-  .command(SessionCommand)
-  .command(PluginCommand)
-  .command(DbCommand)
+  // Lazy-load all command modules to reduce startup time (#520).
+  // Only the command name and description are resolved eagerly for --help;
+  // the full module (tools, providers, app-runtime, etc.) is imported only
+  // when yargs actually matches and executes the command.
+  .command(lazyCommand("acp", "Agent Client Protocol", () => import("./cli/cmd/acp"), "AcpCommand"))
+  .command(lazyCommand("mcp", "Manage MCP servers", () => import("./cli/cmd/mcp"), "McpCommand"))
+  .command(lazyCommand("tui-thread", "TUI thread management", () => import("./cli/cmd/tui/thread"), "TuiThreadCommand"))
+  .command(lazyCommand("attach", "Attach to a running TUI session", () => import("./cli/cmd/tui/attach"), "AttachCommand"))
+  .command(lazyCommand("run", "Run a one-shot coding task", () => import("./cli/cmd/run"), "RunCommand"))
+  .command(lazyCommand("generate", "Generate code from a prompt", () => import("./cli/cmd/generate"), "GenerateCommand"))
+  .command(lazyCommand("debug", "Debugging and troubleshooting tools", () => import("./cli/cmd/debug"), "DebugCommand"))
+  .command(lazyCommand("account", "Manage accounts", () => import("./cli/cmd/account"), "ConsoleCommand"))
+  .command(lazyCommand("providers", "Manage providers", () => import("./cli/cmd/providers"), "ProvidersCommand"))
+  .command(lazyCommand("agent", "Manage agents", () => import("./cli/cmd/agent"), "AgentCommand"))
+  .command(lazyCommand("upgrade", "Upgrade mimo to the latest version", () => import("./cli/cmd/upgrade"), "UpgradeCommand"))
+  .command(lazyCommand("uninstall", "Uninstall mimo", () => import("./cli/cmd/uninstall"), "UninstallCommand"))
+  .command(lazyCommand("serve", "Start the MiMo Code server", () => import("./cli/cmd/serve"), "ServeCommand"))
+  .command(lazyCommand("web", "Start the web UI", () => import("./cli/cmd/web"), "WebCommand"))
+  .command(lazyCommand("models", "List and search available models", () => import("./cli/cmd/models"), "ModelsCommand"))
+  .command(lazyCommand("stats", "Show session statistics", () => import("./cli/cmd/stats"), "StatsCommand"))
+  .command(lazyCommand("export", "Export sessions", () => import("./cli/cmd/export"), "ExportCommand"))
+  .command(lazyCommand("import", "Import sessions", () => import("./cli/cmd/import"), "ImportCommand"))
+  .command(lazyCommand("github", "GitHub integration", () => import("./cli/cmd/github"), "GithubCommand"))
+  .command(lazyCommand("pr", "Pull request management", () => import("./cli/cmd/pr"), "PrCommand"))
+  .command(lazyCommand("session", "Manage sessions", () => import("./cli/cmd/session"), "SessionCommand"))
+  .command(lazyCommand("plugin", "Manage plugins", () => import("./cli/cmd/plug"), "PluginCommand"))
+  .command(lazyCommand("db", "Database management", () => import("./cli/cmd/db"), "DbCommand"))
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||
