@@ -429,5 +429,15 @@ export const dict = {
   "tui.question.plan_exit.option.1.description": "Permanecer con el agente plan para seguir refinando",
 
   // Session badges
+  "tui.command.worktree.list.title": "Worktrees",
+  "tui.command.image.switch.title": "Switch background image",
+  "tui.dialog.image.title": "Background images",
+  "tui.dialog.image.import.option": "Choose new image…",
+  "tui.dialog.image.import.title": "Import background image",
+  "tui.dialog.image.import.placeholder": "/path/to/image.png or .jpg",
+  "tui.dialog.image.import.invalid": "Only .png, .jpg and .jpeg files are supported",
+  "tui.dialog.image.import.not_found": "File not found",
+  "tui.dialog.image.import.success": "Background image imported",
+  "tui.dialog.image.none": "None (use starry background)",
   "tui.session.badge.auto": "Auto",
 } satisfies Partial<Record<Keys, string>>
