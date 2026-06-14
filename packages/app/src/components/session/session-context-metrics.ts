@@ -1,5 +1,7 @@
 import type { AssistantMessage, Message } from "@mimo-ai/sdk/v2/client"
 
+const DEFAULT_CONTEXT_WINDOW = 128000;
+
 type Provider = {
   id: string
   name?: string
@@ -54,7 +56,7 @@ const build = (messages: Message[] = [], providers: Provider[] = []): Metrics =>
 
   const provider = providers.find((item) => item.id === message.providerID)
   const model = provider?.models[message.modelID]
-  const limit = model?.limit.context
+  const limit = model?.limit.context ?? DEFAULT_CONTEXT_WINDOW
   const total = tokenTotal(message)
 
   return {
