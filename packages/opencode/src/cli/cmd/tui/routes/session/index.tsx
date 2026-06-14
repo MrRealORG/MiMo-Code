@@ -415,14 +415,21 @@ export function Session() {
           .share({
             sessionID: route.sessionID,
           })
-          .then((res) => copy(res.data!.share!.url))
+          .then((res) => {
+            const url = res.data?.share?.url
+            if (!url) {
+              toast.show({ message: "Failed to share session", variant: "error" })
+              return
+            }
+            return copy(url)
+          })
+          .then(() => dialog.clear())
           .catch((error) => {
             toast.show({
               message: error instanceof Error ? error.message : "Failed to share session",
               variant: "error",
             })
           })
-        dialog.clear()
       },
     },
     {

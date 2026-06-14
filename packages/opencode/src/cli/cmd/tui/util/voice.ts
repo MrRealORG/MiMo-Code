@@ -158,7 +158,7 @@ export async function transcribeAudio(opts: {
   }
 }
 
-export const SEND_RE = /^(发送|send\s*it)$/i
+export const SEND_RE = /^(发送|send(\s*it)?)$/i
 
 export function encodeWav(samples: Int16Array): ArrayBuffer {
   const sampleRate = 16000

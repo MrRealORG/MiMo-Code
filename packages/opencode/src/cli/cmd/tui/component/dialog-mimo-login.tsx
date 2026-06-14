@@ -34,13 +34,13 @@ export function DialogMimoLogin() {
               providerID: "xiaomi",
               method: 0,
             })
-            if (result.error) {
+            if (result.error || !result.data) {
               toast.show({ message: t("tui.dialog.login.start_failed"), variant: "error" })
               dialog.clear()
               return
             }
             dialog.replace(() => (
-              <MimoOAuthFlow url={result.data!.url} instructions={result.data!.instructions} />
+              <MimoOAuthFlow url={result.data.url} instructions={result.data.instructions} />
             ))
           },
         },
