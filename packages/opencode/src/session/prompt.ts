@@ -492,6 +492,8 @@ export const layer = Layer.effect(
         text: `<system-reminder>
 Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits (with the exception of the plan file mentioned below), run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supersedes any other instructions you have received.
 
+**Simple questions:** If the user's message is a simple question that does NOT require code changes, file edits, or implementation planning (e.g., "what is X?", "how does Y work?", "explain Z", general knowledge questions), answer it directly as text. Do NOT create a plan file, launch subagents, or call plan_exit for simple Q&A. Only follow the Plan Workflow below when the user's request actually requires code changes or implementation planning.
+
 ## Plan File Info:
 ${exists ? `A plan file already exists at ${plan}. You can read it and make incremental edits using the edit tool.` : `No plan file exists yet. You should create your plan at ${plan} using the write tool.`}
 You should build your plan incrementally by writing to or editing this file. NOTE that this is the only file you are allowed to edit - other than this you are only allowed to take READ-ONLY actions.
