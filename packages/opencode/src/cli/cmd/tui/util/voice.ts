@@ -77,8 +77,18 @@ export function startStreaming(opts: {
   const proc = Process.spawn([recorder.cmd, ...recorder.pipeArgs()], {
     stdin: "ignore",
     stdout: "pipe",
-    stderr: "ignore",
+    stderr: "pipe",
   })
+
+  // Capture stderr to detect early failures (e.g. "no default audio device configured")
+  let stderrOutput = ""
+  ;(async () => {
+    const stderr = proc.stderr
+    if (!stderr) return
+    for await (const chunk of stderr as AsyncIterable<Buffer>) {
+      stderrOutput += chunk.toString()
+    }
+  })().catch(() => {})
 
   const handle: StreamingHandle = { proc, vad, startTime: Date.now(), aborted: false, reading: Promise.resolve() }
 
@@ -101,6 +111,13 @@ export function startStreaming(opts: {
         buf.copy(aligned, 0, 0, alignedLen)
         const samples = new Int16Array(aligned.buffer, aligned.byteOffset, alignedLen / 2)
         vad.push(samples)
+      }
+    }
+    // If the recording process exited early with stderr output, report the error
+    if (!handle.aborted && stderrOutput) {
+      const exitCode = await proc.exited.catch(() => undefined)
+      if (exitCode && exitCode !== 0) {
+        opts.onError?.(new Error(stderrOutput.trim()))
       }
     }
   })().catch((err) => {

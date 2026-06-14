@@ -328,8 +328,9 @@ export function Prompt(props: PromptProps) {
       onActiveChange: (active) => {
         if (active && activeVoice === av) av.setState("speaking")
       },
-      onError: () => {
-        av.showError(t("tui.voice.error.no_recorder"))
+      onError: (err) => {
+        const msg = err?.message ? `${t("tui.voice.error.no_recorder")}: ${err.message}` : t("tui.voice.error.no_recorder")
+        av.showError(msg)
         activeVoice = undefined
         av.setState("idle")
       },
