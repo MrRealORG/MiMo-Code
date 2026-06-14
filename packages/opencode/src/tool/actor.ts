@@ -452,13 +452,27 @@ export const ActorTool = Tool.define(
         // root-level union and passes through unchanged — root keeps exactly one
         // key (`operation`), so models can't drop the discriminator.
         operation: z
-          .discriminatedUnion("action", [
-            runSchema,
-            spawnSchema,
-            statusSchema,
-            waitSchema,
-            cancelSchema,
-            sendSchema,
+          .union([
+            // Handle models that stringify the operation object (#561)
+            z.string().transform((val, ctx) => {
+              try {
+                const parsed = JSON.parse(val)
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed
+              } catch {}
+              ctx.issues.push({
+                code: z.ZodIssueCode.custom,
+                message: `operation must be a JSON object, got string: "${val.substring(0, 100)}${val.length > 100 ? "..." : ""}"`,
+              })
+              return z.NEVER
+            }),
+            z.discriminatedUnion("action", [
+              runSchema,
+              spawnSchema,
+              statusSchema,
+              waitSchema,
+              cancelSchema,
+              sendSchema,
+            ]),
           ])
           .meta({ type: "object" }),
       })

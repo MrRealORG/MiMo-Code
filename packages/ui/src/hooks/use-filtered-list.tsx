@@ -36,9 +36,9 @@ export function useFilteredList<T>(props: FilteredListProps<T>) {
         (x) => {
           if (!needle) return x
           if (!props.filterKeys && Array.isArray(x) && x.every((e) => typeof e === "string")) {
-            return fuzzysort.go(needle, x).map((x) => x.target) as T[]
+            return fuzzysort.go(needle, x, { threshold: -10000 }).map((x) => x.target) as T[]
           }
-          return fuzzysort.go(needle, x, { keys: props.filterKeys! }).map((x) => x.obj)
+          return fuzzysort.go(needle, x, { keys: props.filterKeys!, threshold: -10000 }).map((x) => x.obj)
         },
         groupBy((x) => (props.groupBy ? props.groupBy(x) : "")),
         entries(),

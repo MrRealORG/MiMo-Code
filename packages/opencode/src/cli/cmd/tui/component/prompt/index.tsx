@@ -1686,7 +1686,8 @@ export function Prompt(props: PromptProps) {
                 {(() => {
                   const busyMessage = createMemo(() => {
                     const s = status()
-                    return s.type === "busy" ? s.message : undefined
+                    if (s.type !== "busy" || !s.message) return undefined
+                    return s.message.length > 60 ? s.message.slice(0, 60) + "..." : s.message
                   })
                   return (
                     <Show when={busyMessage()}>

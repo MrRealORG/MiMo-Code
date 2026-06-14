@@ -79,16 +79,19 @@ export function setCursorPosition(parent: HTMLElement, position: number) {
       const selection = window.getSelection()
       if (remaining === 0) {
         range.setStartBefore(node)
+        range.collapse(true)
+        selection?.removeAllRanges()
+        selection?.addRange(range)
+        return
       }
-      if (remaining > 0 && isPill) {
+      if (isPill) {
         range.setStartAfter(node)
       }
-      if (remaining > 0 && isBreak) {
+      if (isBreak) {
         const next = node.nextSibling
         if (next && next.nodeType === Node.TEXT_NODE) {
           range.setStart(next, 0)
-        }
-        if (!next || next.nodeType !== Node.TEXT_NODE) {
+        } else {
           range.setStartAfter(node)
         }
       }
