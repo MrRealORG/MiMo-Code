@@ -1,0 +1,909 @@
+     1→import { Slug } from "@mimo-ai/shared/util/slug"
+     2→import path from "path"
+     3→import { BusEvent } from "@/bus/bus-event"
+     4→import { Bus } from "@/bus"
+     5→import { Decimal } from "decimal.js"
+     6→import z from "zod"
+     7→import { type ProviderMetadata, type LanguageModelUsage } from "ai"
+     8→import { Flag } from "../flag/flag"
+     9→import { InstallationVersion } from "../installation/version"
+    10→
+    11→import { Database, NotFoundError, eq, and, gte, isNull, desc, like, inArray, lt } from "../storage"
+    12→import { SyncEvent } from "../sync"
+    13→import type { SQL } from "../storage"
+    14→import { PartTable, SessionTable, MessageTable } from "./session.sql"
+    15→import { ProjectTable } from "../project/project.sql"
+    16→import { Storage } from "@/storage"
+    17→import { Log } from "../util"
+    18→import { updateSchema } from "../util/update-schema"
+    19→import { MessageV2 } from "./message-v2"
+    20→import { Instance } from "../project/instance"
+    21→import { InstanceState } from "@/effect"
+    22→import { Snapshot } from "@/snapshot"
+    23→import { ProjectID } from "../project/schema"
+    24→import { WorkspaceID } from "../control-plane/schema"
+    25→import { SessionID, MessageID, PartID } from "./schema"
+    26→
+    27→import type { Provider } from "@/provider"
+    28→import { Permission } from "@/permission"
+    29→import { Global } from "@/global"
+    30→import { ActorRegistry } from "@/actor/registry"
+    31→import { Effect, Layer, Option, Context } from "effect"
+    32→
+    33→const log = Log.create({ service: "session" })
+    34→
+    35→const parentTitlePrefix = "New session - "
+    36→const childTitlePrefix = "Child session - "
+    37→
+    38→function createDefaultTitle(isChild = false) {
+    39→  return (isChild ? childTitlePrefix : parentTitlePrefix) + new Date().toISOString()
+    40→}
+    41→
+    42→export function isDefaultTitle(title: string) {
+    43→  return new RegExp(
+    44→    `^(${parentTitlePrefix}|${childTitlePrefix})\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$`,
+    45→  ).test(title)
+    46→}
+    47→
+    48→type SessionRow = typeof SessionTable.$inferSelect
+    49→
+    50→export function fromRow(row: SessionRow): Info {
+    51→  const summary =
+    52→    row.summary_additions !== null || row.summary_deletions !== null || row.summary_files !== null
+    53→      ? {
+    54→          additions: row.summary_additions ?? 0,
+    55→          deletions: row.summary_deletions ?? 0,
+    56→          files: row.summary_files ?? 0,
+    57→          diffs: row.summary_diffs ?? undefined,
+    58→        }
+    59→      : undefined
+    60→  const share = row.share_url ? { url: row.share_url } : undefined
+    61→  const revert = row.revert ?? undefined
+    62→  return {
+    63→    id: row.id,
+    64→    slug: row.slug,
+    65→    projectID: row.project_id,
+    66→    workspaceID: row.workspace_id ?? undefined,
+    67→    directory: row.directory,
+    68→    parentID: row.parent_id ?? undefined,
+    69→    contextFrom: row.context_from ?? undefined,
+    70→    contextWatermark: row.context_watermark ?? undefined,
+    71→    title: row.title,
+    72→    version: row.version,
+    73→    summary,
+    74→    share,
+    75→    revert,
+    76→    permission: row.permission ?? undefined,
+    77→    time: {
+    78→      created: row.time_created,
+    79→      updated: row.time_updated,
+    80→      compacting: row.time_compacting ?? undefined,
+    81→      archived: row.time_archived ?? undefined,
+    82→    },
+    83→  }
+    84→}
+    85→
+    86→export function toRow(info: Info) {
+    87→  return {
+    88→    id: info.id,
+    89→    project_id: info.projectID,
+    90→    workspace_id: info.workspaceID,
+    91→    parent_id: info.parentID,
+    92→    context_from: info.contextFrom,
+    93→    context_watermark: info.contextWatermark,
+    94→    slug: info.slug,
+    95→    directory: info.directory,
+    96→    title: info.title,
+    97→    version: info.version,
+    98→    share_url: info.share?.url,
+    99→    summary_additions: info.summary?.additions,
+   100→    summary_deletions: info.summary?.deletions,
+   101→    summary_files: info.summary?.files,
+   102→    summary_diffs: info.summary?.diffs,
+   103→    revert: info.revert ?? null,
+   104→    permission: info.permission,
+   105→    time_created: info.time.created,
+   106→    time_updated: info.time.updated,
+   107→    time_compacting: info.time.compacting,
+   108→    time_archived: info.time.archived,
+   109→  }
+   110→}
+   111→
+   112→function getForkedTitle(title: string): string {
+   113→  const match = title.match(/^(.+) \(fork #(\d+)\)$/)
+   114→  if (match) {
+   115→    const base = match[1]
+   116→    const num = parseInt(match[2], 10)
+   117→    return `${base} (fork #${num + 1})`
+   118→  }
+   119→  return `${title} (fork #1)`
+   120→}
+   121→
+   122→export const Info = z
+   123→  .object({
+   124→    id: SessionID.zod,
+   125→    slug: z.string(),
+   126→    projectID: ProjectID.zod,
+   127→    workspaceID: WorkspaceID.zod.optional(),
+   128→    directory: z.string(),
+   129→    parentID: SessionID.zod.optional(),
+   130→    contextFrom: SessionID.zod.optional(),
+   131→    contextWatermark: MessageID.zod.optional(),
+   132→    summary: z
+   133→      .object({
+   134→        additions: z.number(),
+   135→        deletions: z.number(),
+   136→        files: z.number(),
+   137→        diffs: Snapshot.FileDiff.array().optional(),
+   138→      })
+   139→      .optional(),
+   140→    share: z
+   141→      .object({
+   142→        url: z.string(),
+   143→      })
+   144→      .optional(),
+   145→    title: z.string(),
+   146→    version: z.string(),
+   147→    time: z.object({
+   148→      created: z.number(),
+   149→      updated: z.number(),
+   150→      compacting: z.number().optional(),
+   151→      archived: z.number().optional(),
+   152→    }),
+   153→    permission: Permission.Ruleset.zod.optional(),
+   154→    revert: z
+   155→      .object({
+   156→        messageID: MessageID.zod,
+   157→        partID: PartID.zod.optional(),
+   158→        snapshot: z.string().optional(),
+   159→        diff: z.string().optional(),
+   160→      })
+   161→      .optional(),
+   162→  })
+   163→  .meta({
+   164→    ref: "Session",
+   165→  })
+   166→export type Info = z.output<typeof Info>
+   167→
+   168→export const ProjectInfo = z
+   169→  .object({
+   170→    id: ProjectID.zod,
+   171→    name: z.string().optional(),
+   172→    worktree: z.string(),
+   173→  })
+   174→  .meta({
+   175→    ref: "ProjectSummary",
+   176→  })
+   177→export type ProjectInfo = z.output<typeof ProjectInfo>
+   178→
+   179→export const GlobalInfo = Info.extend({
+   180→  project: ProjectInfo.nullable(),
+   181→}).meta({
+   182→  ref: "GlobalSession",
+   183→})
+   184→export type GlobalInfo = z.output<typeof GlobalInfo>
+   185→
+   186→export const CreateInput = z
+   187→  .object({
+   188→    parentID: SessionID.zod.optional(),
+   189→    contextFrom: SessionID.zod.optional(),
+   190→    contextWatermark: MessageID.zod.optional(),
+   191→    title: z.string().optional(),
+   192→    permission: Info.shape.permission,
+   193→    workspaceID: WorkspaceID.zod.optional(),
+   194→  })
+   195→  .optional()
+   196→export type CreateInput = z.output<typeof CreateInput>
+   197→
+   198→export const ForkInput = z.object({ sessionID: SessionID.zod, messageID: MessageID.zod.optional() })
+   199→export const GetInput = SessionID.zod
+   200→export const ChildrenInput = SessionID.zod
+   201→export const RemoveInput = SessionID.zod
+   202→export const SetTitleInput = z.object({ sessionID: SessionID.zod, title: z.string() })
+   203→export const SetArchivedInput = z.object({ sessionID: SessionID.zod, time: z.number().optional() })
+   204→export const SetPermissionInput = z.object({ sessionID: SessionID.zod, permission: Permission.Ruleset.zod })
+   205→export const SetRevertInput = z.object({
+   206→  sessionID: SessionID.zod,
+   207→  revert: Info.shape.revert,
+   208→  summary: Info.shape.summary,
+   209→})
+   210→export const MessagesInput = z.object({ sessionID: SessionID.zod, limit: z.number().optional() })
+   211→
+   212→export const Event = {
+   213→  Created: SyncEvent.define({
+   214→    type: "session.created",
+   215→    version: 1,
+   216→    aggregate: "sessionID",
+   217→    schema: z.object({
+   218→      sessionID: SessionID.zod,
+   219→      info: Info,
+   220→    }),
+   221→  }),
+   222→  Updated: SyncEvent.define({
+   223→    type: "session.updated",
+   224→    version: 1,
+   225→    aggregate: "sessionID",
+   226→    schema: z.object({
+   227→      sessionID: SessionID.zod,
+   228→      info: updateSchema(Info).extend({
+   229→        share: updateSchema(Info.shape.share.unwrap()).optional(),
+   230→        time: updateSchema(Info.shape.time).optional(),
+   231→      }),
+   232→    }),
+   233→    busSchema: z.object({
+   234→      sessionID: SessionID.zod,
+   235→      info: Info,
+   236→    }),
+   237→  }),
+   238→  Deleted: SyncEvent.define({
+   239→    type: "session.deleted",
+   240→    version: 1,
+   241→    aggregate: "sessionID",
+   242→    schema: z.object({
+   243→      sessionID: SessionID.zod,
+   244→      info: Info,
+   245→    }),
+   246→  }),
+   247→  Diff: BusEvent.define(
+   248→    "session.diff",
+   249→    z.object({
+   250→      sessionID: SessionID.zod,
+   251→      diff: Snapshot.FileDiff.array(),
+   252→    }),
+   253→  ),
+   254→  Error: BusEvent.define(
+   255→    "session.error",
+   256→    z.object({
+   257→      sessionID: SessionID.zod.optional(),
+   258→      // z.lazy defers access to break circular dep: session → message-v2 → provider → plugin → session
+   259→      error: z.lazy(() => MessageV2.Assistant.shape.error),
+   260→    }),
+   261→  ),
+   262→  RetryAttempt: BusEvent.define(
+   263→    "session.retry.attempt",
+   264→    z.object({
+   265→      sessionID: SessionID.zod,
+   266→      messageID: z.string(),
+   267→      attempt: z.number().int().min(1),
+   268→      maxAttempts: z.number().int().min(1),
+   269→      reason: z.string(),
+   270→      nextDelayMs: z.number().int().nonnegative(),
+   271→    }),
+   272→  ),
+   273→}
+   274→
+   275→export function plan(input: { slug: string; time: { created: number } }) {
+   276→  const base = Instance.project.vcs
+   277→    ? path.join(Instance.worktree, ".mimocode", "plans")
+   278→    : path.join(Global.Path.data, "plans")
+   279→  return path.join(base, [input.time.created, input.slug].join("-") + ".md")
+   280→}
+   281→
+   282→export const getUsage = (input: { model: Provider.Model; usage: LanguageModelUsage; metadata?: ProviderMetadata }) => {
+   283→  const safe = (value: number) => {
+   284→    if (!Number.isFinite(value)) return 0
+   285→    return value
+   286→  }
+   287→  const inputTokens = safe(input.usage.inputTokens ?? 0)
+   288→  const outputTokens = safe(input.usage.outputTokens ?? 0)
+   289→  const reasoningTokens = safe(input.usage.outputTokenDetails?.reasoningTokens ?? input.usage.reasoningTokens ?? 0)
+   290→
+   291→  const cacheReadInputTokens = safe(
+   292→    input.usage.inputTokenDetails?.cacheReadTokens ?? input.usage.cachedInputTokens ?? 0,
+   293→  )
+   294→  const cacheWriteInputTokens = safe(
+   295→    Number(
+   296→      input.usage.inputTokenDetails?.cacheWriteTokens ??
+   297→        input.metadata?.["anthropic"]?.["cacheCreationInputTokens"] ??
+   298→        // google-vertex-anthropic returns metadata under "vertex" key
+   299→        // (AnthropicMessagesLanguageModel custom provider key from 'vertex.anthropic.messages')
+   300→        input.metadata?.["vertex"]?.["cacheCreationInputTokens"] ??
+   301→        // @ts-expect-error
+   302→        input.metadata?.["bedrock"]?.["usage"]?.["cacheWriteInputTokens"] ??
+   303→        // @ts-expect-error
+   304→        input.metadata?.["venice"]?.["usage"]?.["cacheCreationInputTokens"] ??
+   305→        0,
+   306→    ),
+   307→  )
+   308→
+   309→  // AI SDK v6 normalized inputTokens to include cached tokens across all providers
+   310→  // (including Anthropic/Bedrock which previously excluded them). Always subtract cache
+   311→  // tokens to get the non-cached input count for separate cost calculation.
+   312→  const adjustedInputTokens = safe(inputTokens - cacheReadInputTokens - cacheWriteInputTokens)
+   313→
+   314→  const total = input.usage.totalTokens
+   315→
+   316→  const tokens = {
+   317→    total,
+   318→    input: adjustedInputTokens,
+   319→    output: safe(outputTokens - reasoningTokens),
+   320→    reasoning: reasoningTokens,
+   321→    cache: {
+   322→      write: cacheWriteInputTokens,
+   323→      read: cacheReadInputTokens,
+   324→    },
+   325→  }
+   326→
+   327→  const costInfo =
+   328→    input.model.cost?.experimentalOver200K && tokens.input + tokens.cache.read > 200_000
+   329→      ? input.model.cost.experimentalOver200K
+   330→      : input.model.cost
+   331→  return {
+   332→    cost: safe(
+   333→      new Decimal(0)
+   334→        .add(new Decimal(tokens.input).mul(costInfo?.input ?? 0).div(1_000_000))
+   335→        .add(new Decimal(tokens.output).mul(costInfo?.output ?? 0).div(1_000_000))
+   336→        .add(new Decimal(tokens.cache.read).mul(costInfo?.cache?.read ?? 0).div(1_000_000))
+   337→        .add(new Decimal(tokens.cache.write).mul(costInfo?.cache?.write ?? 0).div(1_000_000))
+   338→        // TODO: update models.dev to have better pricing model, for now:
+   339→        // charge reasoning tokens at the same rate as output tokens
+   340→        .add(new Decimal(tokens.reasoning).mul(costInfo?.output ?? 0).div(1_000_000))
+   341→        .toNumber(),
+   342→    ),
+   343→    tokens,
+   344→  }
+   345→}
+   346→
+   347→export class BusyError extends Error {
+   348→  constructor(public readonly sessionID: string) {
+   349→    super(`Session ${sessionID} is busy`)
+   350→  }
+   351→}
+   352→
+   353→export interface Interface {
+   354→  readonly create: (input?: {
+   355→    parentID?: SessionID
+   356→    contextFrom?: SessionID
+   357→    contextWatermark?: MessageID
+   358→    title?: string
+   359→    permission?: Permission.Ruleset
+   360→    workspaceID?: WorkspaceID
+   361→  }) => Effect.Effect<Info>
+   362→  readonly fork: (input: { sessionID: SessionID; messageID?: MessageID }) => Effect.Effect<Info>
+   363→  readonly touch: (sessionID: SessionID) => Effect.Effect<void>
+   364→  readonly get: (id: SessionID) => Effect.Effect<Info>
+   365→  readonly setTitle: (input: { sessionID: SessionID; title: string }) => Effect.Effect<void>
+   366→  readonly setArchived: (input: { sessionID: SessionID; time?: number }) => Effect.Effect<void>
+   367→  readonly setPermission: (input: { sessionID: SessionID; permission: Permission.Ruleset }) => Effect.Effect<void>
+   368→  readonly setRevert: (input: {
+   369→    sessionID: SessionID
+   370→    revert: Info["revert"]
+   371→    summary: Info["summary"]
+   372→  }) => Effect.Effect<void>
+   373→  readonly clearRevert: (sessionID: SessionID) => Effect.Effect<void>
+   374→  readonly setSummary: (input: { sessionID: SessionID; summary: Info["summary"] }) => Effect.Effect<void>
+   375→  readonly diff: (sessionID: SessionID) => Effect.Effect<Snapshot.FileDiff[]>
+   376→  readonly messages: (input: {
+   377→    sessionID: SessionID
+   378→    limit?: number
+   379→    /**
+   380→     * Slice selector.
+   381→     * `undefined` (default) returns the main-agent slice only.
+   382→     * `"main"` is equivalent to `undefined`.
+   383→     * `"*"` returns every message in the session, regardless of slice
+   384→     * (export / stats / share / cross-slice diagnostic paths only —
+   385→     * almost no production caller wants this).
+   386→     * Any other string returns the slice owned by that subagent actor
+   387→     * (`agent_id = <id>`).
+   388→     */
+   389→    agentID?: string
+   390→  }) => Effect.Effect<MessageV2.WithParts[]>
+   391→  readonly children: (parentID: SessionID) => Effect.Effect<Info[]>
+   392→  readonly remove: (sessionID: SessionID) => Effect.Effect<void>
+   393→  readonly updateMessage: <T extends MessageV2.Info>(msg: T) => Effect.Effect<T>
+   394→  readonly removeMessage: (input: { sessionID: SessionID; messageID: MessageID }) => Effect.Effect<MessageID>
+   395→  readonly removePart: (input: { sessionID: SessionID; messageID: MessageID; partID: PartID }) => Effect.Effect<PartID>
+   396→  readonly getPart: (input: {
+   397→    sessionID: SessionID
+   398→    messageID: MessageID
+   399→    partID: PartID
+   400→  }) => Effect.Effect<MessageV2.Part | undefined>
+   401→  readonly updatePart: <T extends MessageV2.Part>(part: T) => Effect.Effect<T>
+   402→  readonly updatePartDelta: (input: {
+   403→    sessionID: SessionID
+   404→    messageID: MessageID
+   405→    partID: PartID
+   406→    field: string
+   407→    delta: string
+   408→  }) => Effect.Effect<void>
+   409→  /** Finds the first message matching the predicate, searching newest-first.
+   410→   *
+   411→   * Slice contract: `options.agentID` defaults to `"main"` (mirrors `messages()`).
+   412→   * Pass `"*"` for cross-slice lookup. */
+   413→  readonly findMessage: (
+   414→    sessionID: SessionID,
+   415→    predicate: (msg: MessageV2.WithParts) => boolean,
+   416→    options?: { agentID?: string },
+   417→  ) => Effect.Effect<Option.Option<MessageV2.WithParts>>
+   418→  readonly lastMainMessageID: (sessionID: SessionID) => Effect.Effect<MessageID | undefined>
+   419→}
+   420→
+   421→export class Service extends Context.Service<Service, Interface>()("@opencode/Session") {}
+   422→
+   423→type Patch = z.infer<typeof Event.Updated.schema>["info"]
+   424→
+   425→const db = <T>(fn: (d: Parameters<typeof Database.use>[0] extends (trx: infer D) => any ? D : never) => T) =>
+   426→  Effect.sync(() => Database.use(fn))
+   427→
+   428→export const layer: Layer.Layer<Service, never, Bus.Service | Storage.Service | ActorRegistry.Service> = Layer.effect(
+   429→  Service,
+   430→  Effect.gen(function* () {
+   431→    const bus = yield* Bus.Service
+   432→    const storage = yield* Storage.Service
+   433→    const actorReg = yield* ActorRegistry.Service
+   434→
+   435→    const createNext = Effect.fn("Session.createNext")(function* (input: {
+   436→      id?: SessionID
+   437→      title?: string
+   438→      parentID?: SessionID
+   439→      contextFrom?: SessionID
+   440→      contextWatermark?: MessageID
+   441→      workspaceID?: WorkspaceID
+   442→      directory: string
+   443→      permission?: Permission.Ruleset
+   444→    }) {
+   445→      const ctx = yield* InstanceState.context
+   446→      const result: Info = {
+   447→        id: SessionID.descending(input.id),
+   448→        slug: Slug.create(),
+   449→        version: InstallationVersion,
+   450→        projectID: ctx.project.id,
+   451→        directory: input.directory,
+   452→        workspaceID: input.workspaceID,
+   453→        parentID: input.parentID,
+   454→        contextFrom: input.contextFrom,
+   455→        contextWatermark: input.contextWatermark,
+   456→        title: input.title ?? createDefaultTitle(!!input.parentID),
+   457→        permission: input.permission,
+   458→        time: {
+   459→          created: Date.now(),
+   460→          updated: Date.now(),
+   461→        },
+   462→      }
+   463→      log.info("created", result)
+   464→
+   465→      yield* Effect.sync(() => SyncEvent.run(Event.Created, { sessionID: result.id, info: result }))
+   466→
+   467→      yield* actorReg.register({
+   468→        sessionID: result.id,
+   469→        actorID: "main",
+   470→        mode: "main",
+   471→        parentActorID: undefined,
+   472→        agent: "main",
+   473→        description: "main agent",
+   474→        contextMode: "full",
+   475→        contextWatermark: undefined,
+   476→        background: false,
+   477→        lifecycle: "persistent",
+   478→        tools: "INHERIT",
+   479→      }).pipe(Effect.ignore)
+   480→
+   481→      if (!Flag.MIMOCODE_EXPERIMENTAL_WORKSPACES) {
+   482→        // This only exist for backwards compatibility. We should not be
+   483→        // manually publishing this event; it is a sync event now
+   484→        yield* bus.publish(Event.Updated, {
+   485→          sessionID: result.id,
+   486→          info: result,
+   487→        })
+   488→      }
+   489→
+   490→      return result
+   491→    })
+   492→
+   493→    const get = Effect.fn("Session.get")(function* (id: SessionID) {
+   494→      const row = yield* db((d) => d.select().from(SessionTable).where(eq(SessionTable.id, id)).get())
+   495→      if (!row) throw new NotFoundError({ message: `Session not found: ${id}` })
+   496→      return fromRow(row)
+   497→    })
+   498→
+   499→    const children = Effect.fn("Session.children")(function* (parentID: SessionID) {
+   500→      const rows = yield* db((d) =>
+   501→        d
+   502→          .select()
+   503→          .from(SessionTable)
+   504→          .where(and(eq(SessionTable.parent_id, parentID)))
+   505→          .all(),
+   506→      )
+   507→      return rows.map(fromRow)
+   508→    })
+   509→
+   510→    const remove: Interface["remove"] = Effect.fnUntraced(function* (sessionID: SessionID) {
+   511→      try {
+   512→        const session = yield* get(sessionID)
+   513→        const kids = yield* children(sessionID)
+   514→        for (const child of kids) {
+   515→          yield* remove(child.id)
+   516→        }
+   517→
+   518→        // `remove` needs to work in all cases, such as a broken
+   519→        // sessions that run cleanup. In certain cases these will
+   520→        // run without any instance state, so we need to turn off
+   521→        // publishing of events in that case
+   522→        const hasInstance = yield* InstanceState.directory.pipe(
+   523→          Effect.as(true),
+   524→          Effect.catchCause(() => Effect.succeed(false)),
+   525→        )
+   526→
+   527→        yield* Effect.sync(() => {
+   528→          SyncEvent.run(Event.Deleted, { sessionID, info: session }, { publish: hasInstance })
+   529→          SyncEvent.remove(sessionID)
+   530→        })
+   531→      } catch (e) {
+   532→        log.error(e)
+   533→      }
+   534→    })
+   535→
+   536→    const updateMessage = <T extends MessageV2.Info>(msg: T): Effect.Effect<T> =>
+   537→      Effect.gen(function* () {
+   538→        yield* Effect.sync(() => SyncEvent.run(MessageV2.Event.Updated, { sessionID: msg.sessionID, info: msg }))
+   539→        return msg
+   540→      }).pipe(Effect.withSpan("Session.updateMessage"))
+   541→
+   542→    const updatePart = <T extends MessageV2.Part>(part: T): Effect.Effect<T> =>
+   543→      Effect.gen(function* () {
+   544→        yield* Effect.sync(() =>
+   545→          SyncEvent.run(MessageV2.Event.PartUpdated, {
+   546→            sessionID: part.sessionID,
+   547→            part: structuredClone(part),
+   548→            time: Date.now(),
+   549→          }),
+   550→        )
+   551→        return part
+   552→      }).pipe(Effect.withSpan("Session.updatePart"))
+   553→
+   554→    const getPart: Interface["getPart"] = Effect.fn("Session.getPart")(function* (input) {
+   555→      const row = Database.use((db) =>
+   556→        db
+   557→          .select()
+   558→          .from(PartTable)
+   559→          .where(
+   560→            and(
+   561→              eq(PartTable.session_id, input.sessionID),
+   562→              eq(PartTable.message_id, input.messageID),
+   563→              eq(PartTable.id, input.partID),
+   564→            ),
+   565→          )
+   566→          .get(),
+   567→      )
+   568→      if (!row) return
+   569→      return {
+   570→        ...row.data,
+   571→        id: row.id,
+   572→        sessionID: row.session_id,
+   573→        messageID: row.message_id,
+   574→      } as MessageV2.Part
+   575→    })
+   576→
+   577→    const create = Effect.fn("Session.create")(function* (input?: {
+   578→      parentID?: SessionID
+   579→      contextFrom?: SessionID
+   580→      contextWatermark?: MessageID
+   581→      title?: string
+   582→      permission?: Permission.Ruleset
+   583→      workspaceID?: WorkspaceID
+   584→    }) {
+   585→      const directory = yield* InstanceState.directory
+   586→      const workspace = yield* InstanceState.workspaceID
+   587→      return yield* createNext({
+   588→        parentID: input?.parentID,
+   589→        contextFrom: input?.contextFrom,
+   590→        contextWatermark: input?.contextWatermark,
+   591→        directory,
+   592→        title: input?.title,
+   593→        permission: input?.permission,
+   594→        workspaceID: workspace,
+   595→      })
+   596→    })
+   597→
+   598→    const fork = Effect.fn("Session.fork")(function* (input: { sessionID: SessionID; messageID?: MessageID }) {
+   599→      const directory = yield* InstanceState.directory
+   600→      const original = yield* get(input.sessionID)
+   601→      const title = getForkedTitle(original.title)
+   602→      const session = yield* createNext({
+   603→        directory,
+   604→        workspaceID: original.workspaceID,
+   605→        title,
+   606→      })
+   607→      const msgs = yield* messages({ sessionID: input.sessionID, agentID: "*" })
+   608→      const idMap = new Map<string, MessageID>()
+   609→
+   610→      for (const msg of msgs) {
+   611→        if (input.messageID && msg.info.id >= input.messageID) break
+   612→        const newID = MessageID.ascending()
+   613→        idMap.set(msg.info.id, newID)
+   614→
+   615→        const parentID = msg.info.role === "assistant" && msg.info.parentID ? idMap.get(msg.info.parentID) : undefined
+   616→        const cloned = yield* updateMessage({
+   617→          ...msg.info,
+   618→          sessionID: session.id,
+   619→          id: newID,
+   620→          ...(parentID && { parentID }),
+   621→        })
+   622→
+   623→        for (const part of msg.parts) {
+   624→          yield* updatePart({
+   625→            ...part,
+   626→            id: PartID.ascending(),
+   627→            messageID: cloned.id,
+   628→            sessionID: session.id,
+   629→          })
+   630→        }
+   631→      }
+   632→      return session
+   633→    })
+   634→
+   635→    const patch = (sessionID: SessionID, info: Patch) =>
+   636→      Effect.sync(() => SyncEvent.run(Event.Updated, { sessionID, info }))
+   637→
+   638→    const touch = Effect.fn("Session.touch")(function* (sessionID: SessionID) {
+   639→      yield* patch(sessionID, { time: { updated: Date.now() } })
+   640→    })
+   641→
+   642→    const setTitle = Effect.fn("Session.setTitle")(function* (input: { sessionID: SessionID; title: string }) {
+   643→      yield* patch(input.sessionID, { title: input.title })
+   644→    })
+   645→
+   646→    const setArchived = Effect.fn("Session.setArchived")(function* (input: { sessionID: SessionID; time?: number }) {
+   647→      yield* patch(input.sessionID, { time: { archived: input.time } })
+   648→    })
+   649→
+   650→    const setPermission = Effect.fn("Session.setPermission")(function* (input: {
+   651→      sessionID: SessionID
+   652→      permission: Permission.Ruleset
+   653→    }) {
+   654→      yield* patch(input.sessionID, { permission: input.permission, time: { updated: Date.now() } })
+   655→    })
+   656→
+   657→    const setRevert = Effect.fn("Session.setRevert")(function* (input: {
+   658→      sessionID: SessionID
+   659→      revert: Info["revert"]
+   660→      summary: Info["summary"]
+   661→    }) {
+   662→      yield* patch(input.sessionID, { summary: input.summary, time: { updated: Date.now() }, revert: input.revert })
+   663→    })
+   664→
+   665→    const clearRevert = Effect.fn("Session.clearRevert")(function* (sessionID: SessionID) {
+   666→      yield* patch(sessionID, { time: { updated: Date.now() }, revert: null })
+   667→    })
+   668→
+   669→    const setSummary = Effect.fn("Session.setSummary")(function* (input: {
+   670→      sessionID: SessionID
+   671→      summary: Info["summary"]
+   672→    }) {
+   673→      yield* patch(input.sessionID, { time: { updated: Date.now() }, summary: input.summary })
+   674→    })
+   675→
+   676→    const diff = Effect.fn("Session.diff")(function* (sessionID: SessionID) {
+   677→      return yield* storage
+   678→        .read<Snapshot.FileDiff[]>(["session_diff", sessionID])
+   679→        .pipe(Effect.orElseSucceed((): Snapshot.FileDiff[] => []))
+   680→    })
+   681→
+   682→    const messages = Effect.fn("Session.messages")(function* (input: {
+   683→      sessionID: SessionID
+   684→      limit?: number
+   685→      agentID?: string
+   686→    }) {
+   687→      if (input.limit) {
+   688→        return MessageV2.page({
+   689→          sessionID: input.sessionID,
+   690→          limit: input.limit,
+   691→          agentID: input.agentID,
+   692→        }).items
+   693→      }
+   694→      return Array.from(MessageV2.stream(input.sessionID, { agentID: input.agentID })).reverse()
+   695→    })
+   696→
+   697→    const removeMessage = Effect.fn("Session.removeMessage")(function* (input: {
+   698→      sessionID: SessionID
+   699→      messageID: MessageID
+   700→    }) {
+   701→      yield* Effect.sync(() =>
+   702→        SyncEvent.run(MessageV2.Event.Removed, {
+   703→          sessionID: input.sessionID,
+   704→          messageID: input.messageID,
+   705→        }),
+   706→      )
+   707→      return input.messageID
+   708→    })
+   709→
+   710→    const removePart = Effect.fn("Session.removePart")(function* (input: {
+   711→      sessionID: SessionID
+   712→      messageID: MessageID
+   713→      partID: PartID
+   714→    }) {
+   715→      yield* Effect.sync(() =>
+   716→        SyncEvent.run(MessageV2.Event.PartRemoved, {
+   717→          sessionID: input.sessionID,
+   718→          messageID: input.messageID,
+   719→          partID: input.partID,
+   720→        }),
+   721→      )
+   722→      return input.partID
+   723→    })
+   724→
+   725→    const updatePartDelta = Effect.fnUntraced(function* (input: {
+   726→      sessionID: SessionID
+   727→      messageID: MessageID
+   728→      partID: PartID
+   729→      field: string
+   730→      delta: string
+   731→    }) {
+   732→      yield* bus.publish(MessageV2.Event.PartDelta, input)
+   733→    })
+   734→
+   735→    /** Finds the first message matching the predicate, searching newest-first.
+   736→     *
+   737→     * Slice contract: `options.agentID` defaults to `"main"` (mirrors `messages()`).
+   738→     * Pass `"*"` for cross-slice lookup. */
+   739→    const findMessage = Effect.fn("Session.findMessage")(function* (
+   740→      sessionID: SessionID,
+   741→      predicate: (msg: MessageV2.WithParts) => boolean,
+   742→      options?: { agentID?: string },
+   743→    ) {
+   744→      for (const item of MessageV2.stream(sessionID, { agentID: options?.agentID })) {
+   745→        if (predicate(item)) return Option.some(item)
+   746→      }
+   747→      return Option.none<MessageV2.WithParts>()
+   748→    })
+   749→
+   750→    const lastMainMessageID = Effect.fn("Session.lastMainMessageID")(function* (sessionID: SessionID) {
+   751→      const row = yield* db((d) =>
+   752→        d
+   753→          .select({ id: MessageTable.id })
+   754→          .from(MessageTable)
+   755→          .where(and(eq(MessageTable.session_id, sessionID), eq(MessageTable.agent_id, "main")))
+   756→          .orderBy(desc(MessageTable.id))
+   757→          .limit(1)
+   758→          .get(),
+   759→      )
+   760→      return row?.id
+   761→    })
+   762→
+   763→    return Service.of({
+   764→      create,
+   765→      fork,
+   766→      touch,
+   767→      get,
+   768→      setTitle,
+   769→      setArchived,
+   770→      setPermission,
+   771→      setRevert,
+   772→      clearRevert,
+   773→      setSummary,
+   774→      diff,
+   775→      messages,
+   776→      children,
+   777→      remove,
+   778→      updateMessage,
+   779→      removeMessage,
+   780→      removePart,
+   781→      updatePart,
+   782→      getPart,
+   783→      updatePartDelta,
+   784→      findMessage,
+   785→      lastMainMessageID,
+   786→    })
+   787→  }),
+   788→)
+   789→
+   790→export const defaultLayer = layer.pipe(
+   791→  Layer.provide(ActorRegistry.defaultLayer),
+   792→  Layer.provide(Bus.layer),
+   793→  Layer.provide(Storage.defaultLayer),
+   794→)
+   795→
+   796→export function* list(input?: {
+   797→  directory?: string
+   798→  workspaceID?: WorkspaceID
+   799→  roots?: boolean
+   800→  start?: number
+   801→  search?: string
+   802→  limit?: number
+   803→}) {
+   804→  const project = Instance.project
+   805→  const conditions = [eq(SessionTable.project_id, project.id)]
+   806→
+   807→  if (input?.workspaceID) {
+   808→    conditions.push(eq(SessionTable.workspace_id, input.workspaceID))
+   809→  }
+   810→  if (!Flag.MIMOCODE_EXPERIMENTAL_WORKSPACES) {
+   811→    if (input?.directory) {
+   812→      conditions.push(eq(SessionTable.directory, input.directory))
+   813→    }
+   814→  }
+   815→  if (input?.roots) {
+   816→    conditions.push(isNull(SessionTable.parent_id))
+   817→  }
+   818→  if (input?.start) {
+   819→    conditions.push(gte(SessionTable.time_updated, input.start))
+   820→  }
+   821→  if (input?.search) {
+   822→    conditions.push(like(SessionTable.title, `%${input.search}%`))
+   823→  }
+   824→
+   825→  const limit = input?.limit ?? 100
+   826→
+   827→  const rows = Database.use((db) =>
+   828→    db
+   829→      .select()
+   830→      .from(SessionTable)
+   831→      .where(and(...conditions))
+   832→      .orderBy(desc(SessionTable.time_updated))
+   833→      .limit(limit)
+   834→      .all(),
+   835→  )
+   836→  for (const row of rows) {
+   837→    yield fromRow(row)
+   838→  }
+   839→}
+   840→
+   841→export function* listGlobal(input?: {
+   842→  directory?: string
+   843→  roots?: boolean
+   844→  start?: number
+   845→  cursor?: number
+   846→  search?: string
+   847→  limit?: number
+   848→  archived?: boolean
+   849→}) {
+   850→  const conditions: SQL[] = []
+   851→
+   852→  if (input?.directory) {
+   853→    conditions.push(eq(SessionTable.directory, input.directory))
+   854→  }
+   855→  if (input?.roots) {
+   856→    conditions.push(isNull(SessionTable.parent_id))
+   857→  }
+   858→  if (input?.start) {
+   859→    conditions.push(gte(SessionTable.time_updated, input.start))
+   860→  }
+   861→  if (input?.cursor) {
+   862→    conditions.push(lt(SessionTable.time_updated, input.cursor))
+   863→  }
+   864→  if (input?.search) {
+   865→    conditions.push(like(SessionTable.title, `%${input.search}%`))
+   866→  }
+   867→  if (!input?.archived) {
+   868→    conditions.push(isNull(SessionTable.time_archived))
+   869→  }
+   870→
+   871→  const limit = input?.limit ?? 100
+   872→
+   873→  const rows = Database.use((db) => {
+   874→    const query =
+   875→      conditions.length > 0
+   876→        ? db
+   877→            .select()
+   878→            .from(SessionTable)
+   879→            .where(and(...conditions))
+   880→        : db.select().from(SessionTable)
+   881→    return query.orderBy(desc(SessionTable.time_updated), desc(SessionTable.id)).limit(limit).all()
+   882→  })
+   883→
+   884→  const ids = [...new Set(rows.map((row) => row.project_id))]
+   885→  const projects = new Map<string, ProjectInfo>()
+   886→
+   887→  if (ids.length > 0) {
+   888→    const items = Database.use((db) =>
+   889→      db
+   890→        .select({ id: ProjectTable.id, name: ProjectTable.name, worktree: ProjectTable.worktree })
+   891→        .from(ProjectTable)
+   892→        .where(inArray(ProjectTable.id, ids))
+   893→        .all(),
+   894→    )
+   895→    for (const item of items) {
+   896→      projects.set(item.id, {
+   897→        id: item.id,
+   898→        name: item.name ?? undefined,
+   899→        worktree: item.worktree,
+   900→      })
+   901→    }
+   902→  }
+   903→
+   904→  for (const row of rows) {
+   905→    const project = projects.get(row.project_id) ?? null
+   906→    yield { ...fromRow(row), project }
+   907→  }
+   908→}
+   909→
