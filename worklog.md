@@ -35,3 +35,23 @@ Stage Summary:
 - PR #562 (first round): 4 bugs + 1 feature
 - PR #570 (second round): 5 fixes + improvements
 - Cron job active: every 30 min automatic bug fixing
+---
+Task ID: 3
+Agent: Main
+Task: Add OpenRouter model browser with free/paid filters and enable/disable toggles
+
+Work Log:
+- Explored provider architecture — found OpenRouter already exists as a provider but lacks live model browsing
+- Created DialogBrowseOpenRouter component that fetches from https://openrouter.ai/api/v1/models
+- Implemented All/Free/Paid filter tabs with real-time count badges
+- Added search by model name/ID, pricing display, context length display
+- Each model has enable/disable toggle persisted via existing visibility system
+- Added bulk enable/disable all visible models (eye/eye-slash icons)
+- Added "Browse models" button in Settings > Providers for connected OpenRouter
+- Added 14 i18n keys in en.ts and zh.ts
+- Created PR #573: https://github.com/XiaomiMiMo/MiMo-Code/pull/573
+
+Stage Summary:
+- New file: dialog-browse-openrouter.tsx (270 lines)
+- Modified: settings-providers.tsx, en.ts, zh.ts
+- 4 files changed, 332 insertions, 12 deletions

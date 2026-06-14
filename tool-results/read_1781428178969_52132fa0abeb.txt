@@ -1,0 +1,1323 @@
+     1→import type { ModelMessage } from "ai"
+     2→import { mergeDeep, unique } from "remeda"
+     3→import type { JSONSchema7 } from "@ai-sdk/provider"
+     4→import type { JSONSchema } from "zod/v4/core"
+     5→import type * as Provider from "./provider"
+     6→import type * as ModelsDev from "./models"
+     7→import { iife } from "@/util/iife"
+     8→import { Flag } from "@/flag/flag"
+     9→
+    10→type Modality = NonNullable<ModelsDev.Model["modalities"]>["input"][number]
+    11→
+    12→function mimeToModality(mime: string): Modality | undefined {
+    13→  if (mime.startsWith("image/")) return "image"
+    14→  if (mime.startsWith("audio/")) return "audio"
+    15→  if (mime.startsWith("video/")) return "video"
+    16→  if (mime === "application/pdf") return "pdf"
+    17→  return undefined
+    18→}
+    19→
+    20→// MiMo vision support isn't reflected in models.dev modality data, so the
+    21→// generic capability check would strip images before they reach the model.
+    22→// mimo-auto and mimo-v2.5 accept images; mimo-v2.5-pro is text-only.
+    23→function supportsImageInput(model: Provider.Model): boolean {
+    24→  if (model.providerID === "mimo" || model.providerID === "xiaomi") {
+    25→    const id = model.id.toLowerCase()
+    26→    if (id.includes("v2.5-pro")) return false
+    27→    if (id === "mimo-auto" || id.includes("v2.5")) return true
+    28→  }
+    29→  // Claude and GPT models are all multimodal regardless of catalog data.
+    30→  const id = model.id.toLowerCase()
+    31→  const apiID = model.api.id.toLowerCase()
+    32→  if (id.includes("claude") || apiID.includes("claude") || model.providerID === "anthropic") return true
+    33→  if (id.includes("gpt") || apiID.includes("gpt")) return true
+    34→  return model.capabilities.input.image
+    35→}
+    36→
+    37→export const OUTPUT_TOKEN_MAX = Flag.MIMOCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX || 32_000
+    38→const MIMO_OUTPUT_TOKEN_MAX = 128_000
+    39→
+    40→// Maps npm package to the key the AI SDK expects for providerOptions
+    41→function sdkKey(npm: string): string | undefined {
+    42→  switch (npm) {
+    43→    case "@ai-sdk/github-copilot":
+    44→      return "copilot"
+    45→    case "@ai-sdk/azure":
+    46→      return "azure"
+    47→    case "@ai-sdk/openai":
+    48→      return "openai"
+    49→    case "@ai-sdk/amazon-bedrock":
+    50→      return "bedrock"
+    51→    case "@ai-sdk/anthropic":
+    52→    case "@ai-sdk/google-vertex/anthropic":
+    53→      return "anthropic"
+    54→    case "@ai-sdk/google-vertex":
+    55→      return "vertex"
+    56→    case "@ai-sdk/google":
+    57→      return "google"
+    58→    case "@ai-sdk/gateway":
+    59→      return "gateway"
+    60→    case "@openrouter/ai-sdk-provider":
+    61→      return "openrouter"
+    62→  }
+    63→  return undefined
+    64→}
+    65→
+    66→function normalizeMessages(
+    67→  msgs: ModelMessage[],
+    68→  model: Provider.Model,
+    69→  _options: Record<string, unknown>,
+    70→): ModelMessage[] {
+    71→  // Anthropic rejects messages with empty content - filter out empty string messages
+    72→  // and remove empty text/reasoning parts from array content
+    73→  if (model.api.npm === "@ai-sdk/anthropic" || model.api.npm === "@ai-sdk/amazon-bedrock") {
+    74→    msgs = msgs
+    75→      .map((msg) => {
+    76→        if (typeof msg.content === "string") {
+    77→          if (msg.content === "") return undefined
+    78→          return msg
+    79→        }
+    80→        if (!Array.isArray(msg.content)) return msg
+    81→        const filtered = msg.content.filter((part) => {
+    82→          if (part.type === "text" || part.type === "reasoning") {
+    83→            return part.text !== ""
+    84→          }
+    85→          return true
+    86→        })
+    87→        if (filtered.length === 0) return undefined
+    88→        return { ...msg, content: filtered }
+    89→      })
+    90→      .filter((msg): msg is ModelMessage => msg !== undefined && msg.content !== "")
+    91→  }
+    92→
+    93→  if (model.api.id.includes("claude")) {
+    94→    const scrub = (id: string) => id.replace(/[^a-zA-Z0-9_-]/g, "_")
+    95→    msgs = msgs.map((msg) => {
+    96→      if (msg.role === "assistant" && Array.isArray(msg.content)) {
+    97→        return {
+    98→          ...msg,
+    99→          content: msg.content.map((part) => {
+   100→            if (part.type === "tool-call" || part.type === "tool-result") {
+   101→              return { ...part, toolCallId: scrub(part.toolCallId) }
+   102→            }
+   103→            return part
+   104→          }),
+   105→        }
+   106→      }
+   107→      if (msg.role === "tool" && Array.isArray(msg.content)) {
+   108→        return {
+   109→          ...msg,
+   110→          content: msg.content.map((part) => {
+   111→            if (part.type === "tool-result") {
+   112→              return { ...part, toolCallId: scrub(part.toolCallId) }
+   113→            }
+   114→            return part
+   115→          }),
+   116→        }
+   117→      }
+   118→      return msg
+   119→    })
+   120→  }
+   121→  if (["@ai-sdk/anthropic", "@ai-sdk/google-vertex/anthropic"].includes(model.api.npm)) {
+   122→    // Anthropic rejects assistant turns where tool_use blocks are followed by non-tool
+   123→    // content, e.g. [tool_use, tool_use, text], with:
+   124→    // `tool_use` ids were found without `tool_result` blocks immediately after...
+   125→    //
+   126→    // Reorder that invalid shape into [text] + [tool_use, tool_use]. Consecutive
+   127→    // assistant messages are later merged by the provider/SDK, so preserving the
+   128→    // original [tool_use...] then [text] order still produces the invalid payload.
+   129→    //
+   130→    // The root cause appears to be somewhere upstream where the stream is originally
+   131→    // processed. We were unable to locate an exact narrower reproduction elsewhere,
+   132→    // so we keep this transform in place for the time being.
+   133→    msgs = msgs.flatMap((msg) => {
+   134→      if (msg.role !== "assistant" || !Array.isArray(msg.content)) return [msg]
+   135→
+   136→      const parts = msg.content
+   137→      const first = parts.findIndex((part) => part.type === "tool-call")
+   138→      if (first === -1) return [msg]
+   139→      if (!parts.slice(first).some((part) => part.type !== "tool-call")) return [msg]
+   140→      return [
+   141→        { ...msg, content: parts.filter((part) => part.type !== "tool-call") },
+   142→        { ...msg, content: parts.filter((part) => part.type === "tool-call") },
+   143→      ]
+   144→    })
+   145→  }
+   146→  if (
+   147→    model.providerID === "mistral" ||
+   148→    model.api.id.toLowerCase().includes("mistral") ||
+   149→    model.api.id.toLocaleLowerCase().includes("devstral")
+   150→  ) {
+   151→    const scrub = (id: string) => {
+   152→      return id
+   153→        .replace(/[^a-zA-Z0-9]/g, "") // Remove non-alphanumeric characters
+   154→        .substring(0, 9) // Take first 9 characters
+   155→        .padEnd(9, "0") // Pad with zeros if less than 9 characters
+   156→    }
+   157→    const result: ModelMessage[] = []
+   158→    for (let i = 0; i < msgs.length; i++) {
+   159→      const msg = msgs[i]
+   160→      const nextMsg = msgs[i + 1]
+   161→
+   162→      if (msg.role === "assistant" && Array.isArray(msg.content)) {
+   163→        msg.content = msg.content.map((part) => {
+   164→          if (part.type === "tool-call" || part.type === "tool-result") {
+   165→            return { ...part, toolCallId: scrub(part.toolCallId) }
+   166→          }
+   167→          return part
+   168→        })
+   169→      }
+   170→      if (msg.role === "tool" && Array.isArray(msg.content)) {
+   171→        msg.content = msg.content.map((part) => {
+   172→          if (part.type === "tool-result") {
+   173→            return { ...part, toolCallId: scrub(part.toolCallId) }
+   174→          }
+   175→          return part
+   176→        })
+   177→      }
+   178→      result.push(msg)
+   179→
+   180→      // Fix message sequence: tool messages cannot be followed by user messages
+   181→      if (msg.role === "tool" && nextMsg?.role === "user") {
+   182→        result.push({
+   183→          role: "assistant",
+   184→          content: [
+   185→            {
+   186→              type: "text",
+   187→              text: "Done.",
+   188→            },
+   189→          ],
+   190→        })
+   191→      }
+   192→    }
+   193→    return result
+   194→  }
+   195→
+   196→  if (typeof model.capabilities.interleaved === "object" && model.capabilities.interleaved.field) {
+   197→    const field = model.capabilities.interleaved.field
+   198→    return msgs.map((msg) => {
+   199→      if (msg.role === "assistant" && Array.isArray(msg.content)) {
+   200→        const reasoningParts = msg.content.filter((part: any) => part.type === "reasoning")
+   201→        const reasoningText = reasoningParts.map((part: any) => part.text).join("")
+   202→
+   203→        // Filter out reasoning parts from content
+   204→        const filteredContent = msg.content.filter((part: any) => part.type !== "reasoning")
+   205→
+   206→        // Include reasoning_content | reasoning_details directly on the message for all assistant messages
+   207→        if (reasoningText) {
+   208→          return {
+   209→            ...msg,
+   210→            content: filteredContent,
+   211→            providerOptions: {
+   212→              ...msg.providerOptions,
+   213→              openaiCompatible: {
+   214→                ...msg.providerOptions?.openaiCompatible,
+   215→                [field]: reasoningText,
+   216→              },
+   217→            },
+   218→          }
+   219→        }
+   220→
+   221→        return {
+   222→          ...msg,
+   223→          content: filteredContent,
+   224→        }
+   225→      }
+   226→
+   227→      return msg
+   228→    })
+   229→  }
+   230→
+   231→  return msgs
+   232→}
+   233→
+   234→// Determines whether a model's provider respects inline cache_control / cachePoint
+   235→// markers. Pure name matching (model.api.id.includes("claude")) is fragile — a Claude
+   236→// model behind an OpenAI-compatible proxy gets matched but markers are silently dropped.
+   237→// See upstream opencode#26786.
+   238→function supportsCacheMarkers(model: Provider.Model): boolean {
+   239→  // Anthropic-only SDKs — always support inline markers
+   240→  if (model.api.npm === "@ai-sdk/anthropic" || model.api.npm === "@ai-sdk/google-vertex/anthropic") return true
+   241→  if (model.providerID === "anthropic" || model.providerID === "google-vertex-anthropic") return true
+   242→  // Bedrock cachePoint is a Converse API feature, works across model families
+   243→  if (model.api.npm === "@ai-sdk/amazon-bedrock") return true
+   244→  // Multi-model providers: only Anthropic/Claude models support cache markers
+   245→  if (
+   246→    model.api.npm === "@openrouter/ai-sdk-provider" ||
+   247→    model.api.npm === "@ai-sdk/github-copilot" ||
+   248→    model.api.npm === "@ai-sdk/alibaba"
+   249→  ) {
+   250→    return (
+   251→      model.api.id.includes("claude") ||
+   252→      model.api.id.includes("anthropic") ||
+   253→      model.id.includes("claude") ||
+   254→      model.id.includes("anthropic")
+   255→    )
+   256→  }
+   257→  return false
+   258→}
+   259→
+   260→function applyCaching(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
+   261→  // Only Anthropic and OpenRouter expose a cache-control TTL in their AI SDK;
+   262→  // the other providers ignore an unknown `ttl` field, so we only thread it
+   263→  // into those two branches. Default (unset) stays the provider 5m default.
+   264→  const ttl = model.cachePromptTTL === "1h" ? { ttl: "1h" as const } : {}
+   265→  const providerOptions = {
+   266→    anthropic: {
+   267→      cacheControl: { type: "ephemeral", ...ttl },
+   268→    },
+   269→    openrouter: {
+   270→      cacheControl: { type: "ephemeral", ...ttl },
+   271→    },
+   272→    bedrock: {
+   273→      cachePoint: { type: "default" },
+   274→    },
+   275→    openaiCompatible: {
+   276→      cache_control: { type: "ephemeral" },
+   277→    },
+   278→    copilot: {
+   279→      copilot_cache_control: { type: "ephemeral" },
+   280→    },
+   281→    alibaba: {
+   282→      cacheControl: { type: "ephemeral" },
+   283→    },
+   284→  }
+   285→
+   286→  // Strategy: place cache breakpoints at stable prefix boundaries (max 4 allowed by Anthropic)
+   287→  // 1. Last system message — system prompt never changes
+   288→  // 2. Midpoint of conversation history — long prefix second-level cache
+   289→  // 3. Message before the last user message — stable history boundary
+   290→  const targets: ModelMessage[] = []
+   291→
+   292→  const systemMsgs = msgs.filter((msg) => msg.role === "system")
+   293→  if (systemMsgs.length > 0) targets.push(systemMsgs[systemMsgs.length - 1])
+   294→
+   295→  const nonSystem = msgs.filter((msg) => msg.role !== "system")
+   296→  const lastUserIdx = nonSystem.findLastIndex((msg) => msg.role === "user")
+   297→  if (lastUserIdx >= 1) {
+   298→    targets.push(nonSystem[lastUserIdx - 1])
+   299→    const midpoint = Math.floor(lastUserIdx / 2)
+   300→    if (midpoint > 0 && midpoint < lastUserIdx - 1) targets.push(nonSystem[midpoint])
+   301→  } else if (lastUserIdx === 0) {
+   302→    targets.push(nonSystem[0])
+   303→  }
+   304→
+   305→  for (const msg of unique(targets)) {
+   306→    const useMessageLevelOptions =
+   307→      model.providerID === "anthropic" ||
+   308→      model.providerID.includes("bedrock") ||
+   309→      model.api.npm === "@ai-sdk/amazon-bedrock"
+   310→    const shouldUseContentOptions = !useMessageLevelOptions && Array.isArray(msg.content) && msg.content.length > 0
+   311→
+   312→    if (shouldUseContentOptions) {
+   313→      const lastContent = msg.content[msg.content.length - 1]
+   314→      if (
+   315→        lastContent &&
+   316→        typeof lastContent === "object" &&
+   317→        lastContent.type !== "tool-approval-request" &&
+   318→        lastContent.type !== "tool-approval-response"
+   319→      ) {
+   320→        lastContent.providerOptions = mergeDeep(lastContent.providerOptions ?? {}, providerOptions)
+   321→        continue
+   322→      }
+   323→    }
+   324→
+   325→    msg.providerOptions = mergeDeep(msg.providerOptions ?? {}, providerOptions)
+   326→  }
+   327→
+   328→  return msgs
+   329→}
+   330→
+   331→function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMessage[] {
+   332→  return msgs.map((msg) => {
+   333→    if (msg.role !== "user" || !Array.isArray(msg.content)) return msg
+   334→
+   335→    const filtered = msg.content.map((part) => {
+   336→      if (part.type !== "file" && part.type !== "image") return part
+   337→
+   338→      // Check for empty base64 image data
+   339→      if (part.type === "image") {
+   340→        const imageStr = String(part.image)
+   341→        if (imageStr.startsWith("data:")) {
+   342→          const match = imageStr.match(/^data:([^;]+);base64,(.*)$/)
+   343→          if (match && (!match[2] || match[2].length === 0)) {
+   344→            return {
+   345→              type: "text" as const,
+   346→              text: "ERROR: Image file is empty or corrupted. Please provide a valid image.",
+   347→            }
+   348→          }
+   349→        }
+   350→      }
+   351→
+   352→      const mime = part.type === "image" ? String(part.image).split(";")[0].replace("data:", "") : part.mediaType
+   353→      const filename = part.type === "file" ? part.filename : undefined
+   354→      const modality = mimeToModality(mime)
+   355→      if (!modality) return part
+   356→      const supported = modality === "image" ? supportsImageInput(model) : model.capabilities.input[modality]
+   357→      if (supported) return part
+   358→
+   359→      const name = filename ? `"${filename}"` : modality
+   360→      return {
+   361→        type: "text" as const,
+   362→        text: `ERROR: Cannot read ${name} (this model does not support ${modality} input). Inform the user.`,
+   363→      }
+   364→    })
+   365→
+   366→    return { ...msg, content: filtered }
+   367→  })
+   368→}
+   369→
+   370→// Returns the decoded byte size of a base64 data URL, or undefined for inputs
+   371→// that aren't data URLs (remote URLs, raw binary) and therefore can't be sized.
+   372→function imageByteSize(image: string): number | undefined {
+   373→  if (!image.startsWith("data:")) return undefined
+   374→  const base64 = image.slice(image.indexOf(",") + 1)
+   375→  if (!base64) return 0
+   376→  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0
+   377→  return Math.floor((base64.length * 3) / 4) - padding
+   378→}
+   379→
+   380→function limitImages(msgs: ModelMessage[]): ModelMessage[] {
+   381→  const maxImages = Flag.MIMOCODE_MAX_PROMPT_IMAGES
+   382→  const maxSize = Flag.MIMOCODE_MAX_PROMPT_IMAGE_SIZE
+   383→  if (maxImages === undefined && maxSize === undefined) return msgs
+   384→
+   385→  const total = msgs.reduce(
+   386→    (sum, msg) =>
+   387→      msg.role === "user" && Array.isArray(msg.content)
+   388→        ? sum + msg.content.filter((part) => part.type === "image").length
+   389→        : sum,
+   390→    0,
+   391→  )
+   392→  // Drop the oldest excess images so the most recent ones reach the model.
+   393→  let toDrop = maxImages === undefined ? 0 : Math.max(0, total - maxImages)
+   394→
+   395→  return msgs.map((msg) => {
+   396→    if (msg.role !== "user" || !Array.isArray(msg.content)) return msg
+   397→    const content = msg.content.map((part) => {
+   398→      if (part.type !== "image") return part
+   399→      if (toDrop > 0) {
+   400→        toDrop--
+   401→        return { type: "text" as const, text: `[Image omitted: exceeds the configured limit of ${maxImages} prompt image(s).]` }
+   402→      }
+   403→      if (maxSize !== undefined) {
+   404→        const size = imageByteSize(String(part.image))
+   405→        if (size !== undefined && size > maxSize) {
+   406→          return { type: "text" as const, text: `[Image omitted: exceeds the configured ${maxSize}-byte prompt image size limit.]` }
+   407→        }
+   408→      }
+   409→      return part
+   410→    })
+   411→    return { ...msg, content }
+   412→  })
+   413→}
+   414→
+   415→export function message(msgs: ModelMessage[], model: Provider.Model, options: Record<string, unknown>) {
+   416→  msgs = unsupportedParts(msgs, model)
+   417→  msgs = limitImages(msgs)
+   418→  msgs = normalizeMessages(msgs, model, options)
+   419→  if (supportsCacheMarkers(model)) {
+   420→    msgs = applyCaching(msgs, model)
+   421→  }
+   422→
+   423→  // Remap providerOptions keys from stored providerID to expected SDK key
+   424→  const key = sdkKey(model.api.npm)
+   425→  if (key && key !== model.providerID) {
+   426→    const remap = (opts: Record<string, any> | undefined) => {
+   427→      if (!opts) return opts
+   428→      if (!(model.providerID in opts)) return opts
+   429→      const result = { ...opts }
+   430→      result[key] = result[model.providerID]
+   431→      delete result[model.providerID]
+   432→      return result
+   433→    }
+   434→
+   435→    msgs = msgs.map((msg) => {
+   436→      if (!Array.isArray(msg.content)) return { ...msg, providerOptions: remap(msg.providerOptions) }
+   437→      return {
+   438→        ...msg,
+   439→        providerOptions: remap(msg.providerOptions),
+   440→        content: msg.content.map((part) => {
+   441→          if (part.type === "tool-approval-request" || part.type === "tool-approval-response") {
+   442→            return { ...part }
+   443→          }
+   444→          return { ...part, providerOptions: remap(part.providerOptions) }
+   445→        }),
+   446→      } as typeof msg
+   447→    })
+   448→  }
+   449→
+   450→  return msgs
+   451→}
+   452→
+   453→export function temperature(model: Provider.Model) {
+   454→  const id = model.id.toLowerCase()
+   455→  if (id.includes("qwen")) return 0.55
+   456→  if (id.includes("claude")) return undefined
+   457→  if (id.includes("gemini")) return 1.0
+   458→  if (id.includes("glm-4.6")) return 1.0
+   459→  if (id.includes("glm-4.7")) return 1.0
+   460→  if (id.includes("minimax-m2")) return 1.0
+   461→  if (id.includes("mimo")) return 1.0
+   462→  if (id.includes("kimi-k2")) {
+   463→    // kimi-k2-thinking & kimi-k2.5 && kimi-k2p5 && kimi-k2-5
+   464→    if (["thinking", "k2.", "k2p", "k2-5"].some((s) => id.includes(s))) {
+   465→      return 1.0
+   466→    }
+   467→    return 0.6
+   468→  }
+   469→  return undefined
+   470→}
+   471→
+   472→export function topP(model: Provider.Model) {
+   473→  const id = model.id.toLowerCase()
+   474→  if (id.includes("qwen")) return 1
+   475→  if (["minimax-m2", "gemini", "kimi-k2.5", "kimi-k2p5", "kimi-k2-5"].some((s) => id.includes(s))) {
+   476→    return 0.95
+   477→  }
+   478→  return undefined
+   479→}
+   480→
+   481→export function topK(model: Provider.Model) {
+   482→  const id = model.id.toLowerCase()
+   483→  if (id.includes("minimax-m2")) {
+   484→    if (["m2.", "m25", "m21"].some((s) => id.includes(s))) return 40
+   485→    return 20
+   486→  }
+   487→  if (id.includes("gemini")) return 64
+   488→  return undefined
+   489→}
+   490→
+   491→const WIDELY_SUPPORTED_EFFORTS = ["low", "medium", "high"]
+   492→const OPENAI_EFFORTS = ["none", "minimal", ...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
+   493→
+   494→function anthropicAdaptiveEfforts(apiId: string): string[] | null {
+   495→  if (["opus-4-7", "opus-4.7", "opus-4-8", "opus-4.8"].some((v) => apiId.includes(v))) {
+   496→    return ["low", "medium", "high", "xhigh", "max"]
+   497→  }
+   498→  if (["opus-4-6", "opus-4.6", "sonnet-4-6", "sonnet-4.6"].some((v) => apiId.includes(v))) {
+   499→    return ["low", "medium", "high", "max"]
+   500→  }
+   501→  return null
+   502→}
+   503→
+   504→export function variants(model: Provider.Model): Record<string, Record<string, any>> {
+   505→  if (!model.capabilities.reasoning) return {}
+   506→
+   507→  const id = model.id.toLowerCase()
+   508→  const adaptiveEfforts = anthropicAdaptiveEfforts(model.api.id)
+   509→  if (
+   510→    id.includes("deepseek") ||
+   511→    id.includes("minimax") ||
+   512→    id.includes("glm") ||
+   513→    id.includes("mistral") ||
+   514→    id.includes("kimi") ||
+   515→    id.includes("k2p5") ||
+   516→    id.includes("qwen") ||
+   517→    id.includes("big-pickle")
+   518→  )
+   519→    return {}
+   520→
+   521→  // see: https://docs.x.ai/docs/guides/reasoning#control-how-hard-the-model-thinks
+   522→  if (id.includes("grok") && id.includes("grok-3-mini")) {
+   523→    if (model.api.npm === "@openrouter/ai-sdk-provider") {
+   524→      return {
+   525→        low: { reasoning: { effort: "low" } },
+   526→        high: { reasoning: { effort: "high" } },
+   527→      }
+   528→    }
+   529→    return {
+   530→      low: { reasoningEffort: "low" },
+   531→      high: { reasoningEffort: "high" },
+   532→    }
+   533→  }
+   534→  if (id.includes("grok")) return {}
+   535→
+   536→  switch (model.api.npm) {
+   537→    case "@openrouter/ai-sdk-provider":
+   538→      if (!model.id.includes("gpt") && !model.id.includes("gemini-3") && !model.id.includes("claude")) return {}
+   539→      return Object.fromEntries(OPENAI_EFFORTS.map((effort) => [effort, { reasoning: { effort } }]))
+   540→
+   541→    case "@ai-sdk/gateway":
+   542→      if (model.id.includes("anthropic")) {
+   543→        if (adaptiveEfforts) {
+   544→          return Object.fromEntries(
+   545→            adaptiveEfforts.map((effort) => [
+   546→              effort,
+   547→              {
+   548→                thinking: {
+   549→                  type: "adaptive",
+   550→                },
+   551→                effort,
+   552→              },
+   553→            ]),
+   554→          )
+   555→        }
+   556→        return {
+   557→          high: {
+   558→            thinking: {
+   559→              type: "enabled",
+   560→              budgetTokens: 16000,
+   561→            },
+   562→          },
+   563→          max: {
+   564→            thinking: {
+   565→              type: "enabled",
+   566→              budgetTokens: 31999,
+   567→            },
+   568→          },
+   569→        }
+   570→      }
+   571→      if (model.id.includes("google")) {
+   572→        if (id.includes("2.5")) {
+   573→          return {
+   574→            high: {
+   575→              thinkingConfig: {
+   576→                includeThoughts: true,
+   577→                thinkingBudget: 16000,
+   578→              },
+   579→            },
+   580→            max: {
+   581→              thinkingConfig: {
+   582→                includeThoughts: true,
+   583→                thinkingBudget: 24576,
+   584→              },
+   585→            },
+   586→          }
+   587→        }
+   588→        return Object.fromEntries(
+   589→          ["low", "high"].map((effort) => [
+   590→            effort,
+   591→            {
+   592→              includeThoughts: true,
+   593→              thinkingLevel: effort,
+   594→            },
+   595→          ]),
+   596→        )
+   597→      }
+   598→      return Object.fromEntries(OPENAI_EFFORTS.map((effort) => [effort, { reasoningEffort: effort }]))
+   599→
+   600→    case "@ai-sdk/github-copilot":
+   601→      if (model.id.includes("gemini")) {
+   602→        // currently github copilot only returns thinking
+   603→        return {}
+   604→      }
+   605→      if (model.id.includes("claude")) {
+   606→        return Object.fromEntries(WIDELY_SUPPORTED_EFFORTS.map((effort) => [effort, { reasoningEffort: effort }]))
+   607→      }
+   608→      const copilotEfforts = iife(() => {
+   609→        if (id.includes("5.1-codex-max") || id.includes("5.2") || id.includes("5.3"))
+   610→          return [...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
+   611→        const arr = [...WIDELY_SUPPORTED_EFFORTS]
+   612→        if (id.includes("gpt-5") && model.release_date >= "2025-12-04") arr.push("xhigh")
+   613→        return arr
+   614→      })
+   615→      return Object.fromEntries(
+   616→        copilotEfforts.map((effort) => [
+   617→          effort,
+   618→          {
+   619→            reasoningEffort: effort,
+   620→            reasoningSummary: "auto",
+   621→            include: ["reasoning.encrypted_content"],
+   622→          },
+   623→        ]),
+   624→      )
+   625→
+   626→    case "@ai-sdk/cerebras":
+   627→    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/cerebras
+   628→    case "@ai-sdk/togetherai":
+   629→    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/togetherai
+   630→    case "@ai-sdk/xai":
+   631→    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/xai
+   632→    case "@ai-sdk/deepinfra":
+   633→    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/deepinfra
+   634→    case "venice-ai-sdk-provider":
+   635→    // https://docs.venice.ai/overview/guides/reasoning-models#reasoning-effort
+   636→    case "@ai-sdk/openai-compatible":
+   637→      return Object.fromEntries(WIDELY_SUPPORTED_EFFORTS.map((effort) => [effort, { reasoningEffort: effort }]))
+   638→
+   639→    case "@ai-sdk/azure":
+   640→      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/azure
+   641→      if (id === "o1-mini") return {}
+   642→      const azureEfforts = ["low", "medium", "high"]
+   643→      if (id.includes("gpt-5-") || id === "gpt-5") {
+   644→        azureEfforts.unshift("minimal")
+   645→      }
+   646→      return Object.fromEntries(
+   647→        azureEfforts.map((effort) => [
+   648→          effort,
+   649→          {
+   650→            reasoningEffort: effort,
+   651→            reasoningSummary: "auto",
+   652→            include: ["reasoning.encrypted_content"],
+   653→          },
+   654→        ]),
+   655→      )
+   656→    case "@ai-sdk/openai":
+   657→      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/openai
+   658→      if (id === "gpt-5-pro") return {}
+   659→      const openaiEfforts = iife(() => {
+   660→        if (id.includes("codex")) {
+   661→          if (id.includes("5.2") || id.includes("5.3")) return [...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
+   662→          return WIDELY_SUPPORTED_EFFORTS
+   663→        }
+   664→        const arr = [...WIDELY_SUPPORTED_EFFORTS]
+   665→        if (id.includes("gpt-5-") || id === "gpt-5") {
+   666→          arr.unshift("minimal")
+   667→        }
+   668→        if (model.release_date >= "2025-11-13") {
+   669→          arr.unshift("none")
+   670→        }
+   671→        if (model.release_date >= "2025-12-04") {
+   672→          arr.push("xhigh")
+   673→        }
+   674→        return arr
+   675→      })
+   676→      return Object.fromEntries(
+   677→        openaiEfforts.map((effort) => [
+   678→          effort,
+   679→          {
+   680→            reasoningEffort: effort,
+   681→            reasoningSummary: "auto",
+   682→            include: ["reasoning.encrypted_content"],
+   683→          },
+   684→        ]),
+   685→      )
+   686→
+   687→    case "@ai-sdk/anthropic":
+   688→    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/anthropic
+   689→    case "@ai-sdk/google-vertex/anthropic":
+   690→      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/google-vertex#anthropic-provider
+   691→
+   692→      if (model.providerID === "github-copilot") {
+   693→        if (model.api.id.includes("opus-4.7")) {
+   694→          return Object.fromEntries(["medium"].map((effort) => [effort, { reasoningEffort: effort }]))
+   695→        }
+   696→      }
+   697→
+   698→      if (adaptiveEfforts) {
+   699→        return Object.fromEntries(
+   700→          adaptiveEfforts.map((effort) => [
+   701→            effort,
+   702→            {
+   703→              thinking: {
+   704→                type: "adaptive",
+   705→                ...(["opus-4-7", "opus-4.7", "opus-4-8", "opus-4.8"].some((v) => model.api.id.includes(v))
+   706→                  ? { display: "summarized" }
+   707→                  : {}),
+   708→              },
+   709→              effort,
+   710→            },
+   711→          ]),
+   712→        )
+   713→      }
+   714→
+   715→      return {
+   716→        high: {
+   717→          thinking: {
+   718→            type: "enabled",
+   719→            budgetTokens: Math.min(16_000, Math.floor(model.limit.output / 2 - 1)),
+   720→          },
+   721→        },
+   722→        max: {
+   723→          thinking: {
+   724→            type: "enabled",
+   725→            budgetTokens: Math.min(31_999, model.limit.output - 1),
+   726→          },
+   727→        },
+   728→      }
+   729→
+   730→    case "@ai-sdk/amazon-bedrock":
+   731→      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/amazon-bedrock
+   732→      if (adaptiveEfforts) {
+   733→        return Object.fromEntries(
+   734→          adaptiveEfforts.map((effort) => [
+   735→            effort,
+   736→            {
+   737→              reasoningConfig: {
+   738→                type: "adaptive",
+   739→                maxReasoningEffort: effort,
+   740→                ...(["opus-4-7", "opus-4.7", "opus-4-8", "opus-4.8"].some((v) => model.api.id.includes(v))
+   741→                  ? { display: "summarized" }
+   742→                  : {}),
+   743→              },
+   744→            },
+   745→          ]),
+   746→        )
+   747→      }
+   748→      // For Anthropic models on Bedrock, use reasoningConfig with budgetTokens
+   749→      if (model.api.id.includes("anthropic")) {
+   750→        return {
+   751→          high: {
+   752→            reasoningConfig: {
+   753→              type: "enabled",
+   754→              budgetTokens: 16000,
+   755→            },
+   756→          },
+   757→          max: {
+   758→            reasoningConfig: {
+   759→              type: "enabled",
+   760→              budgetTokens: 31999,
+   761→            },
+   762→          },
+   763→        }
+   764→      }
+   765→
+   766→      // For Amazon Nova models, use reasoningConfig with maxReasoningEffort
+   767→      return Object.fromEntries(
+   768→        WIDELY_SUPPORTED_EFFORTS.map((effort) => [
+   769→          effort,
+   770→          {
+   771→            reasoningConfig: {
+   772→              type: "enabled",
+   773→              maxReasoningEffort: effort,
+   774→            },
+   775→          },
+   776→        ]),
+   777→      )
+   778→
+   779→    case "@ai-sdk/google-vertex":
+   780→    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/google-vertex
+   781→    case "@ai-sdk/google":
+   782→      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/google-generative-ai
+   783→      if (id.includes("2.5")) {
+   784→        return {
+   785→          high: {
+   786→            thinkingConfig: {
+   787→              includeThoughts: true,
+   788→              thinkingBudget: 16000,
+   789→            },
+   790→          },
+   791→          max: {
+   792→            thinkingConfig: {
+   793→              includeThoughts: true,
+   794→              thinkingBudget: 24576,
+   795→            },
+   796→          },
+   797→        }
+   798→      }
+   799→      let levels = ["low", "high"]
+   800→      if (id.includes("3.1")) {
+   801→        levels = ["low", "medium", "high"]
+   802→      }
+   803→
+   804→      return Object.fromEntries(
+   805→        levels.map((effort) => [
+   806→          effort,
+   807→          {
+   808→            thinkingConfig: {
+   809→              includeThoughts: true,
+   810→              thinkingLevel: effort,
+   811→            },
+   812→          },
+   813→        ]),
+   814→      )
+   815→
+   816→    case "@ai-sdk/mistral":
+   817→      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/mistral
+   818→      return {}
+   819→
+   820→    case "@ai-sdk/cohere":
+   821→      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/cohere
+   822→      return {}
+   823→
+   824→    case "@ai-sdk/groq":
+   825→      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/groq
+   826→      const groqEffort = ["none", ...WIDELY_SUPPORTED_EFFORTS]
+   827→      return Object.fromEntries(
+   828→        groqEffort.map((effort) => [
+   829→          effort,
+   830→          {
+   831→            reasoningEffort: effort,
+   832→          },
+   833→        ]),
+   834→      )
+   835→
+   836→    case "@ai-sdk/perplexity":
+   837→      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/perplexity
+   838→      return {}
+   839→
+   840→    case "@jerome-benoit/sap-ai-provider-v2":
+   841→      if (model.api.id.includes("anthropic")) {
+   842→        if (adaptiveEfforts) {
+   843→          return Object.fromEntries(
+   844→            adaptiveEfforts.map((effort) => [
+   845→              effort,
+   846→              {
+   847→                thinking: {
+   848→                  type: "adaptive",
+   849→                },
+   850→                effort,
+   851→              },
+   852→            ]),
+   853→          )
+   854→        }
+   855→        return {
+   856→          high: {
+   857→            thinking: {
+   858→              type: "enabled",
+   859→              budgetTokens: 16000,
+   860→            },
+   861→          },
+   862→          max: {
+   863→            thinking: {
+   864→              type: "enabled",
+   865→              budgetTokens: 31999,
+   866→            },
+   867→          },
+   868→        }
+   869→      }
+   870→      if (model.api.id.includes("gemini") && id.includes("2.5")) {
+   871→        return {
+   872→          high: {
+   873→            thinkingConfig: {
+   874→              includeThoughts: true,
+   875→              thinkingBudget: 16000,
+   876→            },
+   877→          },
+   878→          max: {
+   879→            thinkingConfig: {
+   880→              includeThoughts: true,
+   881→              thinkingBudget: 24576,
+   882→            },
+   883→          },
+   884→        }
+   885→      }
+   886→      if (model.api.id.includes("gpt") || /\bo[1-9]/.test(model.api.id)) {
+   887→        return Object.fromEntries(WIDELY_SUPPORTED_EFFORTS.map((effort) => [effort, { reasoningEffort: effort }]))
+   888→      }
+   889→      return {}
+   890→  }
+   891→  return {}
+   892→}
+   893→
+   894→export function options(input: {
+   895→  model: Provider.Model
+   896→  sessionID: string
+   897→  providerOptions?: Record<string, any>
+   898→}): Record<string, any> {
+   899→  const result: Record<string, any> = {}
+   900→
+   901→  // openai and providers using openai package should set store to false by default.
+   902→  if (
+   903→    input.model.providerID === "openai" ||
+   904→    input.model.api.npm === "@ai-sdk/openai" ||
+   905→    input.model.api.npm === "@ai-sdk/github-copilot"
+   906→  ) {
+   907→    result["store"] = false
+   908→  }
+   909→
+   910→  if (input.model.api.npm === "@ai-sdk/azure") {
+   911→    result["store"] = true
+   912→    result["promptCacheKey"] = input.sessionID
+   913→  }
+   914→
+   915→  if (input.model.api.npm === "@openrouter/ai-sdk-provider" || input.model.api.npm === "@llmgateway/ai-sdk-provider") {
+   916→    result["usage"] = {
+   917→      include: true,
+   918→    }
+   919→    if (input.model.api.id.includes("gemini-3")) {
+   920→      result["reasoning"] = { effort: "high" }
+   921→    }
+   922→  }
+   923→
+   924→  if (
+   925→    input.model.providerID === "baseten" ||
+   926→    (input.model.providerID === "opencode" && ["kimi-k2-thinking", "glm-4.6"].includes(input.model.api.id))
+   927→  ) {
+   928→    result["chat_template_args"] = { enable_thinking: true }
+   929→  }
+   930→
+   931→  if (
+   932→    ["zai", "zhipuai"].some((id) => input.model.providerID.includes(id)) &&
+   933→    input.model.api.npm === "@ai-sdk/openai-compatible"
+   934→  ) {
+   935→    result["thinking"] = {
+   936→      type: "enabled",
+   937→      clear_thinking: false,
+   938→    }
+   939→  }
+   940→
+   941→  if (input.model.providerID === "openai" || input.providerOptions?.setCacheKey) {
+   942→    result["promptCacheKey"] = input.sessionID
+   943→  }
+   944→
+   945→  if (input.model.api.npm === "@ai-sdk/google" || input.model.api.npm === "@ai-sdk/google-vertex") {
+   946→    if (input.model.capabilities.reasoning) {
+   947→      result["thinkingConfig"] = {
+   948→        includeThoughts: true,
+   949→      }
+   950→      if (input.model.api.id.includes("gemini-3")) {
+   951→        result["thinkingConfig"]["thinkingLevel"] = "high"
+   952→      }
+   953→    }
+   954→  }
+   955→
+   956→  // Enable thinking by default for kimi-k2.5/k2p5 models using anthropic SDK
+   957→  const modelId = input.model.api.id.toLowerCase()
+   958→  if (
+   959→    (input.model.api.npm === "@ai-sdk/anthropic" || input.model.api.npm === "@ai-sdk/google-vertex/anthropic") &&
+   960→    (modelId.includes("k2p5") || modelId.includes("kimi-k2.5") || modelId.includes("kimi-k2p5"))
+   961→  ) {
+   962→    result["thinking"] = {
+   963→      type: "enabled",
+   964→      budgetTokens: Math.min(16_000, Math.floor(input.model.limit.output / 2 - 1)),
+   965→    }
+   966→  }
+   967→
+   968→  // Enable thinking for reasoning models on alibaba-cn (DashScope).
+   969→  // DashScope's OpenAI-compatible API requires `enable_thinking: true` in the request body
+   970→  // to return reasoning_content. Without it, models like kimi-k2.5, qwen-plus, qwen3, qwq,
+   971→  // deepseek-r1, etc. never output thinking/reasoning tokens.
+   972→  // Note: kimi-k2-thinking is excluded as it returns reasoning_content by default.
+   973→  if (
+   974→    input.model.providerID === "alibaba-cn" &&
+   975→    input.model.capabilities.reasoning &&
+   976→    input.model.api.npm === "@ai-sdk/openai-compatible" &&
+   977→    !modelId.includes("kimi-k2-thinking")
+   978→  ) {
+   979→    result["enable_thinking"] = true
+   980→  }
+   981→
+   982→  if (input.model.api.id.includes("gpt-5") && !input.model.api.id.includes("gpt-5-chat")) {
+   983→    if (!input.model.api.id.includes("gpt-5-pro")) {
+   984→      result["reasoningEffort"] = "medium"
+   985→      // Only inject reasoningSummary for providers that support it natively.
+   986→      // @ai-sdk/openai-compatible proxies (e.g. LiteLLM) do not understand this
+   987→      // parameter and return "Unknown parameter: 'reasoningSummary'".
+   988→      if (
+   989→        input.model.api.npm === "@ai-sdk/openai" ||
+   990→        input.model.api.npm === "@ai-sdk/azure" ||
+   991→        input.model.api.npm === "@ai-sdk/github-copilot"
+   992→      ) {
+   993→        result["reasoningSummary"] = "auto"
+   994→      }
+   995→    }
+   996→
+   997→    // Only set textVerbosity for non-chat gpt-5.x models
+   998→    // Chat models (e.g. gpt-5.2-chat-latest) only support "medium" verbosity
+   999→    if (
+  1000→      input.model.api.id.includes("gpt-5.") &&
+  1001→      !input.model.api.id.includes("codex") &&
+  1002→      !input.model.api.id.includes("-chat") &&
+  1003→      input.model.providerID !== "azure"
+  1004→    ) {
+  1005→      result["textVerbosity"] = "low"
+  1006→    }
+  1007→
+  1008→    if (input.model.providerID.startsWith("opencode")) {
+  1009→      result["promptCacheKey"] = input.sessionID
+  1010→      result["include"] = ["reasoning.encrypted_content"]
+  1011→      result["reasoningSummary"] = "auto"
+  1012→    }
+  1013→  }
+  1014→
+  1015→  if (input.model.providerID === "venice") {
+  1016→    result["promptCacheKey"] = input.sessionID
+  1017→  }
+  1018→
+  1019→  if (input.model.providerID === "openrouter") {
+  1020→    result["prompt_cache_key"] = input.sessionID
+  1021→  }
+  1022→  if (input.model.api.npm === "@ai-sdk/gateway") {
+  1023→    result["gateway"] = {
+  1024→      caching: "auto",
+  1025→    }
+  1026→  }
+  1027→
+  1028→  return result
+  1029→}
+  1030→
+  1031→export function smallOptions(model: Provider.Model) {
+  1032→  if (
+  1033→    model.providerID === "openai" ||
+  1034→    model.api.npm === "@ai-sdk/openai" ||
+  1035→    model.api.npm === "@ai-sdk/github-copilot"
+  1036→  ) {
+  1037→    if (model.api.id.includes("gpt-5")) {
+  1038→      if (model.api.id.includes("5.") || model.api.id.includes("5-mini")) {
+  1039→        return { store: false, reasoningEffort: "low" }
+  1040→      }
+  1041→      return { store: false, reasoningEffort: "minimal" }
+  1042→    }
+  1043→    return { store: false }
+  1044→  }
+  1045→  if (model.providerID === "google") {
+  1046→    // gemini-3 uses thinkingLevel, gemini-2.5 uses thinkingBudget
+  1047→    if (model.api.id.includes("gemini-3")) {
+  1048→      return { thinkingConfig: { thinkingLevel: "minimal" } }
+  1049→    }
+  1050→    return { thinkingConfig: { thinkingBudget: 0 } }
+  1051→  }
+  1052→  if (model.providerID === "openrouter" || model.providerID === "llmgateway") {
+  1053→    if (model.api.id.includes("google")) {
+  1054→      return { reasoning: { enabled: false } }
+  1055→    }
+  1056→    return { reasoningEffort: "minimal" }
+  1057→  }
+  1058→
+  1059→  if (model.providerID === "venice") {
+  1060→    return { veniceParameters: { disableThinking: true } }
+  1061→  }
+  1062→
+  1063→  return {}
+  1064→}
+  1065→
+  1066→// Maps model ID prefix to provider slug used in providerOptions.
+  1067→// Example: "amazon/nova-2-lite" → "bedrock"
+  1068→const SLUG_OVERRIDES: Record<string, string> = {
+  1069→  amazon: "bedrock",
+  1070→}
+  1071→
+  1072→export function providerOptions(model: Provider.Model, options: { [x: string]: any }) {
+  1073→  if (model.api.npm === "@ai-sdk/gateway") {
+  1074→    // Gateway providerOptions are split across two namespaces:
+  1075→    // - `gateway`: gateway-native routing/caching controls (order, only, byok, etc.)
+  1076→    // - `<upstream slug>`: provider-specific model options (anthropic/openai/...)
+  1077→    // We keep `gateway` as-is and route every other top-level option under the
+  1078→    // model-derived upstream slug.
+  1079→    const i = model.api.id.indexOf("/")
+  1080→    const rawSlug = i > 0 ? model.api.id.slice(0, i) : undefined
+  1081→    const slug = rawSlug ? (SLUG_OVERRIDES[rawSlug] ?? rawSlug) : undefined
+  1082→    const gateway = options.gateway
+  1083→    const rest = Object.fromEntries(Object.entries(options).filter(([k]) => k !== "gateway"))
+  1084→    const has = Object.keys(rest).length > 0
+  1085→
+  1086→    const result: Record<string, any> = {}
+  1087→    if (gateway !== undefined) result.gateway = gateway
+  1088→
+  1089→    if (has) {
+  1090→      if (slug) {
+  1091→        // Route model-specific options under the provider slug
+  1092→        result[slug] = rest
+  1093→      } else if (gateway && typeof gateway === "object" && !Array.isArray(gateway)) {
+  1094→        result.gateway = { ...gateway, ...rest }
+  1095→      } else {
+  1096→        result.gateway = rest
+  1097→      }
+  1098→    }
+  1099→
+  1100→    return result
+  1101→  }
+  1102→
+  1103→  const key = sdkKey(model.api.npm) ?? model.providerID
+  1104→  // @ai-sdk/azure delegates to OpenAIChatLanguageModel which reads from
+  1105→  // providerOptions["openai"], but OpenAIResponsesLanguageModel checks
+  1106→  // "azure" first. Pass both so model options work on either code path.
+  1107→  if (model.api.npm === "@ai-sdk/azure") {
+  1108→    return { openai: options, azure: options }
+  1109→  }
+  1110→  return { [key]: options }
+  1111→}
+  1112→
+  1113→export function maxOutputTokens(model: Provider.Model): number {
+  1114→  if (model.providerID === "mimo" || model.providerID === "xiaomi" || model.id.toLowerCase().includes("mimo")) {
+  1115→    return MIMO_OUTPUT_TOKEN_MAX
+  1116→  }
+  1117→  return Math.min(model.limit.output, OUTPUT_TOKEN_MAX) || OUTPUT_TOKEN_MAX
+  1118→}
+  1119→
+  1120→// Flatten a root-level `anyOf` / `oneOf` (typically from `z.discriminatedUnion`)
+  1121→// into a single `type: "object"` schema with all variant properties merged at
+  1122→// the root. The discriminator key becomes an `enum`, and per-variant required
+  1123→// fields are encoded as a textual hint on the discriminator's description.
+  1124→//
+  1125→// OpenAI's function-calling validator rejects oneOf/anyOf/allOf/enum/not at the
+  1126→// top level outright, so this is the only shape that gets through. We retain
+  1127→// `additionalProperties: false` to keep the model from inventing fields, and
+  1128→// rely on zod's runtime parse (still using the original discriminated union)
+  1129→// to enforce per-action required fields strictly.
+  1130→function flattenDiscriminatedUnion(schema: JSONSchema.BaseSchema | JSONSchema7): JSONSchema7 {
+  1131→  const root = schema as Record<string, any>
+  1132→  const variants = (root.anyOf ?? root.oneOf) as Array<Record<string, any>> | undefined
+  1133→  if (!variants?.length) return schema as JSONSchema7
+  1134→
+  1135→  // Find the discriminator: a property whose `const` differs across all variants.
+  1136→  const constByKey = new Map<string, Set<unknown>>()
+  1137→  for (const v of variants) {
+  1138→    if (!v.properties) continue
+  1139→    for (const [key, prop] of Object.entries(v.properties as Record<string, any>)) {
+  1140→      if (prop && typeof prop === "object" && "const" in prop) {
+  1141→        if (!constByKey.has(key)) constByKey.set(key, new Set())
+  1142→        constByKey.get(key)!.add(prop.const)
+  1143→      }
+  1144→    }
+  1145→  }
+  1146→  let discriminator: string | undefined
+  1147→  for (const [key, values] of constByKey) {
+  1148→    if (values.size === variants.length) {
+  1149→      discriminator = key
+  1150→      break
+  1151→    }
+  1152→  }
+  1153→
+  1154→  // Merge non-discriminator properties from every variant. Track which variants
+  1155→  // each property appeared in so the description can tell the model
+  1156→  // "(only when action='X'|'Y')" — flat schemas tempt some models (notably
+  1157→  // gpt-5.5) to fill every property regardless of which action they chose.
+  1158→  const properties: Record<string, any> = {}
+  1159→  const propertyOwners: Record<string, unknown[]> = {}
+  1160→  for (const v of variants) {
+  1161→    if (!v.properties) continue
+  1162→    const variantValue = discriminator
+  1163→      ? (v.properties as Record<string, any>)[discriminator]?.const
+  1164→      : undefined
+  1165→    for (const [key, prop] of Object.entries(v.properties as Record<string, any>)) {
+  1166→      if (key === discriminator) continue
+  1167→      if (!(key in properties)) properties[key] = prop
+  1168→      if (variantValue !== undefined) {
+  1169→        if (!propertyOwners[key]) propertyOwners[key] = []
+  1170→        propertyOwners[key].push(variantValue)
+  1171→      }
+  1172→    }
+  1173→  }
+  1174→  if (discriminator) {
+  1175→    for (const [key, owners] of Object.entries(propertyOwners)) {
+  1176→      if (owners.length === variants.length) continue // present in every variant — no annotation
+  1177→      const tag = `(only when ${discriminator}=${owners.map((o) => JSON.stringify(o)).join("|")})`
+  1178→      const original = (properties[key] as Record<string, any>).description as string | undefined
+  1179→      properties[key] = {
+  1180→        ...properties[key],
+  1181→        description: original ? `${tag} ${original}` : tag,
+  1182→      }
+  1183→    }
+  1184→  }
+  1185→
+  1186→  // Discriminator becomes an enum with per-variant required fields hinted in
+  1187→  // its description. Without this hint the model only sees a flat bag of
+  1188→  // optional fields and forgets what to provide for each action.
+  1189→  if (discriminator) {
+  1190→    const proto = (variants[0].properties as Record<string, any>)[discriminator]
+  1191→    const enumValues = variants.map((v) => (v.properties as Record<string, any>)[discriminator!]?.const)
+  1192→    const baseDescription = (proto?.description as string | undefined) ?? ""
+  1193→    const hints = variants
+  1194→      .map((v) => {
+  1195→        const value = (v.properties as Record<string, any>)[discriminator!]?.const
+  1196→        const required = ((v.required as string[] | undefined) ?? []).filter((r) => r !== discriminator)
+  1197→        return required.length > 0 ? `${value}: requires ${required.join(", ")}` : `${value}: no extra required fields`
+  1198→      })
+  1199→      .join("; ")
+  1200→    properties[discriminator] = {
+  1201→      type: "string",
+  1202→      enum: enumValues,
+  1203→      description: baseDescription ? `${baseDescription}\n\nPer-${discriminator}: ${hints}.` : `Per-${discriminator}: ${hints}.`,
+  1204→    }
+  1205→  }
+  1206→
+  1207→  return {
+  1208→    type: "object",
+  1209→    properties,
+  1210→    required: discriminator ? [discriminator] : [],
+  1211→    additionalProperties: false,
+  1212→  } as JSONSchema7
+  1213→}
+  1214→
+  1215→export function schema(model: Provider.Model, schema: JSONSchema.BaseSchema | JSONSchema7): JSONSchema7 {
+  1216→  /*
+  1217→  if (["openai", "azure"].includes(providerID)) {
+  1218→    if (schema.type === "object" && schema.properties) {
+  1219→      for (const [key, value] of Object.entries(schema.properties)) {
+  1220→        if (schema.required?.includes(key)) continue
+  1221→        schema.properties[key] = {
+  1222→          anyOf: [
+  1223→            value as JSONSchema.JSONSchema,
+  1224→            {
+  1225→              type: "null",
+  1226→            },
+  1227→          ],
+  1228→        }
+  1229→      }
+  1230→    }
+  1231→  }
+  1232→  */
+  1233→
+  1234→  // Many providers reject root-level `anyOf`/`oneOf` in tool schemas:
+  1235→  // - OpenAI/Azure: "schema must have type 'object' and not have 'oneOf'/'anyOf'"
+  1236→  // - Bedrock: "input_schema.type: Field required"
+  1237→  // - Anthropic proxies to Bedrock: same Bedrock error
+  1238→  // Flatten unconditionally — all providers accept a flat `type: "object"` schema,
+  1239→  // and zod's runtime parse still enforces per-variant required fields strictly.
+  1240→  schema = flattenDiscriminatedUnion(schema)
+  1241→
+  1242→  // Convert integer enums to string enums for Google/Gemini
+  1243→  if (model.providerID === "google" || model.api.id.includes("gemini")) {
+  1244→    const isPlainObject = (node: unknown): node is Record<string, any> =>
+  1245→      typeof node === "object" && node !== null && !Array.isArray(node)
+  1246→    const hasCombiner = (node: unknown) =>
+  1247→      isPlainObject(node) && (Array.isArray(node.anyOf) || Array.isArray(node.oneOf) || Array.isArray(node.allOf))
+  1248→    const hasSchemaIntent = (node: unknown) => {
+  1249→      if (!isPlainObject(node)) return false
+  1250→      if (hasCombiner(node)) return true
+  1251→      return [
+  1252→        "type",
+  1253→        "properties",
+  1254→        "items",
+  1255→        "prefixItems",
+  1256→        "enum",
+  1257→        "const",
+  1258→        "$ref",
+  1259→        "additionalProperties",
+  1260→        "patternProperties",
+  1261→        "required",
+  1262→        "not",
+  1263→        "if",
+  1264→        "then",
+  1265→        "else",
+  1266→      ].some((key) => key in node)
+  1267→    }
+  1268→
+  1269→    const sanitizeGemini = (obj: any): any => {
+  1270→      if (obj === null || typeof obj !== "object") {
+  1271→        return obj
+  1272→      }
+  1273→
+  1274→      if (Array.isArray(obj)) {
+  1275→        return obj.map(sanitizeGemini)
+  1276→      }
+  1277→
+  1278→      const result: any = {}
+  1279→      for (const [key, value] of Object.entries(obj)) {
+  1280→        if (key === "enum" && Array.isArray(value)) {
+  1281→          // Convert all enum values to strings
+  1282→          result[key] = value.map((v) => String(v))
+  1283→          // If we have integer type with enum, change type to string
+  1284→          if (result.type === "integer" || result.type === "number") {
+  1285→            result.type = "string"
+  1286→          }
+  1287→        } else if (typeof value === "object" && value !== null) {
+  1288→          result[key] = sanitizeGemini(value)
+  1289→        } else {
+  1290→          result[key] = value
+  1291→        }
+  1292→      }
+  1293→
+  1294→      // Filter required array to only include fields that exist in properties
+  1295→      if (result.type === "object" && result.properties && Array.isArray(result.required)) {
+  1296→        result.required = result.required.filter((field: any) => field in result.properties)
+  1297→      }
+  1298→
+  1299→      if (result.type === "array" && !hasCombiner(result)) {
+  1300→        if (result.items == null) {
+  1301→          result.items = {}
+  1302→        }
+  1303→        // Ensure items has a type only when it's still schema-empty.
+  1304→        if (isPlainObject(result.items) && !hasSchemaIntent(result.items)) {
+  1305→          result.items.type = "string"
+  1306→        }
+  1307→      }
+  1308→
+  1309→      // Remove properties/required from non-object types (Gemini rejects these)
+  1310→      if (result.type && result.type !== "object" && !hasCombiner(result)) {
+  1311→        delete result.properties
+  1312→        delete result.required
+  1313→      }
+  1314→
+  1315→      return result
+  1316→    }
+  1317→
+  1318→    schema = sanitizeGemini(schema)
+  1319→  }
+  1320→
+  1321→  return schema as JSONSchema7
+  1322→}
+  1323→

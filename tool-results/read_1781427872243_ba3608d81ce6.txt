@@ -1,0 +1,1788 @@
+     1→     1→import z from "zod"
+     2→     2→import os from "os"
+     3→     3→import fuzzysort from "fuzzysort"
+     4→     4→import { Config } from "../config"
+     5→     5→import { mapValues, mergeDeep, omit, pickBy, sortBy } from "remeda"
+     6→     6→import { NoSuchModelError, type Provider as SDK } from "ai"
+     7→     7→import { Log } from "../util"
+     8→     8→import { Npm } from "../npm"
+     9→     9→import { Hash } from "@mimo-ai/shared/util/hash"
+    10→    10→import { Plugin } from "../plugin"
+    11→    11→import { NamedError } from "@mimo-ai/shared/util/error"
+    12→    12→import { type LanguageModelV3 } from "@ai-sdk/provider"
+    13→    13→import * as ModelsDev from "./models"
+    14→    14→import { Auth } from "../auth"
+    15→    15→import { Env } from "../env"
+    16→    16→import { InstallationVersion } from "../installation/version"
+    17→    17→import { Flag } from "../flag/flag"
+    18→    18→import { zod } from "@/util/effect-zod"
+    19→    19→import { iife } from "@/util/iife"
+    20→    20→import { Global } from "../global"
+    21→    21→import path from "path"
+    22→    22→import { pathToFileURL } from "url"
+    23→    23→import { Effect, Layer, Context, Schema, Types } from "effect"
+    24→    24→import { EffectBridge } from "@/effect"
+    25→    25→import { InstanceState } from "@/effect"
+    26→    26→import { AppFileSystem } from "@mimo-ai/shared/filesystem"
+    27→    27→import { isRecord } from "@/util/record"
+    28→    28→import { withStatics } from "@/util/schema"
+    29→    29→
+    30→    30→import * as ProviderTransform from "./transform"
+    31→    31→import { ModelID, ProviderID } from "./schema"
+    32→    32→
+    33→    33→const log = Log.create({ service: "provider" })
+    34→    34→const DEFAULT_CONTEXT_WINDOW = 1_000_000
+    35→    35→// Reserved built-in model tiers: always resolve, falling back to the default
+    36→    36→// model when not configured in `model_groups` (zero-config never errors).
+    37→    37→const BUILTIN_TIERS = new Set(["ultra", "standard", "lite"])
+    38→    38→// F41: warn once per (providerID, modelID) when limit.context falls back to default
+    39→    39→const warnedContextDefaults = new Set<string>()
+    40→    40→
+    41→    41→export const DEFAULT_CHUNK_TIMEOUT = 480_000 // 8 minutes — bounds single-attempt SSE stall.
+    42→    42→// Tuned for mimo-v2.5-pro on MiMo Router whose cold-path TTFT after context
+    43→    43→// rebuild can dip to ~5 minutes silent. Reasoning models with multi-minute
+    44→    44→// thinking still emit partial chunks / heartbeats within this window. Override
+    45→    45→// per-provider via mimocode.json's `chunkTimeout` config for tighter or looser
+    46→    46→// bounds.
+    47→    47→
+    48→    48→function shouldUseCopilotResponsesApi(modelID: string): boolean {
+    49→    49→  const match = /^gpt-(\d+)/.exec(modelID)
+    50→    50→  if (!match) return false
+    51→    51→  return Number(match[1]) >= 5 && !modelID.startsWith("gpt-5-mini")
+    52→    52→}
+    53→    53→
+    54→    54→function wrapSSE(res: Response, ms: number, ctl: AbortController) {
+    55→    55→  if (typeof ms !== "number" || ms <= 0) return res
+    56→    56→  if (!res.body) return res
+    57→    57→  if (!res.headers.get("content-type")?.includes("text/event-stream")) return res
+    58→    58→
+    59→    59→  const reader = res.body.getReader()
+    60→    60→  const body = new ReadableStream<Uint8Array>({
+    61→    61→    async pull(ctrl) {
+    62→    62→      const part = await new Promise<Awaited<ReturnType<typeof reader.read>>>((resolve, reject) => {
+    63→    63→        const id = setTimeout(() => {
+    64→    64→          const err = new Error("SSE read timed out")
+    65→    65→          ctl.abort(err)
+    66→    66→          void reader.cancel(err)
+    67→    67→          reject(err)
+    68→    68→        }, ms)
+    69→    69→
+    70→    70→        reader.read().then(
+    71→    71→          (part) => {
+    72→    72→            clearTimeout(id)
+    73→    73→            resolve(part)
+    74→    74→          },
+    75→    75→          (err) => {
+    76→    76→            clearTimeout(id)
+    77→    77→            reject(err)
+    78→    78→          },
+    79→    79→        )
+    80→    80→      })
+    81→    81→
+    82→    82→      if (part.done) {
+    83→    83→        ctrl.close()
+    84→    84→        return
+    85→    85→      }
+    86→    86→
+    87→    87→      ctrl.enqueue(part.value)
+    88→    88→    },
+    89→    89→    async cancel(reason) {
+    90→    90→      ctl.abort(reason)
+    91→    91→      await reader.cancel(reason)
+    92→    92→    },
+    93→    93→  })
+    94→    94→
+    95→    95→  return new Response(body, {
+    96→    96→    headers: new Headers(res.headers),
+    97→    97→    status: res.status,
+    98→    98→    statusText: res.statusText,
+    99→    99→  })
+   100→   100→}
+   101→   101→
+   102→   102→type BundledSDK = {
+   103→   103→  languageModel(modelId: string): LanguageModelV3
+   104→   104→}
+   105→   105→
+   106→   106→const BUNDLED_PROVIDERS: Record<string, () => Promise<(opts: any) => BundledSDK>> = {
+   107→   107→  "@ai-sdk/amazon-bedrock": () => import("@ai-sdk/amazon-bedrock").then((m) => m.createAmazonBedrock),
+   108→   108→  "@ai-sdk/anthropic": () => import("@ai-sdk/anthropic").then((m) => m.createAnthropic),
+   109→   109→  "@ai-sdk/azure": () => import("@ai-sdk/azure").then((m) => m.createAzure),
+   110→   110→  "@ai-sdk/google": () => import("@ai-sdk/google").then((m) => m.createGoogleGenerativeAI),
+   111→   111→  "@ai-sdk/google-vertex": () => import("@ai-sdk/google-vertex").then((m) => m.createVertex),
+   112→   112→  "@ai-sdk/google-vertex/anthropic": () =>
+   113→   113→    import("@ai-sdk/google-vertex/anthropic").then((m) => m.createVertexAnthropic),
+   114→   114→  "@ai-sdk/openai": () => import("@ai-sdk/openai").then((m) => m.createOpenAI),
+   115→   115→  "@ai-sdk/openai-compatible": () => import("@ai-sdk/openai-compatible").then((m) => m.createOpenAICompatible),
+   116→   116→  "@openrouter/ai-sdk-provider": () => import("@openrouter/ai-sdk-provider").then((m) => m.createOpenRouter),
+   117→   117→  "@ai-sdk/xai": () => import("@ai-sdk/xai").then((m) => m.createXai),
+   118→   118→  "@ai-sdk/mistral": () => import("@ai-sdk/mistral").then((m) => m.createMistral),
+   119→   119→  "@ai-sdk/groq": () => import("@ai-sdk/groq").then((m) => m.createGroq),
+   120→   120→  "@ai-sdk/deepinfra": () => import("@ai-sdk/deepinfra").then((m) => m.createDeepInfra),
+   121→   121→  "@ai-sdk/cerebras": () => import("@ai-sdk/cerebras").then((m) => m.createCerebras),
+   122→   122→  "@ai-sdk/cohere": () => import("@ai-sdk/cohere").then((m) => m.createCohere),
+   123→   123→  "@ai-sdk/gateway": () => import("@ai-sdk/gateway").then((m) => m.createGateway),
+   124→   124→  "@ai-sdk/togetherai": () => import("@ai-sdk/togetherai").then((m) => m.createTogetherAI),
+   125→   125→  "@ai-sdk/perplexity": () => import("@ai-sdk/perplexity").then((m) => m.createPerplexity),
+   126→   126→  "@ai-sdk/vercel": () => import("@ai-sdk/vercel").then((m) => m.createVercel),
+   127→   127→  "@ai-sdk/alibaba": () => import("@ai-sdk/alibaba").then((m) => m.createAlibaba),
+   128→   128→  "gitlab-ai-provider": () => import("gitlab-ai-provider").then((m) => m.createGitLab),
+   129→   129→  "@ai-sdk/github-copilot": () => import("./sdk/copilot").then((m) => m.createOpenaiCompatible),
+   130→   130→  "venice-ai-sdk-provider": () => import("venice-ai-sdk-provider").then((m) => m.createVenice),
+   131→   131→}
+   132→   132→
+   133→   133→type CustomModelLoader = (sdk: any, modelID: string, options?: Record<string, any>) => Promise<any>
+   134→   134→type CustomVarsLoader = (options: Record<string, any>) => Record<string, string>
+   135→   135→type CustomDiscoverModels = () => Promise<Record<string, Model>>
+   136→   136→type CustomLoader = (provider: Info) => Effect.Effect<{
+   137→   137→  autoload: boolean
+   138→   138→  getModel?: CustomModelLoader
+   139→   139→  vars?: CustomVarsLoader
+   140→   140→  options?: Record<string, any>
+   141→   141→  discoverModels?: CustomDiscoverModels
+   142→   142→}>
+   143→   143→
+   144→   144→type CustomDep = {
+   145→   145→  auth: (id: string) => Effect.Effect<Auth.Info | undefined>
+   146→   146→  config: () => Effect.Effect<Config.Info>
+   147→   147→  env: () => Effect.Effect<Record<string, string | undefined>>
+   148→   148→  get: (key: string) => Effect.Effect<string | undefined>
+   149→   149→}
+   150→   150→
+   151→   151→function useLanguageModel(sdk: any) {
+   152→   152→  return sdk.responses === undefined && sdk.chat === undefined
+   153→   153→}
+   154→   154→
+   155→   155→function custom(dep: CustomDep): Record<string, CustomLoader> {
+   156→   156→  return {
+   157→   157→    anthropic: () =>
+   158→   158→      Effect.succeed({
+   159→   159→        autoload: false,
+   160→   160→        options: {
+   161→   161→          headers: {
+   162→   162→            "anthropic-beta": "interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
+   163→   163→          },
+   164→   164→        },
+   165→   165→      }),
+   166→   166→    opencode: Effect.fnUntraced(function* (input: Info) {
+   167→   167→      const env = yield* dep.env()
+   168→   168→      const hasKey = iife(() => {
+   169→   169→        if (input.env.some((item) => env[item])) return true
+   170→   170→        return false
+   171→   171→      })
+   172→   172→      const ok =
+   173→   173→        hasKey ||
+   174→   174→        Boolean(yield* dep.auth(input.id)) ||
+   175→   175→        Boolean((yield* dep.config()).provider?.["opencode"]?.options?.apiKey)
+   176→   176→
+   177→   177→      if (!ok) {
+   178→   178→        for (const [key, value] of Object.entries(input.models)) {
+   179→   179→          if (value.cost.input === 0) continue
+   180→   180→          delete input.models[key]
+   181→   181→        }
+   182→   182→      }
+   183→   183→
+   184→   184→      return {
+   185→   185→        autoload: Object.keys(input.models).length > 0,
+   186→   186→        options: ok ? {} : { apiKey: "public" },
+   187→   187→      }
+   188→   188→    }),
+   189→   189→    openai: () =>
+   190→   190→      Effect.succeed({
+   191→   191→        autoload: false,
+   192→   192→        async getModel(sdk: any, modelID: string, _options?: Record<string, any>) {
+   193→   193→          return sdk.responses(modelID)
+   194→   194→        },
+   195→   195→        options: {},
+   196→   196→      }),
+   197→   197→    xai: () =>
+   198→   198→      Effect.succeed({
+   199→   199→        autoload: false,
+   200→   200→        async getModel(sdk: any, modelID: string, _options?: Record<string, any>) {
+   201→   201→          return sdk.responses(modelID)
+   202→   202→        },
+   203→   203→        options: {},
+   204→   204→      }),
+   205→   205→    "github-copilot": () =>
+   206→   206→      Effect.succeed({
+   207→   207→        autoload: false,
+   208→   208→        async getModel(sdk: any, modelID: string, _options?: Record<string, any>) {
+   209→   209→          if (useLanguageModel(sdk)) return sdk.languageModel(modelID)
+   210→   210→          return shouldUseCopilotResponsesApi(modelID) ? sdk.responses(modelID) : sdk.chat(modelID)
+   211→   211→        },
+   212→   212→        options: {},
+   213→   213→      }),
+   214→   214→    azure: Effect.fnUntraced(function* (provider: Info) {
+   215→   215→      const env = yield* dep.env()
+   216→   216→      const resource = iife(() => {
+   217→   217→        const name = provider.options?.resourceName
+   218→   218→        if (typeof name === "string" && name.trim() !== "") return name
+   219→   219→        return env["AZURE_RESOURCE_NAME"]
+   220→   220→      })
+   221→   221→
+   222→   222→      return {
+   223→   223→        autoload: false,
+   224→   224→        async getModel(sdk: any, modelID: string, options?: Record<string, any>) {
+   225→   225→          if (useLanguageModel(sdk)) return sdk.languageModel(modelID)
+   226→   226→          if (options?.["useCompletionUrls"]) {
+   227→   227→            return sdk.chat(modelID)
+   228→   228→          } else {
+   229→   229→            return sdk.responses(modelID)
+   230→   230→          }
+   231→   231→        },
+   232→   232→        options: {},
+   233→   233→        vars(_options) {
+   234→   234→          return {
+   235→   235→            ...(resource && { AZURE_RESOURCE_NAME: resource }),
+   236→   236→          }
+   237→   237→        },
+   238→   238→      }
+   239→   239→    }),
+   240→   240→    "azure-cognitive-services": Effect.fnUntraced(function* () {
+   241→   241→      const resourceName = yield* dep.get("AZURE_COGNITIVE_SERVICES_RESOURCE_NAME")
+   242→   242→      return {
+   243→   243→        autoload: false,
+   244→   244→        async getModel(sdk: any, modelID: string, options?: Record<string, any>) {
+   245→   245→          if (useLanguageModel(sdk)) return sdk.languageModel(modelID)
+   246→   246→          if (options?.["useCompletionUrls"]) {
+   247→   247→            return sdk.chat(modelID)
+   248→   248→          } else {
+   249→   249→            return sdk.responses(modelID)
+   250→   250→          }
+   251→   251→        },
+   252→   252→        options: {
+   253→   253→          baseURL: resourceName ? `https://${resourceName}.cognitiveservices.azure.com/openai` : undefined,
+   254→   254→        },
+   255→   255→      }
+   256→   256→    }),
+   257→   257→    "amazon-bedrock": Effect.fnUntraced(function* () {
+   258→   258→      const providerConfig = (yield* dep.config()).provider?.["amazon-bedrock"]
+   259→   259→      const auth = yield* dep.auth("amazon-bedrock")
+   260→   260→      const env = yield* dep.env()
+   261→   261→
+   262→   262→      // Region precedence: 1) config file, 2) env var, 3) default
+   263→   263→      const configRegion = providerConfig?.options?.region
+   264→   264→      const envRegion = env["AWS_REGION"]
+   265→   265→      const defaultRegion = configRegion ?? envRegion ?? "us-east-1"
+   266→   266→
+   267→   267→      // Profile: config file takes precedence over env var
+   268→   268→      const configProfile = providerConfig?.options?.profile
+   269→   269→      const envProfile = env["AWS_PROFILE"]
+   270→   270→      const profile = configProfile ?? envProfile
+   271→   271→
+   272→   272→      const awsAccessKeyId = env["AWS_ACCESS_KEY_ID"]
+   273→   273→
+   274→   274→      // TODO: Using process.env directly because Env.set only updates a process.env shallow copy,
+   275→   275→      // until the scope of the Env API is clarified (test only or runtime?)
+   276→   276→      const awsBearerToken = iife(() => {
+   277→   277→        const envToken = process.env.AWS_BEARER_TOKEN_BEDROCK
+   278→   278→        if (envToken) return envToken
+   279→   279→        if (auth?.type === "api") {
+   280→   280→          process.env.AWS_BEARER_TOKEN_BEDROCK = auth.key
+   281→   281→          return auth.key
+   282→   282→        }
+   283→   283→        return undefined
+   284→   284→      })
+   285→   285→
+   286→   286→      const awsWebIdentityTokenFile = env["AWS_WEB_IDENTITY_TOKEN_FILE"]
+   287→   287→
+   288→   288→      const containerCreds = Boolean(
+   289→   289→        process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI || process.env.AWS_CONTAINER_CREDENTIALS_FULL_URI,
+   290→   290→      )
+   291→   291→
+   292→   292→      if (!profile && !awsAccessKeyId && !awsBearerToken && !awsWebIdentityTokenFile && !containerCreds)
+   293→   293→        return { autoload: false }
+   294→   294→
+   295→   295→      const { fromNodeProviderChain } = yield* Effect.promise(() => import("@aws-sdk/credential-providers"))
+   296→   296→
+   297→   297→      const providerOptions: Record<string, any> = {
+   298→   298→        region: defaultRegion,
+   299→   299→      }
+   300→   300→
+   301→   301→      // Only use credential chain if no bearer token exists
+   302→   302→      // Bearer token takes precedence over credential chain (profiles, access keys, IAM roles, web identity tokens)
+   303→   303→      if (!awsBearerToken) {
+   304→   304→        // Build credential provider options (only pass profile if specified)
+   305→   305→        const credentialProviderOptions = profile ? { profile } : {}
+   306→   306→
+   307→   307→        providerOptions.credentialProvider = fromNodeProviderChain(credentialProviderOptions)
+   308→   308→      }
+   309→   309→
+   310→   310→      // Add custom endpoint if specified (endpoint takes precedence over baseURL)
+   311→   311→      const endpoint = providerConfig?.options?.endpoint ?? providerConfig?.options?.baseURL
+   312→   312→      if (endpoint) {
+   313→   313→        providerOptions.baseURL = endpoint
+   314→   314→      }
+   315→   315→
+   316→   316→      return {
+   317→   317→        autoload: true,
+   318→   318→        options: providerOptions,
+   319→   319→        async getModel(sdk: any, modelID: string, options?: Record<string, any>) {
+   320→   320→          // Skip region prefixing if model already has a cross-region inference profile prefix
+   321→   321→          // Models from models.dev may already include prefixes like us., eu., global., etc.
+   322→   322→          const crossRegionPrefixes = ["global.", "us.", "eu.", "jp.", "apac.", "au."]
+   323→   323→          if (crossRegionPrefixes.some((prefix) => modelID.startsWith(prefix))) {
+   324→   324→            return sdk.languageModel(modelID)
+   325→   325→          }
+   326→   326→
+   327→   327→          // Region resolution precedence (highest to lowest):
+   328→   328→          // 1. options.region from mimocode.json provider config
+   329→   329→          // 2. defaultRegion from AWS_REGION environment variable
+   330→   330→          // 3. Default "us-east-1" (baked into defaultRegion)
+   331→   331→          const region = options?.region ?? defaultRegion
+   332→   332→
+   333→   333→          let regionPrefix = region.split("-")[0]
+   334→   334→
+   335→   335→          switch (regionPrefix) {
+   336→   336→            case "us": {
+   337→   337→              const modelRequiresPrefix = [
+   338→   338→                "nova-micro",
+   339→   339→                "nova-lite",
+   340→   340→                "nova-pro",
+   341→   341→                "nova-premier",
+   342→   342→                "nova-2",
+   343→   343→                "claude",
+   344→   344→                "deepseek",
+   345→   345→              ].some((m) => modelID.includes(m))
+   346→   346→              const isGovCloud = region.startsWith("us-gov")
+   347→   347→              if (modelRequiresPrefix && !isGovCloud) {
+   348→   348→                modelID = `${regionPrefix}.${modelID}`
+   349→   349→              }
+   350→   350→              break
+   351→   351→            }
+   352→   352→            case "eu": {
+   353→   353→              const regionRequiresPrefix = [
+   354→   354→                "eu-west-1",
+   355→   355→                "eu-west-2",
+   356→   356→                "eu-west-3",
+   357→   357→                "eu-north-1",
+   358→   358→                "eu-central-1",
+   359→   359→                "eu-south-1",
+   360→   360→                "eu-south-2",
+   361→   361→              ].some((r) => region.includes(r))
+   362→   362→              const modelRequiresPrefix = ["claude", "nova-lite", "nova-micro", "llama3", "pixtral"].some((m) =>
+   363→   363→                modelID.includes(m),
+   364→   364→              )
+   365→   365→              if (regionRequiresPrefix && modelRequiresPrefix) {
+   366→   366→                modelID = `${regionPrefix}.${modelID}`
+   367→   367→              }
+   368→   368→              break
+   369→   369→            }
+   370→   370→            case "ap": {
+   371→   371→              const isAustraliaRegion = ["ap-southeast-2", "ap-southeast-4"].includes(region)
+   372→   372→              const isTokyoRegion = region === "ap-northeast-1"
+   373→   373→              if (
+   374→   374→                isAustraliaRegion &&
+   375→   375→                ["anthropic.claude-sonnet-4-5", "anthropic.claude-haiku"].some((m) => modelID.includes(m))
+   376→   376→              ) {
+   377→   377→                regionPrefix = "au"
+   378→   378→                modelID = `${regionPrefix}.${modelID}`
+   379→   379→              } else if (isTokyoRegion) {
+   380→   380→                // Tokyo region uses jp. prefix for cross-region inference
+   381→   381→                const modelRequiresPrefix = ["claude", "nova-lite", "nova-micro", "nova-pro"].some((m) =>
+   382→   382→                  modelID.includes(m),
+   383→   383→                )
+   384→   384→                if (modelRequiresPrefix) {
+   385→   385→                  regionPrefix = "jp"
+   386→   386→                  modelID = `${regionPrefix}.${modelID}`
+   387→   387→                }
+   388→   388→              } else {
+   389→   389→                // Other APAC regions use apac. prefix
+   390→   390→                const modelRequiresPrefix = ["claude", "nova-lite", "nova-micro", "nova-pro"].some((m) =>
+   391→   391→                  modelID.includes(m),
+   392→   392→                )
+   393→   393→                if (modelRequiresPrefix) {
+   394→   394→                  regionPrefix = "apac"
+   395→   395→                  modelID = `${regionPrefix}.${modelID}`
+   396→   396→                }
+   397→   397→              }
+   398→   398→              break
+   399→   399→            }
+   400→   400→          }
+   401→   401→
+   402→   402→          return sdk.languageModel(modelID)
+   403→   403→        },
+   404→   404→      }
+   405→   405→    }),
+   406→   406→    llmgateway: () =>
+   407→   407→      Effect.succeed({
+   408→   408→        autoload: false,
+   409→   409→        options: {
+   410→   410→          headers: {
+   411→   411→            "HTTP-Referer": "https://mimo.xiaomi.com/coder/",
+   412→   412→            "X-Title": "mimocode",
+   413→   413→            "X-Source": "mimocode",
+   414→   414→          },
+   415→   415→        },
+   416→   416→      }),
+   417→   417→    openrouter: () =>
+   418→   418→      Effect.succeed({
+   419→   419→        autoload: false,
+   420→   420→        options: {
+   421→   421→          headers: {
+   422→   422→            "HTTP-Referer": "https://mimo.xiaomi.com/coder/",
+   423→   423→            "X-Title": "mimocode",
+   424→   424→            "X-OpenRouter-Categories": "programming,programming-app,cli-agent",
+   425→   425→          },
+   426→   426→        },
+   427→   427→      }),
+   428→   428→    nvidia: () =>
+   429→   429→      Effect.succeed({
+   430→   430→        autoload: false,
+   431→   431→        options: {
+   432→   432→          headers: {
+   433→   433→            "HTTP-Referer": "https://mimo.xiaomi.com/coder/",
+   434→   434→            "X-Title": "mimocode",
+   435→   435→          },
+   436→   436→        },
+   437→   437→      }),
+   438→   438→    vercel: () =>
+   439→   439→      Effect.succeed({
+   440→   440→        autoload: false,
+   441→   441→        options: {
+   442→   442→          headers: {
+   443→   443→            "http-referer": "https://mimo.xiaomi.com/coder/",
+   444→   444→            "x-title": "mimocode",
+   445→   445→          },
+   446→   446→        },
+   447→   447→      }),
+   448→   448→    "google-vertex": Effect.fnUntraced(function* (provider: Info) {
+   449→   449→      const env = yield* dep.env()
+   450→   450→      const project =
+   451→   451→        provider.options?.project ?? env["GOOGLE_CLOUD_PROJECT"] ?? env["GCP_PROJECT"] ?? env["GCLOUD_PROJECT"]
+   452→   452→
+   453→   453→      const location = String(
+   454→   454→        provider.options?.location ??
+   455→   455→          env["GOOGLE_VERTEX_LOCATION"] ??
+   456→   456→          env["GOOGLE_CLOUD_LOCATION"] ??
+   457→   457→          env["VERTEX_LOCATION"] ??
+   458→   458→          "us-central1",
+   459→   459→      )
+   460→   460→
+   461→   461→      const autoload = Boolean(project)
+   462→   462→      if (!autoload) return { autoload: false }
+   463→   463→      return {
+   464→   464→        autoload: true,
+   465→   465→        vars(_options: Record<string, any>) {
+   466→   466→          const endpoint = location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`
+   467→   467→          return {
+   468→   468→            ...(project && { GOOGLE_VERTEX_PROJECT: project }),
+   469→   469→            GOOGLE_VERTEX_LOCATION: location,
+   470→   470→            GOOGLE_VERTEX_ENDPOINT: endpoint,
+   471→   471→          }
+   472→   472→        },
+   473→   473→        options: {
+   474→   474→          project,
+   475→   475→          location,
+   476→   476→          fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+   477→   477→            const { GoogleAuth } = await import("google-auth-library")
+   478→   478→            const auth = new GoogleAuth()
+   479→   479→            const client = await auth.getApplicationDefault()
+   480→   480→            const token = await client.credential.getAccessToken()
+   481→   481→
+   482→   482→            const headers = new Headers(init?.headers)
+   483→   483→            headers.set("Authorization", `Bearer ${token.token}`)
+   484→   484→
+   485→   485→            return fetch(input, { ...init, headers })
+   486→   486→          },
+   487→   487→        },
+   488→   488→        async getModel(sdk: any, modelID: string) {
+   489→   489→          const id = String(modelID).trim()
+   490→   490→          return sdk.languageModel(id)
+   491→   491→        },
+   492→   492→      }
+   493→   493→    }),
+   494→   494→    "google-vertex-anthropic": Effect.fnUntraced(function* () {
+   495→   495→      const env = yield* dep.env()
+   496→   496→      const project = env["GOOGLE_CLOUD_PROJECT"] ?? env["GCP_PROJECT"] ?? env["GCLOUD_PROJECT"]
+   497→   497→      const location = env["GOOGLE_CLOUD_LOCATION"] ?? env["VERTEX_LOCATION"] ?? "global"
+   498→   498→      const autoload = Boolean(project)
+   499→   499→      if (!autoload) return { autoload: false }
+   500→   500→      return {
+   501→   501→        autoload: true,
+   502→   502→        options: {
+   503→   503→          project,
+   504→   504→          location,
+   505→   505→        },
+   506→   506→        async getModel(sdk: any, modelID) {
+   507→   507→          const id = String(modelID).trim()
+   508→   508→          return sdk.languageModel(id)
+   509→   509→        },
+   510→   510→      }
+   511→   511→    }),
+   512→   512→    "sap-ai-core": Effect.fnUntraced(function* () {
+   513→   513→      const auth = yield* dep.auth("sap-ai-core")
+   514→   514→      // TODO: Using process.env directly because Env.set only updates a shallow copy (not process.env),
+   515→   515→      // until the scope of the Env API is clarified (test only or runtime?)
+   516→   516→      const envServiceKey = iife(() => {
+   517→   517→        const envAICoreServiceKey = process.env.AICORE_SERVICE_KEY
+   518→   518→        if (envAICoreServiceKey) return envAICoreServiceKey
+   519→   519→        if (auth?.type === "api") {
+   520→   520→          process.env.AICORE_SERVICE_KEY = auth.key
+   521→   521→          return auth.key
+   522→   522→        }
+   523→   523→        return undefined
+   524→   524→      })
+   525→   525→      const deploymentId = process.env.AICORE_DEPLOYMENT_ID
+   526→   526→      const resourceGroup = process.env.AICORE_RESOURCE_GROUP
+   527→   527→
+   528→   528→      return {
+   529→   529→        autoload: !!envServiceKey,
+   530→   530→        options: envServiceKey ? { deploymentId, resourceGroup } : {},
+   531→   531→        async getModel(sdk: any, modelID: string) {
+   532→   532→          return sdk(modelID)
+   533→   533→        },
+   534→   534→      }
+   535→   535→    }),
+   536→   536→    zenmux: () =>
+   537→   537→      Effect.succeed({
+   538→   538→        autoload: false,
+   539→   539→        options: {
+   540→   540→          headers: {
+   541→   541→            "HTTP-Referer": "https://mimo.xiaomi.com/coder/",
+   542→   542→            "X-Title": "mimocode",
+   543→   543→          },
+   544→   544→        },
+   545→   545→      }),
+   546→   546→    gitlab: Effect.fnUntraced(function* (input: Info) {
+   547→   547→      const {
+   548→   548→        VERSION: GITLAB_PROVIDER_VERSION,
+   549→   549→        isWorkflowModel,
+   550→   550→        discoverWorkflowModels,
+   551→   551→      } = yield* Effect.promise(() => import("gitlab-ai-provider"))
+   552→   552→
+   553→   553→      const instanceUrl = (yield* dep.get("GITLAB_INSTANCE_URL")) || "https://gitlab.com"
+   554→   554→
+   555→   555→      const auth = yield* dep.auth(input.id)
+   556→   556→      const apiKey = yield* Effect.sync(() => {
+   557→   557→        if (auth?.type === "oauth") return auth.access
+   558→   558→        if (auth?.type === "api") return auth.key
+   559→   559→        return undefined
+   560→   560→      })
+   561→   561→      const token = apiKey ?? (yield* dep.get("GITLAB_TOKEN"))
+   562→   562→
+   563→   563→      const providerConfig = (yield* dep.config()).provider?.["gitlab"]
+   564→   564→      const directory = yield* InstanceState.directory
+   565→   565→
+   566→   566→      const aiGatewayHeaders = {
+   567→   567→        "User-Agent": `mimocode/${InstallationVersion} gitlab-ai-provider/${GITLAB_PROVIDER_VERSION} (${os.platform()} ${os.release()}; ${os.arch()})`,
+   568→   568→        "anthropic-beta": "context-1m-2025-08-07",
+   569→   569→        ...providerConfig?.options?.aiGatewayHeaders,
+   570→   570→      }
+   571→   571→
+   572→   572→      const featureFlags = {
+   573→   573→        duo_agent_platform_agentic_chat: true,
+   574→   574→        duo_agent_platform: true,
+   575→   575→        ...providerConfig?.options?.featureFlags,
+   576→   576→      }
+   577→   577→
+   578→   578→      return {
+   579→   579→        autoload: !!token,
+   580→   580→        options: {
+   581→   581→          instanceUrl,
+   582→   582→          apiKey: token,
+   583→   583→          aiGatewayHeaders,
+   584→   584→          featureFlags,
+   585→   585→        },
+   586→   586→        async getModel(sdk: any, modelID: string, options?: Record<string, any>) {
+   587→   587→          if (modelID.startsWith("duo-workflow-")) {
+   588→   588→            const workflowRef = typeof options?.workflowRef === "string" ? options.workflowRef : undefined
+   589→   589→            // Use the static mapping if it exists, otherwise use duo-workflow with selectedModelRef
+   590→   590→            const sdkModelID = isWorkflowModel(modelID) ? modelID : "duo-workflow"
+   591→   591→            const workflowDefinition =
+   592→   592→              typeof options?.workflowDefinition === "string" ? options.workflowDefinition : undefined
+   593→   593→            const model = sdk.workflowChat(sdkModelID, {
+   594→   594→              featureFlags,
+   595→   595→              workflowDefinition,
+   596→   596→            })
+   597→   597→            if (workflowRef) {
+   598→   598→              model.selectedModelRef = workflowRef
+   599→   599→            }
+   600→   600→            return model
+   601→   601→          }
+   602→   602→          return sdk.agenticChat(modelID, {
+   603→   603→            aiGatewayHeaders,
+   604→   604→            featureFlags,
+   605→   605→          })
+   606→   606→        },
+   607→   607→        async discoverModels(): Promise<Record<string, Model>> {
+   608→   608→          if (!apiKey) {
+   609→   609→            log.info("gitlab model discovery skipped: no apiKey")
+   610→   610→            return {}
+   611→   611→          }
+   612→   612→
+   613→   613→          try {
+   614→   614→            const token = apiKey
+   615→   615→            const getHeaders = (): Record<string, string> =>
+   616→   616→              auth?.type === "api" ? { "PRIVATE-TOKEN": token } : { Authorization: `Bearer ${token}` }
+   617→   617→
+   618→   618→            log.info("gitlab model discovery starting", { instanceUrl })
+   619→   619→            const result = await discoverWorkflowModels({ instanceUrl, getHeaders }, { workingDirectory: directory })
+   620→   620→
+   621→   621→            if (!result.models.length) {
+   622→   622→              log.info("gitlab model discovery skipped: no models found", {
+   623→   623→                project: result.project
+   624→   624→                  ? {
+   625→   625→                      id: result.project.id,
+   626→   626→                      path: result.project.pathWithNamespace,
+   627→   627→                    }
+   628→   628→                  : null,
+   629→   629→              })
+   630→   630→              return {}
+   631→   631→            }
+   632→   632→
+   633→   633→            const models: Record<string, Model> = {}
+   634→   634→            for (const m of result.models) {
+   635→   635→              if (!input.models[m.id]) {
+   636→   636→                models[m.id] = {
+   637→   637→                  id: ModelID.make(m.id),
+   638→   638→                  providerID: ProviderID.make("gitlab"),
+   639→   639→                  name: `Agent Platform (${m.name})`,
+   640→   640→                  family: "",
+   641→   641→                  api: {
+   642→   642→                    id: m.id,
+   643→   643→                    url: instanceUrl,
+   644→   644→                    npm: "gitlab-ai-provider",
+   645→   645→                  },
+   646→   646→                  status: "active",
+   647→   647→                  headers: {},
+   648→   648→                  options: { workflowRef: m.ref },
+   649→   649→                  cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+   650→   650→                  limit: { context: m.context, output: m.output },
+   651→   651→                  capabilities: {
+   652→   652→                    temperature: false,
+   653→   653→                    reasoning: true,
+   654→   654→                    attachment: true,
+   655→   655→                    toolcall: true,
+   656→   656→                    input: {
+   657→   657→                      text: true,
+   658→   658→                      audio: false,
+   659→   659→                      image: true,
+   660→   660→                      video: false,
+   661→   661→                      pdf: true,
+   662→   662→                    },
+   663→   663→                    output: {
+   664→   664→                      text: true,
+   665→   665→                      audio: false,
+   666→   666→                      image: false,
+   667→   667→                      video: false,
+   668→   668→                      pdf: false,
+   669→   669→                    },
+   670→   670→                    interleaved: false,
+   671→   671→                  },
+   672→   672→                  release_date: "",
+   673→   673→                  variants: {},
+   674→   674→                }
+   675→   675→              }
+   676→   676→            }
+   677→   677→
+   678→   678→            log.info("gitlab model discovery complete", {
+   679→   679→              count: Object.keys(models).length,
+   680→   680→              models: Object.keys(models),
+   681→   681→            })
+   682→   682→            return models
+   683→   683→          } catch (e) {
+   684→   684→            log.warn("gitlab model discovery failed", { error: e })
+   685→   685→            return {}
+   686→   686→          }
+   687→   687→        },
+   688→   688→      }
+   689→   689→    }),
+   690→   690→    "cloudflare-workers-ai": Effect.fnUntraced(function* (input: Info) {
+   691→   691→      // When baseURL is already configured (e.g. corporate config routing through a proxy/gateway),
+   692→   692→      // skip the account ID check because the URL is already fully specified.
+   693→   693→      if (input.options?.baseURL) return { autoload: false }
+   694→   694→
+   695→   695→      const auth = yield* dep.auth(input.id)
+   696→   696→      const env = yield* dep.env()
+   697→   697→      const accountId = env["CLOUDFLARE_ACCOUNT_ID"] || (auth?.type === "api" ? auth.metadata?.accountId : undefined)
+   698→   698→      if (!accountId)
+   699→   699→        return {
+   700→   700→          autoload: false,
+   701→   701→          async getModel() {
+   702→   702→            throw new Error(
+   703→   703→              "CLOUDFLARE_ACCOUNT_ID is missing. Set it with: export CLOUDFLARE_ACCOUNT_ID=<your-account-id>",
+   704→   704→            )
+   705→   705→          },
+   706→   706→        }
+   707→   707→
+   708→   708→      const apiKey = yield* Effect.gen(function* () {
+   709→   709→        const envToken = env["CLOUDFLARE_API_KEY"]
+   710→   710→        if (envToken) return envToken
+   711→   711→        if (auth?.type === "api") return auth.key
+   712→   712→        return undefined
+   713→   713→      })
+   714→   714→
+   715→   715→      return {
+   716→   716→        autoload: !!apiKey,
+   717→   717→        options: {
+   718→   718→          apiKey,
+   719→   719→          headers: {
+   720→   720→            "User-Agent": `mimocode/${InstallationVersion} cloudflare-workers-ai (${os.platform()} ${os.release()}; ${os.arch()})`,
+   721→   721→          },
+   722→   722→        },
+   723→   723→        async getModel(sdk: any, modelID: string) {
+   724→   724→          return sdk.languageModel(modelID)
+   725→   725→        },
+   726→   726→        vars(_options) {
+   727→   727→          return {
+   728→   728→            CLOUDFLARE_ACCOUNT_ID: accountId,
+   729→   729→          }
+   730→   730→        },
+   731→   731→      }
+   732→   732→    }),
+   733→   733→    "cloudflare-ai-gateway": Effect.fnUntraced(function* (input: Info) {
+   734→   734→      // When baseURL is already configured (e.g. corporate config), skip the ID checks.
+   735→   735→      if (input.options?.baseURL) return { autoload: false }
+   736→   736→
+   737→   737→      const auth = yield* dep.auth(input.id)
+   738→   738→      const env = yield* dep.env()
+   739→   739→      const accountId = env["CLOUDFLARE_ACCOUNT_ID"] || (auth?.type === "api" ? auth.metadata?.accountId : undefined)
+   740→   740→      const gateway = env["CLOUDFLARE_GATEWAY_ID"] || (auth?.type === "api" ? auth.metadata?.gatewayId : undefined)
+   741→   741→
+   742→   742→      if (!accountId || !gateway) {
+   743→   743→        const missing = [
+   744→   744→          !accountId ? "CLOUDFLARE_ACCOUNT_ID" : undefined,
+   745→   745→          !gateway ? "CLOUDFLARE_GATEWAY_ID" : undefined,
+   746→   746→        ].filter((x): x is string => Boolean(x))
+   747→   747→        return {
+   748→   748→          autoload: false,
+   749→   749→          async getModel() {
+   750→   750→            throw new Error(
+   751→   751→              `${missing.join(" and ")} missing. Set with: ${missing.map((x) => `export ${x}=<value>`).join(" && ")}`,
+   752→   752→            )
+   753→   753→          },
+   754→   754→        }
+   755→   755→      }
+   756→   756→
+   757→   757→      // Get API token from env or auth - required for authenticated gateways
+   758→   758→      const apiToken = yield* Effect.gen(function* () {
+   759→   759→        const envToken = env["CLOUDFLARE_API_TOKEN"] || env["CF_AIG_TOKEN"]
+   760→   760→        if (envToken) return envToken
+   761→   761→        if (auth?.type === "api") return auth.key
+   762→   762→        return undefined
+   763→   763→      })
+   764→   764→
+   765→   765→      if (!apiToken) {
+   766→   766→        throw new Error(
+   767→   767→          "CLOUDFLARE_API_TOKEN (or CF_AIG_TOKEN) is required for Cloudflare AI Gateway. " +
+   768→   768→            "Set it via environment variable or run `mimocode auth cloudflare-ai-gateway`.",
+   769→   769→        )
+   770→   770→      }
+   771→   771→
+   772→   772→      // Use official ai-gateway-provider package (v2.x for AI SDK v5 compatibility)
+   773→   773→      const { createAiGateway } = yield* Effect.promise(() => import("ai-gateway-provider"))
+   774→   774→      const { createUnified } = yield* Effect.promise(() => import("ai-gateway-provider/providers/unified"))
+   775→   775→
+   776→   776→      const metadata = iife(() => {
+   777→   777→        if (input.options?.metadata) return input.options.metadata
+   778→   778→        try {
+   779→   779→          return JSON.parse(input.options?.headers?.["cf-aig-metadata"])
+   780→   780→        } catch {
+   781→   781→          return undefined
+   782→   782→        }
+   783→   783→      })
+   784→   784→      const opts = {
+   785→   785→        metadata,
+   786→   786→        cacheTtl: input.options?.cacheTtl,
+   787→   787→        cacheKey: input.options?.cacheKey,
+   788→   788→        skipCache: input.options?.skipCache,
+   789→   789→        collectLog: input.options?.collectLog,
+   790→   790→        headers: {
+   791→   791→          "User-Agent": `mimocode/${InstallationVersion} cloudflare-ai-gateway (${os.platform()} ${os.release()}; ${os.arch()})`,
+   792→   792→        },
+   793→   793→      }
+   794→   794→
+   795→   795→      const aigateway = createAiGateway({
+   796→   796→        accountId,
+   797→   797→        gateway,
+   798→   798→        apiKey: apiToken,
+   799→   799→        ...(Object.values(opts).some((v) => v !== undefined) ? { options: opts } : {}),
+   800→   800→      })
+   801→   801→      const unified = createUnified()
+   802→   802→
+   803→   803→      return {
+   804→   804→        autoload: true,
+   805→   805→        async getModel(_sdk: any, modelID: string, _options?: Record<string, any>) {
+   806→   806→          // Model IDs use Unified API format: provider/model (e.g., "anthropic/claude-sonnet-4-5")
+   807→   807→          return aigateway(unified(modelID))
+   808→   808→        },
+   809→   809→        options: {},
+   810→   810→      }
+   811→   811→    }),
+   812→   812→    cerebras: () =>
+   813→   813→      Effect.succeed({
+   814→   814→        autoload: false,
+   815→   815→        options: {
+   816→   816→          headers: {
+   817→   817→            "X-Cerebras-3rd-Party-Integration": "mimocode",
+   818→   818→          },
+   819→   819→        },
+   820→   820→      }),
+   821→   821→    kilo: () =>
+   822→   822→      Effect.succeed({
+   823→   823→        autoload: false,
+   824→   824→        options: {
+   825→   825→          headers: {
+   826→   826→            "HTTP-Referer": "https://mimo.xiaomi.com/coder/",
+   827→   827→            "X-Title": "mimocode",
+   828→   828→          },
+   829→   829→        },
+   830→   830→      }),
+   831→   831→  }
+   832→   832→}
+   833→   833→
+   834→   834→const ProviderApiInfo = Schema.Struct({
+   835→   835→  id: Schema.String,
+   836→   836→  url: Schema.String,
+   837→   837→  npm: Schema.String,
+   838→   838→})
+   839→   839→
+   840→   840→const ProviderModalities = Schema.Struct({
+   841→   841→  text: Schema.Boolean,
+   842→   842→  audio: Schema.Boolean,
+   843→   843→  image: Schema.Boolean,
+   844→   844→  video: Schema.Boolean,
+   845→   845→  pdf: Schema.Boolean,
+   846→   846→})
+   847→   847→
+   848→   848→const ProviderInterleaved = Schema.Union([
+   849→   849→  Schema.Boolean,
+   850→   850→  Schema.Struct({
+   851→   851→    field: Schema.Literals(["reasoning_content", "reasoning_details"]),
+   852→   852→  }),
+   853→   853→])
+   854→   854→
+   855→   855→const ProviderCapabilities = Schema.Struct({
+   856→   856→  temperature: Schema.Boolean,
+   857→   857→  reasoning: Schema.Boolean,
+   858→   858→  attachment: Schema.Boolean,
+   859→   859→  toolcall: Schema.Boolean,
+   860→   860→  input: ProviderModalities,
+   861→   861→  output: ProviderModalities,
+   862→   862→  interleaved: ProviderInterleaved,
+   863→   863→})
+   864→   864→
+   865→   865→const ProviderCacheCost = Schema.Struct({
+   866→   866→  read: Schema.Number,
+   867→   867→  write: Schema.Number,
+   868→   868→})
+   869→   869→
+   870→   870→const ProviderCost = Schema.Struct({
+   871→   871→  input: Schema.Number,
+   872→   872→  output: Schema.Number,
+   873→   873→  cache: ProviderCacheCost,
+   874→   874→  experimentalOver200K: Schema.optional(
+   875→   875→    Schema.Struct({
+   876→   876→      input: Schema.Number,
+   877→   877→      output: Schema.Number,
+   878→   878→      cache: ProviderCacheCost,
+   879→   879→    }),
+   880→   880→  ),
+   881→   881→})
+   882→   882→
+   883→   883→const ProviderLimit = Schema.Struct({
+   884→   884→  context: Schema.Number,
+   885→   885→  input: Schema.optional(Schema.Number),
+   886→   886→  output: Schema.Number,
+   887→   887→})
+   888→   888→
+   889→   889→export const Model = Schema.Struct({
+   890→   890→  id: ModelID,
+   891→   891→  providerID: ProviderID,
+   892→   892→  api: ProviderApiInfo,
+   893→   893→  name: Schema.String,
+   894→   894→  family: Schema.optional(Schema.String),
+   895→   895→  capabilities: ProviderCapabilities,
+   896→   896→  cost: ProviderCost,
+   897→   897→  limit: ProviderLimit,
+   898→   898→  status: Schema.Literals(["alpha", "beta", "deprecated", "active"]),
+   899→   899→  options: Schema.Record(Schema.String, Schema.Any),
+   900→   900→  headers: Schema.Record(Schema.String, Schema.String),
+   901→   901→  release_date: Schema.String,
+   902→   902→  variants: Schema.optional(Schema.Record(Schema.String, Schema.Record(Schema.String, Schema.Any))),
+   903→   903→  cacheTTL: Schema.optional(Schema.Number),
+   904→   904→  cachePromptTTL: Schema.optional(Schema.Literals(["5m", "1h"])),
+   905→   905→})
+   906→   906→  .annotate({ identifier: "Model" })
+   907→   907→  .pipe(withStatics((s) => ({ zod: zod(s) })))
+   908→   908→export type Model = Types.DeepMutable<Schema.Schema.Type<typeof Model>>
+   909→   909→
+   910→   910→export const Info = Schema.Struct({
+   911→   911→  id: ProviderID,
+   912→   912→  name: Schema.String,
+   913→   913→  source: Schema.Literals(["env", "config", "custom", "api"]),
+   914→   914→  env: Schema.Array(Schema.String),
+   915→   915→  key: Schema.optional(Schema.String),
+   916→   916→  options: Schema.Record(Schema.String, Schema.Any),
+   917→   917→  models: Schema.Record(Schema.String, Model),
+   918→   918→})
+   919→   919→  .annotate({ identifier: "Provider" })
+   920→   920→  .pipe(withStatics((s) => ({ zod: zod(s) })))
+   921→   921→export type Info = Types.DeepMutable<Schema.Schema.Type<typeof Info>>
+   922→   922→
+   923→   923→const DefaultModelIDs = Schema.Record(Schema.String, Schema.String)
+   924→   924→
+   925→   925→export const ListResult = Schema.Struct({
+   926→   926→  all: Schema.Array(Info),
+   927→   927→  default: DefaultModelIDs,
+   928→   928→  connected: Schema.Array(Schema.String),
+   929→   929→}).pipe(withStatics((s) => ({ zod: zod(s) })))
+   930→   930→export type ListResult = Types.DeepMutable<Schema.Schema.Type<typeof ListResult>>
+   931→   931→
+   932→   932→export const ConfigProvidersResult = Schema.Struct({
+   933→   933→  providers: Schema.Array(Info),
+   934→   934→  default: DefaultModelIDs,
+   935→   935→}).pipe(withStatics((s) => ({ zod: zod(s) })))
+   936→   936→export type ConfigProvidersResult = Types.DeepMutable<Schema.Schema.Type<typeof ConfigProvidersResult>>
+   937→   937→
+   938→   938→export function defaultModelIDs<T extends { models: Record<string, { id: string }> }>(providers: Record<string, T>) {
+   939→   939→  return mapValues(providers, (item) => sort(Object.values(item.models))[0].id)
+   940→   940→}
+   941→   941→
+   942→   942→export interface Interface {
+   943→   943→  readonly list: () => Effect.Effect<Record<ProviderID, Info>>
+   944→   944→  readonly getProvider: (providerID: ProviderID) => Effect.Effect<Info>
+   945→   945→  readonly getModel: (providerID: ProviderID, modelID: ModelID) => Effect.Effect<Model>
+   946→   946→  readonly getLanguage: (model: Model) => Effect.Effect<LanguageModelV3>
+   947→   947→  readonly closest: (
+   948→   948→    providerID: ProviderID,
+   949→   949→    query: string[],
+   950→   950→  ) => Effect.Effect<{ providerID: ProviderID; modelID: string } | undefined>
+   951→   951→  readonly getSmallModel: (providerID: ProviderID) => Effect.Effect<Model | undefined>
+   952→   952→  readonly resolveModelRef: (ref: string, contextProviderID?: ProviderID) => Effect.Effect<Model>
+   953→   953→  readonly defaultModel: () => Effect.Effect<{ providerID: ProviderID; modelID: ModelID }>
+   954→   954→}
+   955→   955→
+   956→   956→interface State {
+   957→   957→  models: Map<string, LanguageModelV3>
+   958→   958→  providers: Record<ProviderID, Info>
+   959→   959→  sdk: Map<string, BundledSDK>
+   960→   960→  modelLoaders: Record<string, CustomModelLoader>
+   961→   961→  varsLoaders: Record<string, CustomVarsLoader>
+   962→   962→}
+   963→   963→
+   964→   964→export class Service extends Context.Service<Service, Interface>()("@opencode/Provider") {}
+   965→   965→
+   966→   966→function cost(c: ModelsDev.Model["cost"]): Model["cost"] {
+   967→   967→  const result: Model["cost"] = {
+   968→   968→    input: c?.input ?? 0,
+   969→   969→    output: c?.output ?? 0,
+   970→   970→    cache: {
+   971→   971→      read: c?.cache_read ?? 0,
+   972→   972→      write: c?.cache_write ?? 0,
+   973→   973→    },
+   974→   974→  }
+   975→   975→  if (c?.context_over_200k) {
+   976→   976→    result.experimentalOver200K = {
+   977→   977→      cache: {
+   978→   978→        read: c.context_over_200k.cache_read ?? 0,
+   979→   979→        write: c.context_over_200k.cache_write ?? 0,
+   980→   980→      },
+   981→   981→      input: c.context_over_200k.input,
+   982→   982→      output: c.context_over_200k.output,
+   983→   983→    }
+   984→   984→  }
+   985→   985→  return result
+   986→   986→}
+   987→   987→
+   988→   988→function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model): Model {
+   989→   989→  const base: Model = {
+   990→   990→    id: ModelID.make(model.id),
+   991→   991→    providerID: ProviderID.make(provider.id),
+   992→   992→    name: model.name,
+   993→   993→    family: model.family,
+   994→   994→    api: {
+   995→   995→      id: model.id,
+   996→   996→      url: model.provider?.api ?? provider.api ?? "",
+   997→   997→      npm: model.provider?.npm ?? provider.npm ?? "@ai-sdk/openai-compatible",
+   998→   998→    },
+   999→   999→    status: model.status ?? "active",
+  1000→  1000→    headers: {},
+  1001→  1001→    options: {},
+  1002→  1002→    cost: cost(model.cost),
+  1003→  1003→    limit: {
+  1004→  1004→      context: model.limit.context,
+  1005→  1005→      input: model.limit.input,
+  1006→  1006→      output: model.limit.output,
+  1007→  1007→    },
+  1008→  1008→    capabilities: {
+  1009→  1009→      temperature: model.temperature ?? false,
+  1010→  1010→      reasoning: model.reasoning ?? false,
+  1011→  1011→      attachment: model.attachment ?? false,
+  1012→  1012→      toolcall: model.tool_call ?? true,
+  1013→  1013→      input: {
+  1014→  1014→        text: model.modalities?.input?.includes("text") ?? false,
+  1015→  1015→        audio: model.modalities?.input?.includes("audio") ?? false,
+  1016→  1016→        image: model.modalities?.input?.includes("image") ?? false,
+  1017→  1017→        video: model.modalities?.input?.includes("video") ?? false,
+  1018→  1018→        pdf: model.modalities?.input?.includes("pdf") ?? false,
+  1019→  1019→      },
+  1020→  1020→      output: {
+  1021→  1021→        text: model.modalities?.output?.includes("text") ?? false,
+  1022→  1022→        audio: model.modalities?.output?.includes("audio") ?? false,
+  1023→  1023→        image: model.modalities?.output?.includes("image") ?? false,
+  1024→  1024→        video: model.modalities?.output?.includes("video") ?? false,
+  1025→  1025→        pdf: model.modalities?.output?.includes("pdf") ?? false,
+  1026→  1026→      },
+  1027→  1027→      interleaved: model.interleaved ?? false,
+  1028→  1028→    },
+  1029→  1029→    release_date: model.release_date ?? "",
+  1030→  1030→    variants: {},
+  1031→  1031→  }
+  1032→  1032→
+  1033→  1033→  return {
+  1034→  1034→    ...base,
+  1035→  1035→    variants: mapValues(ProviderTransform.variants(base), (v) => v),
+  1036→  1036→  }
+  1037→  1037→}
+  1038→  1038→
+  1039→  1039→export function fromModelsDevProvider(provider: ModelsDev.Provider): Info {
+  1040→  1040→  const models: Record<string, Model> = {}
+  1041→  1041→  for (const [key, model] of Object.entries(provider.models)) {
+  1042→  1042→    models[key] = fromModelsDevModel(provider, model)
+  1043→  1043→    for (const [mode, opts] of Object.entries(model.experimental?.modes ?? {})) {
+  1044→  1044→      const id = `${model.id}-${mode}`
+  1045→  1045→      const base = fromModelsDevModel(provider, model)
+  1046→  1046→      models[id] = {
+  1047→  1047→        ...base,
+  1048→  1048→        id: ModelID.make(id),
+  1049→  1049→        name: `${model.name} ${mode[0].toUpperCase()}${mode.slice(1)}`,
+  1050→  1050→        cost: opts.cost ? mergeDeep(base.cost, cost(opts.cost)) : base.cost,
+  1051→  1051→        options: opts.provider?.body
+  1052→  1052→          ? Object.fromEntries(
+  1053→  1053→              Object.entries(opts.provider.body).map(([k, v]) => [
+  1054→  1054→                k.replace(/_([a-z])/g, (_, c) => c.toUpperCase()),
+  1055→  1055→                v,
+  1056→  1056→              ]),
+  1057→  1057→            )
+  1058→  1058→          : base.options,
+  1059→  1059→        headers: opts.provider?.headers ?? base.headers,
+  1060→  1060→      }
+  1061→  1061→    }
+  1062→  1062→  }
+  1063→  1063→  return {
+  1064→  1064→    id: ProviderID.make(provider.id),
+  1065→  1065→    source: "custom",
+  1066→  1066→    name: provider.name,
+  1067→  1067→    env: provider.env ?? [],
+  1068→  1068→    options: {},
+  1069→  1069→    models,
+  1070→  1070→  }
+  1071→  1071→}
+  1072→  1072→
+  1073→  1073→const layer: Layer.Layer<
+  1074→  1074→  Service,
+  1075→  1075→  never,
+  1076→  1076→  Config.Service | Auth.Service | Plugin.Service | AppFileSystem.Service | Env.Service
+  1077→  1077→> = Layer.effect(
+  1078→  1078→  Service,
+  1079→  1079→  Effect.gen(function* () {
+  1080→  1080→    const fs = yield* AppFileSystem.Service
+  1081→  1081→    const config = yield* Config.Service
+  1082→  1082→    const auth = yield* Auth.Service
+  1083→  1083→    const env = yield* Env.Service
+  1084→  1084→    const plugin = yield* Plugin.Service
+  1085→  1085→
+  1086→  1086→    const state = yield* InstanceState.make<State>(() =>
+  1087→  1087→      Effect.gen(function* () {
+  1088→  1088→        using _ = log.time("state")
+  1089→  1089→        const bridge = yield* EffectBridge.make()
+  1090→  1090→        const cfg = yield* config.get()
+  1091→  1091→        const modelsDev = yield* Effect.promise(() => ModelsDev.get())
+  1092→  1092→        const database = mapValues(modelsDev, fromModelsDevProvider)
+  1093→  1093→
+  1094→  1094→        const providers: Record<ProviderID, Info> = {} as Record<ProviderID, Info>
+  1095→  1095→        const languages = new Map<string, LanguageModelV3>()
+  1096→  1096→        const modelLoaders: {
+  1097→  1097→          [providerID: string]: CustomModelLoader
+  1098→  1098→        } = {}
+  1099→  1099→        const varsLoaders: {
+  1100→  1100→          [providerID: string]: CustomVarsLoader
+  1101→  1101→        } = {}
+  1102→  1102→        const sdk = new Map<string, BundledSDK>()
+  1103→  1103→        const discoveryLoaders: {
+  1104→  1104→          [providerID: string]: CustomDiscoverModels
+  1105→  1105→        } = {}
+  1106→  1106→        const dep = {
+  1107→  1107→          auth: (id: string) => auth.get(id).pipe(Effect.orDie),
+  1108→  1108→          config: () => config.get(),
+  1109→  1109→          env: () => env.all(),
+  1110→  1110→          get: (key: string) => env.get(key),
+  1111→  1111→        }
+  1112→  1112→
+  1113→  1113→        log.info("init")
+  1114→  1114→
+  1115→  1115→        function mergeProvider(providerID: ProviderID, provider: Partial<Info>) {
+  1116→  1116→          const existing = providers[providerID]
+  1117→  1117→          if (existing) {
+  1118→  1118→            // @ts-expect-error
+  1119→  1119→            providers[providerID] = mergeDeep(existing, provider)
+  1120→  1120→            return
+  1121→  1121→          }
+  1122→  1122→          const match = database[providerID]
+  1123→  1123→          if (!match) return
+  1124→  1124→          // @ts-expect-error
+  1125→  1125→          providers[providerID] = mergeDeep(match, provider)
+  1126→  1126→        }
+  1127→  1127→
+  1128→  1128→        // load plugins first so config() hook runs before reading cfg.provider
+  1129→  1129→        const plugins = yield* plugin.list()
+  1130→  1130→
+  1131→  1131→        // now read config providers - includes any modifications from plugin config() hook
+  1132→  1132→        const configProviders = Object.entries(cfg.provider ?? {})
+  1133→  1133→        const disabled = new Set(cfg.disabled_providers ?? [])
+  1134→  1134→        const enabled = cfg.enabled_providers ? new Set(cfg.enabled_providers) : null
+  1135→  1135→
+  1136→  1136→        function isProviderAllowed(providerID: ProviderID): boolean {
+  1137→  1137→          if (enabled && !enabled.has(providerID)) return false
+  1138→  1138→          if (disabled.has(providerID)) return false
+  1139→  1139→          return true
+  1140→  1140→        }
+  1141→  1141→
+  1142→  1142→        // extend database from config
+  1143→  1143→        for (const [providerID, provider] of configProviders) {
+  1144→  1144→          const existing = database[providerID]
+  1145→  1145→          const parsed: Info = {
+  1146→  1146→            id: ProviderID.make(providerID),
+  1147→  1147→            name: provider.name ?? existing?.name ?? providerID,
+  1148→  1148→            env: provider.env ?? existing?.env ?? [],
+  1149→  1149→            options: mergeDeep(existing?.options ?? {}, provider.options ?? {}),
+  1150→  1150→            source: "config",
+  1151→  1151→            models: existing?.models ?? {},
+  1152→  1152→          }
+  1153→  1153→
+  1154→  1154→          for (const [modelID, model] of Object.entries(provider.models ?? {})) {
+  1155→  1155→            const existingModel = parsed.models[model.id ?? modelID]
+  1156→  1156→            const apiID = model.id ?? existingModel?.api.id ?? modelID
+  1157→  1157→            const apiNpm =
+  1158→  1158→              model.provider?.npm ??
+  1159→  1159→              provider.npm ??
+  1160→  1160→              existingModel?.api.npm ??
+  1161→  1161→              modelsDev[providerID]?.npm ??
+  1162→  1162→              "@ai-sdk/openai-compatible"
+  1163→  1163→            const name = iife(() => {
+  1164→  1164→              if (model.name) return model.name
+  1165→  1165→              if (model.id && model.id !== modelID) return modelID
+  1166→  1166→              return existingModel?.name ?? modelID
+  1167→  1167→            })
+  1168→  1168→            const parsedModel: Model = {
+  1169→  1169→              id: ModelID.make(modelID),
+  1170→  1170→              api: {
+  1171→  1171→                id: apiID,
+  1172→  1172→                npm: apiNpm,
+  1173→  1173→                url: model.provider?.api ?? provider?.api ?? existingModel?.api.url ?? modelsDev[providerID]?.api ?? "",
+  1174→  1174→              },
+  1175→  1175→              status: model.status ?? existingModel?.status ?? "active",
+  1176→  1176→              name,
+  1177→  1177→              providerID: ProviderID.make(providerID),
+  1178→  1178→              capabilities: {
+  1179→  1179→                temperature: model.temperature ?? existingModel?.capabilities.temperature ?? false,
+  1180→  1180→                reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? false,
+  1181→  1181→                attachment: model.attachment ?? existingModel?.capabilities.attachment ?? false,
+  1182→  1182→                toolcall: model.tool_call ?? existingModel?.capabilities.toolcall ?? true,
+  1183→  1183→                input: {
+  1184→  1184→                  text: model.modalities?.input?.includes("text") ?? existingModel?.capabilities.input.text ?? true,
+  1185→  1185→                  audio: model.modalities?.input?.includes("audio") ?? existingModel?.capabilities.input.audio ?? false,
+  1186→  1186→                  image: model.modalities?.input?.includes("image") ?? existingModel?.capabilities.input.image ?? false,
+  1187→  1187→                  video: model.modalities?.input?.includes("video") ?? existingModel?.capabilities.input.video ?? false,
+  1188→  1188→                  pdf: model.modalities?.input?.includes("pdf") ?? existingModel?.capabilities.input.pdf ?? false,
+  1189→  1189→                },
+  1190→  1190→                output: {
+  1191→  1191→                  text: model.modalities?.output?.includes("text") ?? existingModel?.capabilities.output.text ?? true,
+  1192→  1192→                  audio:
+  1193→  1193→                    model.modalities?.output?.includes("audio") ?? existingModel?.capabilities.output.audio ?? false,
+  1194→  1194→                  image:
+  1195→  1195→                    model.modalities?.output?.includes("image") ?? existingModel?.capabilities.output.image ?? false,
+  1196→  1196→                  video:
+  1197→  1197→                    model.modalities?.output?.includes("video") ?? existingModel?.capabilities.output.video ?? false,
+  1198→  1198→                  pdf: model.modalities?.output?.includes("pdf") ?? existingModel?.capabilities.output.pdf ?? false,
+  1199→  1199→                },
+  1200→  1200→                interleaved:
+  1201→  1201→                  model.interleaved ??
+  1202→  1202→                  existingModel?.capabilities.interleaved ??
+  1203→  1203→                  (!existingModel && apiNpm === "@ai-sdk/openai-compatible" && apiID.includes("deepseek")
+  1204→  1204→                    ? { field: "reasoning_content" }
+  1205→  1205→                    : false),
+  1206→  1206→              },
+  1207→  1207→              cost: {
+  1208→  1208→                input: model?.cost?.input ?? existingModel?.cost?.input ?? 0,
+  1209→  1209→                output: model?.cost?.output ?? existingModel?.cost?.output ?? 0,
+  1210→  1210→                cache: {
+  1211→  1211→                  read: model?.cost?.cache_read ?? existingModel?.cost?.cache.read ?? 0,
+  1212→  1212→                  write: model?.cost?.cache_write ?? existingModel?.cost?.cache.write ?? 0,
+  1213→  1213→                },
+  1214→  1214→              },
+  1215→  1215→              options: mergeDeep(existingModel?.options ?? {}, model.options ?? {}),
+  1216→  1216→              limit: {
+  1217→  1217→                context: (() => {
+  1218→  1218→                  const explicit = model.limit?.context ?? existingModel?.limit?.context
+  1219→  1219→                  if (explicit !== undefined) return explicit
+  1220→  1220→                  const key = `${providerID}/${modelID}`
+  1221→  1221→                  if (!warnedContextDefaults.has(key)) {
+  1222→  1222→                    warnedContextDefaults.add(key)
+  1223→  1223→                    log.warn("limit.context not configured and not found in models.dev", {
+  1224→  1224→                      providerID,
+  1225→  1225→                      modelID,
+  1226→  1226→                      defaulting_to: DEFAULT_CONTEXT_WINDOW,
+  1227→  1227→                      fix: `Set limit.context explicitly in mimocode.json under provider.${providerID}.models.${modelID}`,
+  1228→  1228→                    })
+  1229→  1229→                  }
+  1230→  1230→                  return DEFAULT_CONTEXT_WINDOW
+  1231→  1231→                })(),
+  1232→  1232→                input: model.limit?.input ?? existingModel?.limit?.input,
+  1233→  1233→                output: model.limit?.output ?? existingModel?.limit?.output ?? 0,
+  1234→  1234→              },
+  1235→  1235→              headers: mergeDeep(existingModel?.headers ?? {}, model.headers ?? {}),
+  1236→  1236→              family: model.family ?? existingModel?.family ?? "",
+  1237→  1237→              release_date: model.release_date ?? existingModel?.release_date ?? "",
+  1238→  1238→              cachePromptTTL: model.cachePromptTTL ?? existingModel?.cachePromptTTL,
+  1239→  1239→              variants: {},
+  1240→  1240→            }
+  1241→  1241→            const merged = mergeDeep(ProviderTransform.variants(parsedModel), model.variants ?? {})
+  1242→  1242→            parsedModel.variants = mapValues(
+  1243→  1243→              pickBy(merged, (v) => !v.disabled),
+  1244→  1244→              (v) => omit(v, ["disabled"]),
+  1245→  1245→            )
+  1246→  1246→            parsed.models[modelID] = parsedModel
+  1247→  1247→          }
+  1248→  1248→          database[providerID] = parsed
+  1249→  1249→        }
+  1250→  1250→
+  1251→  1251→        // load env (skipped in mimo-only mode so ANTHROPIC_API_KEY etc. don't auto-light other providers)
+  1252→  1252→        if (!Flag.MIMOCODE_DISABLE_PROVIDER_ENV) {
+  1253→  1253→          const envs = yield* env.all()
+  1254→  1254→          for (const [id, provider] of Object.entries(database)) {
+  1255→  1255→            const providerID = ProviderID.make(id)
+  1256→  1256→            if (disabled.has(providerID)) continue
+  1257→  1257→            const apiKey = provider.env.map((item) => envs[item]).find(Boolean)
+  1258→  1258→            if (!apiKey) continue
+  1259→  1259→            mergeProvider(providerID, {
+  1260→  1260→              source: "env",
+  1261→  1261→              key: provider.env.length === 1 ? apiKey : undefined,
+  1262→  1262→            })
+  1263→  1263→          }
+  1264→  1264→        }
+  1265→  1265→
+  1266→  1266→        // load apikeys
+  1267→  1267→        const auths = yield* auth.all().pipe(Effect.orDie)
+  1268→  1268→        for (const [id, provider] of Object.entries(auths)) {
+  1269→  1269→          const providerID = ProviderID.make(id)
+  1270→  1270→          if (disabled.has(providerID)) continue
+  1271→  1271→          if (provider.type === "api") {
+  1272→  1272→            mergeProvider(providerID, {
+  1273→  1273→              source: "api",
+  1274→  1274→              key: provider.key,
+  1275→  1275→            })
+  1276→  1276→          }
+  1277→  1277→        }
+  1278→  1278→
+  1279→  1279→        // plugin auth loader - database now has entries for config providers
+  1280→  1280→        for (const plugin of plugins) {
+  1281→  1281→          if (!plugin.auth) continue
+  1282→  1282→          const providerID = ProviderID.make(plugin.auth.provider)
+  1283→  1283→          if (disabled.has(providerID)) continue
+  1284→  1284→
+  1285→  1285→          const stored = yield* auth.get(providerID).pipe(Effect.orDie)
+  1286→  1286→          if (!stored) continue
+  1287→  1287→          if (!plugin.auth.loader) continue
+  1288→  1288→
+  1289→  1289→          const options = yield* Effect.promise(() =>
+  1290→  1290→            plugin.auth!.loader!(
+  1291→  1291→              () => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any,
+  1292→  1292→              database[plugin.auth!.provider],
+  1293→  1293→            ),
+  1294→  1294→          )
+  1295→  1295→          const opts = options ?? {}
+  1296→  1296→          const patch: Partial<Info> = providers[providerID] ? { options: opts } : { source: "custom", options: opts }
+  1297→  1297→          mergeProvider(providerID, patch)
+  1298→  1298→        }
+  1299→  1299→
+  1300→  1300→        for (const [id, fn] of Object.entries(custom(dep))) {
+  1301→  1301→          const providerID = ProviderID.make(id)
+  1302→  1302→          if (disabled.has(providerID)) continue
+  1303→  1303→          const data = database[providerID]
+  1304→  1304→          if (!data) {
+  1305→  1305→            log.error("Provider does not exist in model list " + providerID)
+  1306→  1306→            continue
+  1307→  1307→          }
+  1308→  1308→          const result = yield* fn(data)
+  1309→  1309→          if (result && (result.autoload || providers[providerID])) {
+  1310→  1310→            if (result.getModel) modelLoaders[providerID] = result.getModel
+  1311→  1311→            if (result.vars) varsLoaders[providerID] = result.vars
+  1312→  1312→            if (result.discoverModels) discoveryLoaders[providerID] = result.discoverModels
+  1313→  1313→            const opts = result.options ?? {}
+  1314→  1314→            const patch: Partial<Info> = providers[providerID] ? { options: opts } : { source: "custom", options: opts }
+  1315→  1315→            mergeProvider(providerID, patch)
+  1316→  1316→          }
+  1317→  1317→        }
+  1318→  1318→
+  1319→  1319→        // load config - re-apply with updated data
+  1320→  1320→        for (const [id, provider] of configProviders) {
+  1321→  1321→          const providerID = ProviderID.make(id)
+  1322→  1322→          const partial: Partial<Info> = { source: "config" }
+  1323→  1323→          if (provider.env) partial.env = provider.env
+  1324→  1324→          if (provider.name) partial.name = provider.name
+  1325→  1325→          if (provider.options) partial.options = provider.options
+  1326→  1326→          mergeProvider(providerID, partial)
+  1327→  1327→        }
+  1328→  1328→
+  1329→  1329→        const gitlab = ProviderID.make("gitlab")
+  1330→  1330→        if (discoveryLoaders[gitlab] && providers[gitlab] && isProviderAllowed(gitlab)) {
+  1331→  1331→          yield* Effect.promise(async () => {
+  1332→  1332→            try {
+  1333→  1333→              const discovered = await discoveryLoaders[gitlab]()
+  1334→  1334→              for (const [modelID, model] of Object.entries(discovered)) {
+  1335→  1335→                if (!providers[gitlab].models[modelID]) {
+  1336→  1336→                  providers[gitlab].models[modelID] = model
+  1337→  1337→                }
+  1338→  1338→              }
+  1339→  1339→            } catch (e) {
+  1340→  1340→              log.warn("state discovery error", { id: "gitlab", error: e })
+  1341→  1341→            }
+  1342→  1342→          })
+  1343→  1343→        }
+  1344→  1344→
+  1345→  1345→        for (const hook of plugins) {
+  1346→  1346→          const p = hook.provider
+  1347→  1347→          const models = p?.models
+  1348→  1348→          if (!p || !models) continue
+  1349→  1349→
+  1350→  1350→          const providerID = ProviderID.make(p.id)
+  1351→  1351→          if (disabled.has(providerID)) continue
+  1352→  1352→
+  1353→  1353→          const provider = providers[providerID]
+  1354→  1354→          if (!provider) continue
+  1355→  1355→          const pluginAuth = yield* auth.get(providerID).pipe(Effect.orDie)
+  1356→  1356→
+  1357→  1357→          provider.models = yield* Effect.promise(async () => {
+  1358→  1358→            const next = await models(provider, { auth: pluginAuth })
+  1359→  1359→            return Object.fromEntries(
+  1360→  1360→              Object.entries(next).map(([id, model]) => [
+  1361→  1361→                id,
+  1362→  1362→                {
+  1363→  1363→                  ...model,
+  1364→  1364→                  id: ModelID.make(id),
+  1365→  1365→                  providerID,
+  1366→  1366→                },
+  1367→  1367→              ]),
+  1368→  1368→            )
+  1369→  1369→          })
+  1370→  1370→        }
+  1371→  1371→
+  1372→  1372→        for (const [id, provider] of Object.entries(providers)) {
+  1373→  1373→          const providerID = ProviderID.make(id)
+  1374→  1374→          if (!isProviderAllowed(providerID)) {
+  1375→  1375→            delete providers[providerID]
+  1376→  1376→            continue
+  1377→  1377→          }
+  1378→  1378→
+  1379→  1379→          const configProvider = cfg.provider?.[providerID]
+  1380→  1380→
+  1381→  1381→          for (const [modelID, model] of Object.entries(provider.models)) {
+  1382→  1382→            model.api.id = model.api.id ?? model.id ?? modelID
+  1383→  1383→            if (
+  1384→  1384→              modelID === "gpt-5-chat-latest" ||
+  1385→  1385→              (providerID === ProviderID.openrouter && modelID === "openai/gpt-5-chat")
+  1386→  1386→            )
+  1387→  1387→              delete provider.models[modelID]
+  1388→  1388→            if (model.status === "alpha" && !Flag.MIMOCODE_ENABLE_EXPERIMENTAL_MODELS) delete provider.models[modelID]
+  1389→  1389→            if (model.status === "deprecated") delete provider.models[modelID]
+  1390→  1390→            if (
+  1391→  1391→              (configProvider?.blacklist && configProvider.blacklist.includes(modelID)) ||
+  1392→  1392→              (configProvider?.whitelist && !configProvider.whitelist.includes(modelID))
+  1393→  1393→            )
+  1394→  1394→              delete provider.models[modelID]
+  1395→  1395→
+  1396→  1396→            model.variants = mapValues(ProviderTransform.variants(model), (v) => v)
+  1397→  1397→
+  1398→  1398→            const configVariants = configProvider?.models?.[modelID]?.variants
+  1399→  1399→            if (configVariants && model.variants) {
+  1400→  1400→              const merged = mergeDeep(model.variants, configVariants)
+  1401→  1401→              model.variants = mapValues(
+  1402→  1402→                pickBy(merged, (v) => !v.disabled),
+  1403→  1403→                (v) => omit(v, ["disabled"]),
+  1404→  1404→              )
+  1405→  1405→            }
+  1406→  1406→          }
+  1407→  1407→
+  1408→  1408→          if (Object.keys(provider.models).length === 0) {
+  1409→  1409→            delete providers[providerID]
+  1410→  1410→            continue
+  1411→  1411→          }
+  1412→  1412→
+  1413→  1413→          log.info("found", { providerID })
+  1414→  1414→        }
+  1415→  1415→
+  1416→  1416→        return {
+  1417→  1417→          models: languages,
+  1418→  1418→          providers,
+  1419→  1419→          sdk,
+  1420→  1420→          modelLoaders,
+  1421→  1421→          varsLoaders,
+  1422→  1422→        }
+  1423→  1423→      }),
+  1424→  1424→    )
+  1425→  1425→
+  1426→  1426→    const list = Effect.fn("Provider.list")(() => InstanceState.use(state, (s) => s.providers))
+  1427→  1427→
+  1428→  1428→    async function resolveSDK(model: Model, s: State, envs: Record<string, string | undefined>) {
+  1429→  1429→      try {
+  1430→  1430→        using _ = log.time("getSDK", {
+  1431→  1431→          providerID: model.providerID,
+  1432→  1432→        })
+  1433→  1433→        const provider = s.providers[model.providerID]
+  1434→  1434→        const options = { ...provider.options }
+  1435→  1435→
+  1436→  1436→        if (model.providerID === "google-vertex" && !model.api.npm.includes("@ai-sdk/openai-compatible")) {
+  1437→  1437→          delete options.fetch
+  1438→  1438→        }
+  1439→  1439→
+  1440→  1440→        if (model.api.npm.includes("@ai-sdk/openai-compatible") && options["includeUsage"] !== false) {
+  1441→  1441→          options["includeUsage"] = true
+  1442→  1442→        }
+  1443→  1443→
+  1444→  1444→        const baseURL = iife(() => {
+  1445→  1445→          let url =
+  1446→  1446→            typeof options["baseURL"] === "string" && options["baseURL"] !== "" ? options["baseURL"] : model.api.url
+  1447→  1447→          if (!url) return
+  1448→  1448→
+  1449→  1449→          const loader = s.varsLoaders[model.providerID]
+  1450→  1450→          if (loader) {
+  1451→  1451→            const vars = loader(options)
+  1452→  1452→            for (const [key, value] of Object.entries(vars)) {
+  1453→  1453→              const field = "${" + key + "}"
+  1454→  1454→              url = url.replaceAll(field, value)
+  1455→  1455→            }
+  1456→  1456→          }
+  1457→  1457→
+  1458→  1458→          url = url.replace(/\$\{([^}]+)\}/g, (item, key) => {
+  1459→  1459→            const val = envs[String(key)]
+  1460→  1460→            return val ?? item
+  1461→  1461→          })
+  1462→  1462→          return url
+  1463→  1463→        })
+  1464→  1464→
+  1465→  1465→        if (baseURL !== undefined) options["baseURL"] = baseURL
+  1466→  1466→        if (options["apiKey"] === undefined && provider.key) options["apiKey"] = provider.key
+  1467→  1467→        if (model.headers)
+  1468→  1468→          options["headers"] = {
+  1469→  1469→            ...options["headers"],
+  1470→  1470→            ...model.headers,
+  1471→  1471→          }
+  1472→  1472→
+  1473→  1473→        const key = Hash.fast(
+  1474→  1474→          JSON.stringify({
+  1475→  1475→            providerID: model.providerID,
+  1476→  1476→            npm: model.api.npm,
+  1477→  1477→            options,
+  1478→  1478→          }),
+  1479→  1479→        )
+  1480→  1480→        const existing = s.sdk.get(key)
+  1481→  1481→        if (existing) return existing
+  1482→  1482→
+  1483→  1483→        const customFetch = options["fetch"]
+  1484→  1484→        const userChunkTimeout = options["chunkTimeout"]
+  1485→  1485→        const chunkTimeout =
+  1486→  1486→          typeof userChunkTimeout === "number"
+  1487→  1487→            ? userChunkTimeout  // user-set value (incl. 0 / negative to disable)
+  1488→  1488→            : DEFAULT_CHUNK_TIMEOUT
+  1489→  1489→        delete options["chunkTimeout"]
+  1490→  1490→
+  1491→  1491→        options["fetch"] = async (input: any, init?: BunFetchRequestInit) => {
+  1492→  1492→          const fetchFn = customFetch ?? fetch
+  1493→  1493→          const opts = init ?? {}
+  1494→  1494→          const chunkAbortCtl = typeof chunkTimeout === "number" && chunkTimeout > 0 ? new AbortController() : undefined
+  1495→  1495→          const signals: AbortSignal[] = []
+  1496→  1496→
+  1497→  1497→          if (opts.signal) signals.push(opts.signal)
+  1498→  1498→          if (chunkAbortCtl) signals.push(chunkAbortCtl.signal)
+  1499→  1499→          if (options["timeout"] !== undefined && options["timeout"] !== null && options["timeout"] !== false)
+  1500→  1500→            signals.push(AbortSignal.timeout(options["timeout"]))
+  1501→  1501→
+  1502→  1502→          const combined = signals.length === 0 ? null : signals.length === 1 ? signals[0] : AbortSignal.any(signals)
+  1503→  1503→          if (combined) opts.signal = combined
+  1504→  1504→
+  1505→  1505→          // Strip openai itemId metadata following what codex does
+  1506→  1506→          if (model.api.npm === "@ai-sdk/openai" && opts.body && opts.method === "POST") {
+  1507→  1507→            const body = JSON.parse(opts.body as string)
+  1508→  1508→            const isAzure = model.providerID.includes("azure")
+  1509→  1509→            const keepIds = isAzure && body.store === true
+  1510→  1510→            if (!keepIds && Array.isArray(body.input)) {
+  1511→  1511→              for (const item of body.input) {
+  1512→  1512→                if ("id" in item) {
+  1513→  1513→                  delete item.id
+  1514→  1514→                }
+  1515→  1515→              }
+  1516→  1516→              opts.body = JSON.stringify(body)
+  1517→  1517→            }
+  1518→  1518→          }
+  1519→  1519→
+  1520→  1520→          const res = await fetchFn(input, {
+  1521→  1521→            ...opts,
+  1522→  1522→            // @ts-ignore see here: https://github.com/oven-sh/bun/issues/16682
+  1523→  1523→            timeout: false,
+  1524→  1524→          })
+  1525→  1525→
+  1526→  1526→          if (!chunkAbortCtl) return res
+  1527→  1527→          return wrapSSE(res, chunkTimeout, chunkAbortCtl)
+  1528→  1528→        }
+  1529→  1529→
+  1530→  1530→        const bundledLoader = BUNDLED_PROVIDERS[model.api.npm]
+  1531→  1531→        if (bundledLoader) {
+  1532→  1532→          log.info("using bundled provider", {
+  1533→  1533→            providerID: model.providerID,
+  1534→  1534→            pkg: model.api.npm,
+  1535→  1535→          })
+  1536→  1536→          const factory = await bundledLoader()
+  1537→  1537→          const loaded = factory({
+  1538→  1538→            name: model.providerID,
+  1539→  1539→            ...options,
+  1540→  1540→          })
+  1541→  1541→          s.sdk.set(key, loaded)
+  1542→  1542→          return loaded as SDK
+  1543→  1543→        }
+  1544→  1544→
+  1545→  1545→        let installedPath: string
+  1546→  1546→        if (!model.api.npm.startsWith("file://")) {
+  1547→  1547→          const item = await Npm.add(model.api.npm)
+  1548→  1548→          if (!item.entrypoint) throw new Error(`Package ${model.api.npm} has no import entrypoint`)
+  1549→  1549→          installedPath = item.entrypoint
+  1550→  1550→        } else {
+  1551→  1551→          log.info("loading local provider", { pkg: model.api.npm })
+  1552→  1552→          installedPath = model.api.npm
+  1553→  1553→        }
+  1554→  1554→
+  1555→  1555→        // `installedPath` is a local entry path or an existing `file://` URL. Normalize
+  1556→  1556→        // only path inputs so Node on Windows accepts the dynamic import.
+  1557→  1557→        const importSpec = installedPath.startsWith("file://") ? installedPath : pathToFileURL(installedPath).href
+  1558→  1558→        const mod = await import(importSpec)
+  1559→  1559→
+  1560→  1560→        const fn = mod[Object.keys(mod).find((key) => key.startsWith("create"))!]
+  1561→  1561→        const loaded = fn({
+  1562→  1562→          name: model.providerID,
+  1563→  1563→          ...options,
+  1564→  1564→        })
+  1565→  1565→        s.sdk.set(key, loaded)
+  1566→  1566→        return loaded as SDK
+  1567→  1567→      } catch (e) {
+  1568→  1568→        throw new InitError({ providerID: model.providerID }, { cause: e })
+  1569→  1569→      }
+  1570→  1570→    }
+  1571→  1571→
+  1572→  1572→    const getProvider = Effect.fn("Provider.getProvider")((providerID: ProviderID) =>
+  1573→  1573→      InstanceState.use(state, (s) => s.providers[providerID]),
+  1574→  1574→    )
+  1575→  1575→
+  1576→  1576→    const getModel = Effect.fn("Provider.getModel")(function* (providerID: ProviderID, modelID: ModelID) {
+  1577→  1577→      const s = yield* InstanceState.get(state)
+  1578→  1578→      const provider = s.providers[providerID]
+  1579→  1579→      if (!provider) {
+  1580→  1580→        const available = Object.keys(s.providers)
+  1581→  1581→        const matches = fuzzysort.go(providerID, available, { limit: 3, threshold: -10000 })
+  1582→  1582→        throw new ModelNotFoundError({ providerID, modelID, suggestions: matches.map((m) => m.target) })
+  1583→  1583→      }
+  1584→  1584→
+  1585→  1585→      const info = provider.models[modelID]
+  1586→  1586→      if (!info) {
+  1587→  1587→        const available = Object.keys(provider.models)
+  1588→  1588→        const matches = fuzzysort.go(modelID, available, { limit: 3, threshold: -10000 })
+  1589→  1589→        throw new ModelNotFoundError({ providerID, modelID, suggestions: matches.map((m) => m.target) })
+  1590→  1590→      }
+  1591→  1591→      return info
+  1592→  1592→    })
+  1593→  1593→
+  1594→  1594→    const getLanguage = Effect.fn("Provider.getLanguage")(function* (model: Model) {
+  1595→  1595→      const s = yield* InstanceState.get(state)
+  1596→  1596→      const envs = yield* env.all()
+  1597→  1597→      const key = `${model.providerID}/${model.id}`
+  1598→  1598→      if (s.models.has(key)) return s.models.get(key)!
+  1599→  1599→
+  1600→  1600→      return yield* Effect.promise(async () => {
+  1601→  1601→        const provider = s.providers[model.providerID]
+  1602→  1602→        const sdk = await resolveSDK(model, s, envs)
+  1603→  1603→
+  1604→  1604→        try {
+  1605→  1605→          const language = s.modelLoaders[model.providerID]
+  1606→  1606→            ? await s.modelLoaders[model.providerID](sdk, model.api.id, {
+  1607→  1607→                ...provider.options,
+  1608→  1608→                ...model.options,
+  1609→  1609→              })
+  1610→  1610→            : sdk.languageModel(model.api.id)
+  1611→  1611→          s.models.set(key, language)
+  1612→  1612→          return language
+  1613→  1613→        } catch (e) {
+  1614→  1614→          if (e instanceof NoSuchModelError)
+  1615→  1615→            throw new ModelNotFoundError(
+  1616→  1616→              {
+  1617→  1617→                modelID: model.id,
+  1618→  1618→                providerID: model.providerID,
+  1619→  1619→              },
+  1620→  1620→              { cause: e },
+  1621→  1621→            )
+  1622→  1622→          throw e
+  1623→  1623→        }
+  1624→  1624→      })
+  1625→  1625→    })
+  1626→  1626→
+  1627→  1627→    const closest = Effect.fn("Provider.closest")(function* (providerID: ProviderID, query: string[]) {
+  1628→  1628→      const s = yield* InstanceState.get(state)
+  1629→  1629→      const provider = s.providers[providerID]
+  1630→  1630→      if (!provider) return undefined
+  1631→  1631→      for (const item of query) {
+  1632→  1632→        for (const modelID of Object.keys(provider.models)) {
+  1633→  1633→          if (modelID.includes(item)) return { providerID, modelID }
+  1634→  1634→        }
+  1635→  1635→      }
+  1636→  1636→      return undefined
+  1637→  1637→    })
+  1638→  1638→
+  1639→  1639→    const resolveModelRef = Effect.fn("Provider.resolveModelRef")(function* (
+  1640→  1640→      ref: string,
+  1641→  1641→      contextProviderID?: ProviderID,
+  1642→  1642→    ) {
+  1643→  1643→      // Literal "provider/model" — unchanged path.
+  1644→  1644→      if (ref.includes("/")) {
+  1645→  1645→        const parsed = parseModel(ref)
+  1646→  1646→        return yield* getModel(parsed.providerID, parsed.modelID)
+  1647→  1647→      }
+  1648→  1648→
+  1649→  1649→      // Otherwise it's a group name.
+  1650→  1650→      const cfg = yield* config.get()
+  1651→  1651→      const group = cfg.model_groups?.[ref]
+  1652→  1652→      if (!group) {
+  1653→  1653→        if (BUILTIN_TIERS.has(ref)) {
+  1654→  1654→          const fallback = yield* defaultModel()
+  1655→  1655→          return yield* getModel(fallback.providerID, fallback.modelID)
+  1656→  1656→        }
+  1657→  1657→        const names = Object.keys(cfg.model_groups ?? {})
+  1658→  1658→        const matches = fuzzysort.go(ref, names, { limit: 3, threshold: -10000 })
+  1659→  1659→        throw new ModelGroupNotFoundError({ group: ref, suggestions: matches.map((m) => m.target) })
+  1660→  1660→      }
+  1661→  1661→
+  1662→  1662→      const def = typeof group === "string" ? group : group.default
+  1663→  1663→      const members = typeof group === "string" ? [group] : (group.models ?? [group.default])
+  1664→  1664→
+  1665→  1665→      // Provider-aware: prefer a member on the caller's provider.
+  1666→  1666→      if (contextProviderID) {
+  1667→  1667→        for (const member of members) {
+  1668→  1668→          const parsed = parseModel(member)
+  1669→  1669→          if (parsed.providerID !== contextProviderID) continue
+  1670→  1670→          const resolved = yield* getModel(parsed.providerID, parsed.modelID).pipe(Effect.exit)
+  1671→  1671→          if (resolved._tag === "Success") return resolved.value
+  1672→  1672→        }
+  1673→  1673→      }
+  1674→  1674→
+  1675→  1675→      // Fall back to the group default.
+  1676→  1676→      const parsedDefault = parseModel(def)
+  1677→  1677→      return yield* getModel(parsedDefault.providerID, parsedDefault.modelID)
+  1678→  1678→    })
+  1679→  1679→
+  1680→  1680→    const getSmallModel = Effect.fn("Provider.getSmallModel")(function* (providerID: ProviderID) {
+  1681→  1681→      const cfg = yield* config.get()
+  1682→  1682→
+  1683→  1683→      // Explicit small_model literal wins (back-compat).
+  1684→  1684→      if (cfg.small_model) {
+  1685→  1685→        const parsed = parseModel(cfg.small_model)
+  1686→  1686→        return yield* getModel(parsed.providerID, parsed.modelID)
+  1687→  1687→      }
+  1688→  1688→
+  1689→  1689→      // Otherwise route through the `lite` tier: configured lite group
+  1690→  1690→      // (provider-aware) → else the built-in tier fallback to defaultModel().
+  1691→  1691→      return yield* resolveModelRef("lite", providerID)
+  1692→  1692→    })
+  1693→  1693→
+  1694→  1694→    const defaultModel = Effect.fn("Provider.defaultModel")(function* () {
+  1695→  1695→      const cfg = yield* config.get()
+  1696→  1696→      if (cfg.model) return parseModel(cfg.model)
+  1697→  1697→
+  1698→  1698→      const s = yield* InstanceState.get(state)
+  1699→  1699→      const recent = yield* fs.readJson(path.join(Global.Path.state, "model.json")).pipe(
+  1700→  1700→        Effect.map((x): { providerID: ProviderID; modelID: ModelID }[] => {
+  1701→  1701→          if (!isRecord(x) || !Array.isArray(x.recent)) return []
+  1702→  1702→          return x.recent.flatMap((item) => {
+  1703→  1703→            if (!isRecord(item)) return []
+  1704→  1704→            if (typeof item.providerID !== "string") return []
+  1705→  1705→            if (typeof item.modelID !== "string") return []
+  1706→  1706→            return [{ providerID: ProviderID.make(item.providerID), modelID: ModelID.make(item.modelID) }]
+  1707→  1707→          })
+  1708→  1708→        }),
+  1709→  1709→        Effect.catch(() => Effect.succeed([] as { providerID: ProviderID; modelID: ModelID }[])),
+  1710→  1710→      )
+  1711→  1711→      for (const entry of recent) {
+  1712→  1712→        const provider = s.providers[entry.providerID]
+  1713→  1713→        if (!provider) continue
+  1714→  1714→        if (!provider.models[entry.modelID]) continue
+  1715→  1715→        return { providerID: entry.providerID, modelID: entry.modelID }
+  1716→  1716→      }
+  1717→  1717→
+  1718→  1718→      const mimo = s.providers[ProviderID.make("mimo")]
+  1719→  1719→      if (mimo?.models[ModelID.make("mimo-auto")]) {
+  1720→  1720→        return { providerID: mimo.id, modelID: ModelID.make("mimo-auto") }
+  1721→  1721→      }
+  1722→  1722→
+  1723→  1723→      const provider = Object.values(s.providers).find((p) => !cfg.provider || Object.keys(cfg.provider).includes(p.id))
+  1724→  1724→      if (!provider) throw new Error("no providers found")
+  1725→  1725→      const [model] = sort(Object.values(provider.models))
+  1726→  1726→      if (!model) throw new Error("no models found")
+  1727→  1727→      return {
+  1728→  1728→        providerID: provider.id,
+  1729→  1729→        modelID: model.id,
+  1730→  1730→      }
+  1731→  1731→    })
+  1732→  1732→
+  1733→  1733→    return Service.of({ list, getProvider, getModel, getLanguage, closest, getSmallModel, defaultModel, resolveModelRef })
+  1734→  1734→  }),
+  1735→  1735→)
+  1736→  1736→
+  1737→  1737→export const defaultLayer = Layer.suspend(() =>
+  1738→  1738→  layer.pipe(
+  1739→  1739→    Layer.provide(AppFileSystem.defaultLayer),
+  1740→  1740→    Layer.provide(Env.defaultLayer),
+  1741→  1741→    Layer.provide(Config.defaultLayer),
+  1742→  1742→    Layer.provide(Auth.defaultLayer),
+  1743→  1743→    Layer.provide(Plugin.defaultLayer),
+  1744→  1744→  ),
+  1745→  1745→)
+  1746→  1746→
+  1747→  1747→const priority = ["gpt-5", "claude-sonnet-4", "big-pickle", "gemini-3-pro"]
+  1748→  1748→export function sort<T extends { id: string }>(models: T[]) {
+  1749→  1749→  return sortBy(
+  1750→  1750→    models,
+  1751→  1751→    [(model) => priority.findIndex((filter) => model.id.includes(filter)), "desc"],
+  1752→  1752→    [(model) => (model.id.includes("latest") ? 0 : 1), "asc"],
+  1753→  1753→    [(model) => model.id, "desc"],
+  1754→  1754→  )
+  1755→  1755→}
+  1756→  1756→
+  1757→  1757→export function parseModel(model: string) {
+  1758→  1758→  const [providerID, ...rest] = model.split("/")
+  1759→  1759→  return {
+  1760→  1760→    providerID: ProviderID.make(providerID),
+  1761→  1761→    modelID: ModelID.make(rest.join("/")),
+  1762→  1762→  }
+  1763→  1763→}
+  1764→  1764→
+  1765→  1765→export const ModelNotFoundError = NamedError.create(
+  1766→  1766→  "ProviderModelNotFoundError",
+  1767→  1767→  z.object({
+  1768→  1768→    providerID: ProviderID.zod,
+  1769→  1769→    modelID: ModelID.zod,
+  1770→  1770→    suggestions: z.array(z.string()).optional(),
+  1771→  1771→  }),
+  1772→  1772→)
+  1773→  1773→
+  1774→  1774→export const ModelGroupNotFoundError = NamedError.create(
+  1775→  1775→  "ProviderModelGroupNotFoundError",
+  1776→  1776→  z.object({
+  1777→  1777→    group: z.string(),
+  1778→  1778→    suggestions: z.array(z.string()).optional(),
+  1779→  1779→  }),
+  1780→  1780→)
+  1781→  1781→
+  1782→  1782→export const InitError = NamedError.create(
+  1783→  1783→  "ProviderInitError",
+  1784→  1784→  z.object({
+  1785→  1785→    providerID: ProviderID.zod,
+  1786→  1786→  }),
+  1787→  1787→)
+  1788→  1788→
