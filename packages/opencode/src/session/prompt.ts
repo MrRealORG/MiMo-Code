@@ -1707,6 +1707,12 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         let lastFinishedForPrune: MessageV2.Assistant | undefined
         let lastModelForPrune: Provider.Model | undefined
         let outputLengthContinuations = 0
+        // Track agent changes across iterations to clear stale session-level
+        // permission rules.  When the agent switches (e.g. build → plan),
+        // session permission set for the previous agent (e.g. plan_exit: deny)
+        // must not override the new agent's own permission config (e.g.
+        // plan_exit: allow).  See #608.
+        let prevAgentName: string | undefined
         // Shared local counter for "model finished but produced nothing usable"
         // (think-only / empty). T04's generic-invalid retries reuse this same
         // counter — do not add a second one. Local to runLoop so a fresh user
@@ -2399,6 +2405,25 @@ NOTE: At any point in time through this workflow you should feel free to ask the
           const agent = yield* agents.get(lastUser.agent)
           const isBoundedComputation =
             agent?.native === true && agent?.hidden === true
+
+          // When the agent changes mid-session (e.g. build → plan via
+          // plan_enter), clear session-level permission rules so they
+          // don't override the new agent's own permission config.
+          // Without this, a stale "plan_exit: deny" set for the build
+          // agent would win over the plan agent's "plan_exit: allow"
+          // because Permission.evaluate() uses findLast().  See #608.
+          if (agent && prevAgentName !== agent.name) {
+            if (prevAgentName !== undefined && session.permission && session.permission.length > 0) {
+              slog.info("clearing session permission on agent switch", {
+                from: prevAgentName,
+                to: agent.name,
+                cleared: session.permission,
+              })
+              session.permission = []
+              yield* sessions.setPermission({ sessionID, permission: [] }).pipe(Effect.ignore)
+            }
+            prevAgentName = agent.name
+          }
 
           // Fire background checkpoint writers for any newly-crossed thresholds
           // based on the latest completed assistant message's tokens. Must run
