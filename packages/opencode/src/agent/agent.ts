@@ -153,7 +153,7 @@ export const layer = Layer.effect(
           plan: {
             name: "plan",
             color: "#c7e2a8",
-            description: "Plan mode. Disallows all edit tools.",
+            description: "Plan mode. Disallows all edit and shell tools.",
             options: {},
             permission: Permission.merge(
               defaults,
@@ -168,6 +168,7 @@ export const layer = Layer.effect(
                   [path.join(".mimocode", "plans", "*.md")]: "allow",
                   [path.relative(Instance.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]: "allow",
                 },
+                bash: "deny",
               }),
               user,
             ),

@@ -100,6 +100,7 @@ export const ReadTool = Tool.define(
         case ".zip":
         case ".tar":
         case ".gz":
+        case ".bz2":
         case ".exe":
         case ".dll":
         case ".so":
@@ -112,7 +113,7 @@ export const ReadTool = Tool.define(
         case ".xls":
         case ".xlsx":
         case ".ppt":
-        case ".pptx":
+        ".pptx":
         case ".odt":
         case ".ods":
         case ".odp":
@@ -125,6 +126,29 @@ export const ReadTool = Tool.define(
         case ".wasm":
         case ".pyc":
         case ".pyo":
+        case ".png":
+        case ".jpg":
+        case ".jpeg":
+        case ".gif":
+        case ".bmp":
+        case ".ico":
+        case ".webp":
+        case ".svg":
+        case ".mp3":
+        case ".mp4":
+        case ".wav":
+        case ".avi":
+        case ".mov":
+        ".mkv":
+        case ".pdf":
+        case ".db":
+        case ".sqlite":
+        case ".sqlite3":
+        case ".woff":
+        case ".woff2":
+        case ".ttf":
+        case ".otf":
+        case ".eot":
           return true
       }
 
