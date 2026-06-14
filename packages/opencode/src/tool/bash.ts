@@ -312,7 +312,7 @@ function cmd(shell: string, name: string, command: string, cwd: string, env: Nod
       cwd,
       env,
       stdin: "ignore",
-      detached: false,
+      detached: true, // Always detach to prevent UI b
     })
   }
 

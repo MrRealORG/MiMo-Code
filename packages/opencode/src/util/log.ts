@@ -14,7 +14,7 @@ const levelPriority: Record<Level, number> = {
   WARN: 2,
   ERROR: 3,
 }
-const keep = 10
+const keep = 3 // Reduced from 10 to preve
 
 let level: Level = "INFO"
 
