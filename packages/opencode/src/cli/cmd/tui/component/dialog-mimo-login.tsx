@@ -197,7 +197,7 @@ function MimoOAuthFlow(props: { url: string; instructions: string }) {
             <text fg={theme.primary}>{props.url}</text>
           </Show>
           <Show when={props.instructions}>
-            <text fg={theme.textMuted}>{props.instructions}</text>
+            <text fg={theme.textMuted}>{t("tui.dialog.login.flow.instructions")}</text>
           </Show>
           <text fg={theme.textMuted}>{t("tui.dialog.login.flow.waiting")}</text>
         </box>

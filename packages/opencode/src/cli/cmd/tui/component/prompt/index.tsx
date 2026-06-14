@@ -1541,7 +1541,11 @@ export function Prompt(props: PromptProps) {
                 // Normalize line endings at the boundary
                 // Windows ConPTY/Terminal often sends CR-only newlines in bracketed paste
                 // Replace CRLF first, then any remaining CR
-                const normalizedText = decodePasteBytes(event.bytes).replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+                const normalizedText = decodePasteBytes(event.bytes)
+                  // Some terminals prepend a literal "Paste" label before bracketed paste data
+                  .replace(/^Paste\r?\n?/, "")
+                  .replace(/\r\n/g, "\n")
+                  .replace(/\r/g, "\n")
 
                 // Windows Terminal <1.25 can surface image-only clipboard as an
                 // empty bracketed paste. Windows Terminal 1.25+ does not.
