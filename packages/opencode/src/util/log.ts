@@ -1,6 +1,6 @@
 import path from "path"
 import fs from "fs/promises"
-import { createWriteStream } from "fs"
+import { createWriteStream, type WriteStream } from "fs"
 import { Global } from "../global"
 import z from "zod"
 import { Glob } from "@mimo-ai/shared/util/glob"
@@ -15,11 +15,17 @@ const levelPriority: Record<Level, number> = {
   ERROR: 3,
 }
 const keep = 10
+const MAX_LOG_SIZE = 50 * 1024 * 1024 // 50 MB per log file
 
 let level: Level = "INFO"
 
 function shouldLog(input: Level): boolean {
   return levelPriority[input] >= levelPriority[level]
+}
+
+/** Update the log level after initialisation (e.g. from config file). */
+export function setLevel(l: Level) {
+  level = l
 }
 
 export type Logger = {
@@ -57,6 +63,47 @@ let write = (msg: any) => {
   return msg.length
 }
 
+let currentStream: WriteStream | null = null
+let currentSize = 0
+let rotating = false
+
+async function rotate() {
+  if (rotating || !logpath) return
+  rotating = true
+  try {
+    // Flush and close current stream
+    if (currentStream) {
+      await new Promise<void>((resolve) => currentStream!.end(() => resolve()))
+      currentStream = null
+    }
+
+    // Rotate: .log -> .log.1, .log.1 -> .log.2, etc. up to (keep) backups
+    for (let i = keep - 1; i >= 1; i--) {
+      const src = i === 1 ? logpath : `${logpath}.${i - 1}`
+      const dst = `${logpath}.${i}`
+      await fs.rename(src, dst).catch(() => {})
+    }
+
+    // Start fresh
+    await fs.truncate(logpath).catch(() => {})
+    currentStream = createWriteStream(logpath, { flags: "a" })
+    currentSize = 0
+    write = async (msg: any) => {
+      return new Promise((resolve, reject) => {
+        currentStream!.write(msg, (err) => {
+          if (err) reject(err)
+          else {
+            currentSize += typeof msg === "string" ? msg.length : 0
+            resolve(msg.length)
+          }
+        })
+      })
+    }
+  } finally {
+    rotating = false
+  }
+}
+
 export async function init(options: Options) {
   if (options.level) level = options.level
   void cleanup(Global.Path.log)
@@ -78,12 +125,21 @@ export async function init(options: Options) {
   } else {
     await fs.truncate(logpath).catch(() => {})
   }
-  const stream = createWriteStream(logpath, { flags: "a" })
+  currentSize = (await fs.stat(logpath).catch(() => ({ size: 0 }))).size
+  currentStream = createWriteStream(logpath, { flags: "a" })
   write = async (msg: any) => {
+    const len = typeof msg === "string" ? msg.length : 0
+    // Check if we need to rotate BEFORE writing
+    if (currentSize + len > MAX_LOG_SIZE) {
+      await rotate()
+    }
     return new Promise((resolve, reject) => {
-      stream.write(msg, (err) => {
+      currentStream!.write(msg, (err) => {
         if (err) reject(err)
-        else resolve(msg.length)
+        else {
+          currentSize += len
+          resolve(msg.length)
+        }
       })
     })
   }

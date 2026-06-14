@@ -20,7 +20,12 @@ import { WriterService, BackfillService } from "@/history"
 export const InstanceBootstrap = Effect.gen(function* () {
   Log.Default.info("bootstrapping", { directory: Instance.directory })
   // everything depends on config so eager load it for nice traces
-  yield* Config.Service.use((svc) => svc.get())
+  const cfg = yield* Config.Service.use((svc) => svc.get())
+  // Apply logLevel from config file (CLI --log-level takes precedence as it
+  // is applied first in index.ts middleware; this covers the config path).
+  if (cfg.logLevel) {
+    Log.setLevel(cfg.logLevel)
+  }
   // Plugin can mutate config so it has to be initialized before anything else.
   yield* Plugin.Service.use((svc) => svc.init())
   yield* Effect.all(
