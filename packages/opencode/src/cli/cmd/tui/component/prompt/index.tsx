@@ -139,8 +139,7 @@ export function Prompt(props: PromptProps) {
   // Push-to-talk state for local mode
   let pttActive = false
   let pttBusy = false  // guards against re-entry while pttStop() is awaiting
-  let pttRecorder: Voice.StreamingHandle | null = null
-  let pttAudioChunks: Int16Array[] = []
+  let pttRecorder: Voice.RawRecordingHandle | null = null
   let pttAnimFrame = 0
   let pttAnimInterval: ReturnType<typeof setInterval> | undefined
 
@@ -230,7 +229,7 @@ export function Prompt(props: PromptProps) {
       if (pttRecorder) {
         const h = pttRecorder
         pttRecorder = null
-        void Voice.stopStreaming(h)
+        void Voice.stopRawRecording(h)
       }
     }
   })
@@ -373,6 +372,10 @@ export function Prompt(props: PromptProps) {
       return
     }
 
+    // Set enabled IMMEDIATELY so the installing indicator is visible
+    kv.set("voice_local_mode", true)
+    kv.set("voice_enabled", true)
+
     setVoiceState("installing")
     setVoiceInstallProgress({ message: "Installing voice...", percent: 0 })
 
@@ -381,12 +384,13 @@ export function Prompt(props: PromptProps) {
     })
 
     if (result.success) {
-      kv.set("voice_local_mode", true)
-      kv.set("voice_enabled", true)
       setVoiceState("idle")
       setVoiceInstallProgress(undefined)
       toast.show({ message: "Voice ready! Hold Ctrl+Space to talk.", variant: "success", duration: 4000 })
     } else {
+      // Setup failed — roll back
+      kv.set("voice_local_mode", false)
+      kv.set("voice_enabled", false)
       setVoiceState("idle")
       setVoiceInstallProgress(undefined)
       toast.show({ message: `Voice setup failed: ${result.error}`, variant: "error", duration: 5000 })
@@ -408,7 +412,6 @@ export function Prompt(props: PromptProps) {
     }
 
     pttActive = true
-    pttAudioChunks = []
     setVoiceState("speaking")
     voiceTimerStart()
 
@@ -422,20 +425,10 @@ export function Prompt(props: PromptProps) {
       setLocalVoiceAudioLevel(Math.min(1, base + wave + noise + burst))
     }, 60)
 
-    pttRecorder = Voice.startStreaming({
-      onSegment: (segment) => {
-        pttAudioChunks.push(segment.audio)
-      },
-      onActiveChange: (active) => {
-        if (active) setVoiceState("speaking")
-      },
-      onError: () => {
-        toast.show({ message: t("tui.voice.error.no_recorder"), variant: "error" })
-        pttStop()
-      },
-    })
+    // Use raw recording (no VAD) — captures ALL audio between press/release
+    pttRecorder = Voice.startRawRecording()
 
-    // Guard: if startStreaming returned null (recorder vanished between check and start)
+    // Guard: if startRawRecording returned null (recorder vanished)
     if (!pttRecorder) {
       pttActive = false
       if (pttAnimInterval) {
@@ -444,6 +437,7 @@ export function Prompt(props: PromptProps) {
       }
       voiceTimerStop()
       setVoiceState("idle")
+      toast.show({ message: t("tui.voice.error.no_recorder"), variant: "error" })
     }
   }
 
@@ -461,45 +455,48 @@ export function Prompt(props: PromptProps) {
     if (pttRecorder) {
       const handle = pttRecorder
       pttRecorder = null
-      await Voice.stopStreaming(handle)
-    }
+      await Voice.stopRawRecording(handle)
 
-    voiceTimerStop()
+      voiceTimerStop()
 
-    if (pttAudioChunks.length === 0) {
-      setVoiceState("idle")
-      pttBusy = false
-      return
-    }
-
-    // Merge all audio chunks
-    const totalLength = pttAudioChunks.reduce((sum, c) => sum + c.length, 0)
-    const merged = new Int16Array(totalLength)
-    let offset = 0
-    for (const chunk of pttAudioChunks) {
-      merged.set(chunk, offset)
-      offset += chunk.length
-    }
-    pttAudioChunks = []
-
-    if (merged.length < 800) {
-      // Less than 50ms of audio — too short
-      setVoiceState("idle")
-      pttBusy = false
-      return
-    }
-
-    setVoiceState("processing")
-    try {
-      const text = await LocalWhisper.transcribe(merged)
-      if (text) {
-        voiceAppendText(text.trim())
-      } else {
-        toast.show({ message: "No speech detected", variant: "info", duration: 2000 })
+      // Merge all raw audio chunks from the recording handle
+      const chunks = handle.chunks
+      if (chunks.length === 0) {
+        setVoiceState("idle")
+        pttBusy = false
+        return
       }
-    } catch {
-      toast.show({ message: "Transcription failed", variant: "error", duration: 3000 })
+
+      const totalLength = chunks.reduce((sum, c) => sum + c.length, 0)
+      const merged = new Int16Array(totalLength)
+      let offset = 0
+      for (const chunk of chunks) {
+        merged.set(chunk, offset)
+        offset += chunk.length
+      }
+
+      if (merged.length < 800) {
+        // Less than 50ms of audio — too short
+        setVoiceState("idle")
+        pttBusy = false
+        return
+      }
+
+      setVoiceState("processing")
+      try {
+        const text = await LocalWhisper.transcribe(merged)
+        if (text) {
+          voiceAppendText(text.trim())
+        } else {
+          toast.show({ message: "No speech detected", variant: "info", duration: 2000 })
+        }
+      } catch {
+        toast.show({ message: "Transcription failed", variant: "error", duration: 3000 })
+      }
+    } else {
+      voiceTimerStop()
     }
+
     setVoiceState("idle")
     pttBusy = false
   }
@@ -1845,7 +1842,7 @@ export function Prompt(props: PromptProps) {
                 <Show when={hasRightContent()}>
                   {props.right}
                 </Show>
-                <Show when={voiceEnabled()}>
+                <Show when={voiceEnabled() || voiceState() === "installing"}>
                   <Switch>
                     <Match when={voiceState() === "installing"}>
                       <text fg={theme.warning} selectable={false}>

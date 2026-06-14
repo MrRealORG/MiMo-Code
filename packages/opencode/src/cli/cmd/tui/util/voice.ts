@@ -65,6 +65,53 @@ export type StreamingHandle = {
   reading: Promise<void>
 }
 
+export type RawRecordingHandle = {
+  proc: Process.Child
+  aborted: boolean
+  reading: Promise<void>
+  chunks: Int16Array[]
+}
+
+/** Start raw PCM recording without VAD segmentation — ideal for push-to-talk.
+ *  All audio between start/stop is captured as-is and returned via handle.chunks. */
+export function startRawRecording(): RawRecordingHandle | null {
+  const recorder = detectRecorder()
+  if (!recorder) return null
+
+  const chunks: Int16Array[] = []
+  const proc = Process.spawn([recorder.cmd, ...recorder.pipeArgs()], {
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "ignore",
+  })
+
+  let leftover: Buffer | null = null
+  const reading = (async () => {
+    const stdout = proc.stdout as AsyncIterable<Buffer>
+    for await (const chunk of stdout) {
+      if (proc.killed) break
+      const buf: Buffer = leftover ? Buffer.concat([leftover, chunk]) : chunk
+      leftover = null
+      const alignedLen = buf.byteLength & ~1
+      if (alignedLen < buf.byteLength) {
+        leftover = Buffer.from(buf.subarray(alignedLen))
+      }
+      if (alignedLen > 0) {
+        chunks.push(new Int16Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + alignedLen)))
+      }
+    }
+  })().catch(() => {})
+
+  return { proc, aborted: false, reading, chunks }
+}
+
+export async function stopRawRecording(handle: RawRecordingHandle) {
+  handle.aborted = true
+  handle.proc.kill("SIGINT")
+  await handle.proc.exited.catch(() => {})
+  await handle.reading
+}
+
 export function startStreaming(opts: {
   onSegment: (segment: VADSegment) => void
   onActiveChange?: (active: boolean) => void
