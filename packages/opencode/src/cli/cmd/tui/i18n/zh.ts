@@ -387,4 +387,7 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自动",
+
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto（MiMo-V2.5 限免中）",
 } satisfies Partial<Record<Keys, string>>

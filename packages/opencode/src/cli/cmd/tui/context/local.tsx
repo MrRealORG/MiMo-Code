@@ -8,6 +8,7 @@ import path from "path"
 import { Global } from "@/global"
 import { iife } from "@/util/iife"
 import { useToast } from "../ui/toast"
+import { useLanguage } from "./language"
 import { useArgs } from "./args"
 import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
@@ -27,6 +28,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const sync = useSync()
     const sdk = useSDK()
     const toast = useToast()
+    const { t } = useLanguage()
 
     function isModelValid(model: { providerID: string; modelID: string }) {
       const provider = sync.data.provider.find((x) => x.id === model.providerID)
@@ -232,7 +234,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const info = provider?.models[value.modelID]
           return {
             provider: provider?.name ?? value.providerID,
-            model: value.modelID === "mimo-auto" ? "MiMo Auto（MiMo-V2.5 限免中）" : (info?.name ?? value.modelID),
+            model: value.modelID === "mimo-auto" ? t("tui.model.mimo_auto_free_promo") : (info?.name ?? value.modelID),
             reasoning: info?.capabilities?.reasoning ?? false,
           }
         }),

@@ -394,4 +394,7 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto (free during promotion)",
 }

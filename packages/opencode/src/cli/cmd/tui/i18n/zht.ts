@@ -357,4 +357,43 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+
+  // Login dialog
+  "tui.dialog.login.title": "選擇服務商",
+  "tui.dialog.login.xiaomi": "小米",
+  "tui.dialog.login.xiaomi.desc": "（推薦）",
+  "tui.dialog.login.mimo_free": "MiMo Auto (free)",
+  "tui.dialog.login.mimo_free.desc": "免費匿名通道，無需登入",
+  "tui.dialog.login.mimo_free.success": "MiMo Auto (free) 已就緒 — 預設模型設為 mimo/mimo-auto",
+  "tui.dialog.login.mimo_free.unavailable": "MiMo Auto (free) 通道未載入",
+  "tui.dialog.login.import_claude": "從 Claude Code 匯入",
+  "tui.dialog.login.import_claude.no_key": "未找到 Claude Code API Key",
+  "tui.dialog.login.import_claude.read_failed": "讀取 ~/.claude/settings.json 失敗",
+  "tui.dialog.login.import_claude.success": "已從 Claude Code 匯入設定",
+  "tui.dialog.login.other": "其他服務商",
+  "tui.dialog.login.start_failed": "啟動登入失敗",
+
+  // Login flow
+  "tui.dialog.login.flow.title": "MiMo 登入",
+  "tui.dialog.login.flow.placeholder": "貼上 Code（或等待瀏覽器回呼）",
+  "tui.dialog.login.flow.busy": "登入中...",
+  "tui.dialog.login.flow.manual_hint": "瀏覽器未開啟？手動前往：",
+  "tui.dialog.login.flow.waiting": "等待瀏覽器授權中...",
+  "tui.dialog.login.flow.invalid_code": "Code 無效，請重試",
+
+  // CLI provider keys
+  "cli.providers.select": "選擇服務商",
+  "cli.providers.other": "其他 Provider",
+  "cli.providers.mimo.recommended_hint": "推薦",
+  "cli.providers.mimo_free.hint": "免費匿名通道 / mimo-auto",
+  "cli.providers.mimo_free.verifying": "正在驗證 MiMo Auto (free) 通道...",
+  "cli.providers.mimo_free.ready": "MiMo Auto (free) 通道已就緒",
+  "cli.providers.mimo_free.failed": "MiMo Auto (free) 驗證失敗",
+  "cli.providers.mimo_free.default_set": "預設模型已切換為 mimo/mimo-auto（1M 上下文，免費）",
+  "cli.providers.mimo_free.usage_hint": "無需登入，直接 mimo run 即可使用。如需付費/更高級模型，可重新選擇 MiMo 瀏覽器登入。",
+  "cli.providers.mimo_login.decrypt_retry": "解密失敗，請重試（剩餘 {remaining} 次）",
+  "cli.providers.mimo_login.decrypt_exhausted": "解密失敗，已達最大重試次數",
+
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto（MiMo-V2.5 限免中）",
 } satisfies Partial<Record<Keys, string>>
