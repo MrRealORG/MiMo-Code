@@ -1,12 +1,31 @@
 import { useProject } from "@tui/context/project"
 import { useSync } from "@tui/context/sync"
-import { createMemo, Show } from "solid-js"
+import { createMemo, createSignal, Show, onCleanup } from "solid-js"
 import { useTheme } from "../../context/theme"
 import { useTuiConfig } from "../../context/tui-config"
 import { InstallationChannel, InstallationVersion } from "@/installation/version"
 import { TuiPluginRuntime } from "../../plugin"
 
 import { getScrollAcceleration } from "../../util/scroll"
+
+/** Right-aligned clock for the sidebar footer — useful in fullscreen/Tmux setups (#545). */
+function Clock() {
+  const { theme } = useTheme()
+  const [time, setTime] = createSignal(new Date())
+  const timer = setInterval(() => setTime(new Date()), 1000)
+  onCleanup(() => clearInterval(timer))
+
+  const formatted = createMemo(() =>
+    time()
+      .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }),
+  )
+
+  return (
+    <box justifyContent="flex-end">
+      <text fg={theme.textMuted}>{formatted()}</text>
+    </box>
+  )
+}
 
 export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   const project = useProject()
@@ -83,7 +102,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
         <box flexShrink={0} gap={1} paddingTop={1}>
           <TuiPluginRuntime.Slot name="sidebar_footer" mode="single_winner" session_id={props.sessionID}>
             <text fg={theme.textMuted}>
-              <span style={{ fg: theme.success }}>•</span> <b>Open</b>
+              <span style={{ fg: theme.success }}>•</span> <b>MiMo</b>
               <span style={{ fg: theme.text }}>
                 <b>Code</b>
               </span>{" "}
@@ -91,6 +110,8 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
             </text>
           </TuiPluginRuntime.Slot>
         </box>
+
+        <Clock />
       </box>
     </Show>
   )
