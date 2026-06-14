@@ -25,6 +25,7 @@ import { useLanguage } from "@tui/context/language"
 import { useRenderer, type JSX } from "@opentui/solid"
 import * as Editor from "@tui/util/editor"
 import * as Voice from "@tui/util/voice"
+import * as LocalWhisper from "@tui/util/local-whisper"
 import { useExit } from "../../context/exit"
 import * as Clipboard from "../../util/clipboard"
 import type { AssistantMessage, FilePart, UserMessage } from "@mimo-ai/sdk/v2"
@@ -125,12 +126,22 @@ export function Prompt(props: PromptProps) {
   const kv = useKV()
   const animationsEnabled = createMemo(() => kv.get("animations_enabled", true))
   const voiceEnabled = createMemo(() => kv.get("voice_enabled", false))
+  const voiceLocalMode = createMemo(() => kv.get("voice_local_mode", false))
   const voiceSendEnabled = createMemo(() => kv.get("voice_send_command", true))
   const voiceControlEnabled = createMemo(() => kv.get("voice_control_enabled", false))
-  const [voiceState, setVoiceState] = createSignal<"idle" | "listening" | "speaking" | "processing" | "finishing">(
+  const [voiceState, setVoiceState] = createSignal<"idle" | "listening" | "speaking" | "processing" | "finishing" | "installing">(
     activeVoice ? (activeVoice.pending > 0 ? "processing" : "listening") : "idle",
   )
   const [voiceElapsed, setVoiceElapsed] = createSignal(0)
+  const [voiceInstallProgress, setVoiceInstallProgress] = createSignal<{ message: string; percent: number } | undefined>()
+  const [localVoiceAudioLevel, setLocalVoiceAudioLevel] = createSignal(0)
+
+  // Push-to-talk state for local mode
+  let pttActive = false
+  let pttRecorder: Voice.StreamingHandle | null = null
+  let pttAudioChunks: Int16Array[] = []
+  let pttAnimFrame = 0
+  let pttAnimInterval: ReturnType<typeof setInterval> | undefined
 
   let voiceTimer: ReturnType<typeof setInterval> | undefined
   let voiceSegmentStart = 0
@@ -209,6 +220,18 @@ export function Prompt(props: PromptProps) {
   }
   onCleanup(() => {
     voiceTimerStop()
+    if (pttAnimInterval) {
+      clearInterval(pttAnimInterval)
+      pttAnimInterval = undefined
+    }
+    if (pttActive) {
+      pttActive = false
+      if (pttRecorder) {
+        const h = pttRecorder
+        pttRecorder = null
+        void Voice.stopStreaming(h)
+      }
+    }
   })
 
   async function voiceToggle() {
@@ -337,6 +360,129 @@ export function Prompt(props: PromptProps) {
     av.handle = handle
     activeVoice = av
     setVoiceState("listening")
+  }
+
+  // --- Local Voice (Whisper) Push-to-Talk ---
+
+  async function localVoiceSetup() {
+    if (LocalWhisper.isSetupComplete()) {
+      kv.set("voice_local_mode", true)
+      kv.set("voice_enabled", true)
+      toast.show({ message: "Voice enabled (local Whisper)", variant: "info", duration: 3000 })
+      return
+    }
+
+    setVoiceState("installing")
+    setVoiceInstallProgress({ message: "Installing voice...", percent: 0 })
+
+    const result = await LocalWhisper.ensureSetup((p) => {
+      setVoiceInstallProgress({ message: p.message, percent: p.percent })
+    })
+
+    if (result.success) {
+      kv.set("voice_local_mode", true)
+      kv.set("voice_enabled", true)
+      setVoiceState("idle")
+      setVoiceInstallProgress(undefined)
+      toast.show({ message: "Voice ready! Hold Ctrl+Space to talk.", variant: "success", duration: 4000 })
+    } else {
+      setVoiceState("idle")
+      setVoiceInstallProgress(undefined)
+      toast.show({ message: `Voice setup failed: ${result.error}`, variant: "error", duration: 5000 })
+    }
+  }
+
+  function localVoiceDisable() {
+    kv.set("voice_local_mode", false)
+    kv.set("voice_enabled", false)
+    if (pttActive) pttStop()
+    toast.show({ message: "Voice disabled", variant: "info", duration: 3000 })
+  }
+
+  function pttStart() {
+    if (pttActive || !voiceLocalMode()) return
+    if (!Voice.isAvailable()) {
+      toast.show({ message: t("tui.voice.error.no_recorder"), variant: "error" })
+      return
+    }
+
+    pttActive = true
+    pttAudioChunks = []
+    setVoiceState("speaking")
+    voiceTimerStart()
+
+    // Audio level animation (simulated waveform)
+    pttAnimInterval = setInterval(() => {
+      pttAnimFrame++
+      const base = 0.35
+      const wave = Math.sin(pttAnimFrame * 0.3) * 0.25
+      const noise = Math.random() * 0.2
+      const burst = Math.random() > 0.85 ? Math.random() * 0.3 : 0
+      setLocalVoiceAudioLevel(Math.min(1, base + wave + noise + burst))
+    }, 60)
+
+    pttRecorder = Voice.startStreaming({
+      onSegment: (segment) => {
+        pttAudioChunks.push(segment.audio)
+      },
+      onActiveChange: (active) => {
+        if (active) setVoiceState("speaking")
+      },
+      onError: () => {
+        toast.show({ message: t("tui.voice.error.no_recorder"), variant: "error" })
+        pttStop()
+      },
+    })
+  }
+
+  async function pttStop() {
+    if (!pttActive) return
+    pttActive = false
+
+    if (pttAnimInterval) {
+      clearInterval(pttAnimInterval)
+      pttAnimInterval = undefined
+    }
+    setLocalVoiceAudioLevel(0)
+
+    if (pttRecorder) {
+      const handle = pttRecorder
+      pttRecorder = null
+      await Voice.stopStreaming(handle)
+    }
+
+    voiceTimerStop()
+
+    if (pttAudioChunks.length === 0) {
+      setVoiceState("idle")
+      return
+    }
+
+    // Merge all audio chunks
+    const totalLength = pttAudioChunks.reduce((sum, c) => sum + c.length, 0)
+    const merged = new Int16Array(totalLength)
+    let offset = 0
+    for (const chunk of pttAudioChunks) {
+      merged.set(chunk, offset)
+      offset += chunk.length
+    }
+    pttAudioChunks = []
+
+    if (merged.length < 800) {
+      // Less than 50ms of audio — too short
+      setVoiceState("idle")
+      return
+    }
+
+    setVoiceState("processing")
+    const text = await LocalWhisper.transcribe(merged)
+    setVoiceState("idle")
+
+    if (text) {
+      voiceAppendText(text.trim())
+    } else {
+      toast.show({ message: "No speech detected", variant: "info", duration: 2000 })
+    }
   }
 
   const list = createMemo(() => props.placeholders?.normal ?? [])
@@ -690,7 +836,11 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: voiceEnabled() ? t("tui.command.voice.toggle.title_on") : t("tui.command.voice.toggle.title_off"),
+        title: voiceLocalMode()
+          ? "Voice: ON (local Whisper)"
+          : voiceEnabled()
+            ? t("tui.command.voice.toggle.title_on") + " (cloud)"
+            : t("tui.command.voice.toggle.title_off"),
         value: "voice.toggle",
         category: "prompt",
         slash: {
@@ -698,13 +848,50 @@ export function Prompt(props: PromptProps) {
         },
         onSelect: () => {
           const next = !voiceEnabled()
-          kv.set("voice_enabled", next)
-          if (!next && activeVoice) void voiceToggle()
-          toast.show({
-            message: next ? t("tui.voice.enabled") : t("tui.voice.disabled"),
-            variant: "info",
-            duration: 3000,
-          })
+          if (next) {
+            // Enable voice — use local mode (setup if needed)
+            void localVoiceSetup()
+          } else {
+            if (voiceLocalMode()) {
+              localVoiceDisable()
+            } else {
+              kv.set("voice_enabled", false)
+              if (activeVoice) void voiceToggle()
+              toast.show({
+                message: t("tui.voice.disabled"),
+                variant: "info",
+                duration: 3000,
+              })
+            }
+          }
+        },
+      },
+      {
+        title: "Voice: ON (local Whisper)",
+        value: "voice.on",
+        category: "prompt",
+        slash: {
+          name: "voice on",
+        },
+        onSelect: () => {
+          void localVoiceSetup()
+        },
+      },
+      {
+        title: "Voice: OFF",
+        value: "voice.off",
+        category: "prompt",
+        slash: {
+          name: "voice off",
+        },
+        onSelect: () => {
+          if (voiceLocalMode()) {
+            localVoiceDisable()
+          } else {
+            kv.set("voice_enabled", false)
+            if (activeVoice) void voiceToggle()
+            toast.show({ message: t("tui.voice.disabled"), variant: "info", duration: 3000 })
+          }
         },
       },
       {
@@ -1433,6 +1620,20 @@ export function Prompt(props: PromptProps) {
                   e.preventDefault()
                   return
                 }
+                // Ctrl+Space → Push-to-talk (local voice mode)
+                if (e.ctrl && e.name === "space" && voiceLocalMode()) {
+                  e.preventDefault()
+                  if (!pttActive) {
+                    pttStart()
+                  }
+                  return
+                }
+                // Escape → Stop push-to-talk if active
+                if (e.name === "escape" && pttActive) {
+                  e.preventDefault()
+                  void pttStop()
+                  return
+                }
                 // Check clipboard for images before terminal-handled paste runs.
                 // This helps terminals that forward Ctrl+V to the app; Windows
                 // Terminal 1.25+ usually handles Ctrl+V before this path.
@@ -1568,6 +1769,12 @@ export function Prompt(props: PromptProps) {
                 }, 0)
               }}
               onMouseDown={(r: MouseEvent) => r.target?.focus()}
+              onKeyUp={(e) => {
+                // Ctrl+Space release → Stop push-to-talk recording
+                if (pttActive && e.name === "space") {
+                  void pttStop()
+                }
+              }}
               focusedBackgroundColor={theme.backgroundElement}
               cursorColor={theme.text}
               syntaxStyle={syntax()}
@@ -1614,9 +1821,21 @@ export function Prompt(props: PromptProps) {
                 </Show>
                 <Show when={voiceEnabled()}>
                   <Switch>
+                    <Match when={voiceState() === "installing"}>
+                      <text fg={theme.warning} selectable={false}>
+                        {`[ Installing Voice... ${voiceInstallProgress()?.percent ?? 0}% ]`}
+                      </text>
+                    </Match>
                     <Match when={voiceState() === "idle"}>
-                      <text fg={theme.textMuted} selectable={false} onMouseUp={() => voiceToggle()}>
-                        {"[ 🎙  Voice ]"}
+                      <text
+                        fg={voiceLocalMode() ? theme.success : theme.textMuted}
+                        selectable={false}
+                        onMouseUp={() => {
+                          if (voiceLocalMode()) localVoiceDisable()
+                          else voiceToggle()
+                        }}
+                      >
+                        {voiceLocalMode() ? "[ Voice ON (local) ]" : "[ Voice ]"}
                       </text>
                     </Match>
                     <Match when={voiceState() === "listening"}>
@@ -1625,13 +1844,39 @@ export function Prompt(props: PromptProps) {
                       </text>
                     </Match>
                     <Match when={voiceState() === "speaking"}>
-                      <text fg={theme.primary} selectable={false} onMouseUp={() => voiceToggle()}>
-                        {`[ 🎙  ${Math.floor(voiceElapsed() / 60)}:${String(voiceElapsed() % 60).padStart(2, "0")} ]`}
-                      </text>
+                      {voiceLocalMode() ? (
+                        <box flexDirection="row" gap={0} alignItems="center" selectable={false} onMouseUp={() => pttStop()}>
+                          <text selectable={false}>
+                            <span style={{ fg: pttAnimFrame % 10 < 5 ? "#ff0044" : "#ff4466", bold: true }}>● REC </span>
+                            <span style={{ fg: theme.textMuted }}>{`${Math.floor(voiceElapsed() / 60)}:${String(voiceElapsed() % 60).padStart(2, "0")}`}</span>
+                            {" "}
+                          </text>
+                          {(() => {
+                            // Generate rainbow wave bars using spans
+                            const level = localVoiceAudioLevel()
+                            const barColors = ["#ff00ff", "#ff0055", "#ff4400", "#ff8800", "#ffcc00", "#88ff00", "#00ff88", "#00ffcc", "#00ccff", "#0066ff"]
+                            return barColors.map((color, i) => {
+                              const dist = Math.abs(i - barColors.length / 2) / (barColors.length / 2)
+                              const wave = Math.sin((i * 0.5) + Date.now() * 0.005) * 0.3
+                              const h = Math.max(1, Math.floor((level * (1 - dist * 0.5) + wave) * 4))
+                              return (
+                                <text key={i} selectable={false}>
+                                  <span style={{ fg: color }}>{"\u2588".repeat(h)}</span>
+                                </text>
+                              )
+                            })
+                          })()}
+                          <text fg={theme.textMuted} selectable={false}> speak</text>
+                        </box>
+                      ) : (
+                        <text fg={theme.primary} selectable={false} onMouseUp={() => voiceToggle()}>
+                          {`[ 🎙  ${Math.floor(voiceElapsed() / 60)}:${String(voiceElapsed() % 60).padStart(2, "0")} ]`}
+                        </text>
+                      )}
                     </Match>
                     <Match when={voiceState() === "processing"}>
-                      <text fg={theme.primary} selectable={false} onMouseUp={() => voiceToggle()}>
-                        {"[ 🎙  .... ]"}
+                      <text fg={theme.warning} selectable={false}>
+                        {"[ ⚡ Transcribing... ]"}
                       </text>
                     </Match>
                     <Match when={voiceState() === "finishing"}>
