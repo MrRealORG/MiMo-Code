@@ -373,7 +373,7 @@ export const make = Effect.gen(function* () {
               cwd: dir,
               env: env(command.options),
               stdio: stdios(sin, sout, serr, extra),
-              detached: command.options.detached ?? process.platform !== "win32",
+              detached: command.options.detached ?? true,
               shell: command.options.shell,
               windowsHide: process.platform === "win32",
             }),
