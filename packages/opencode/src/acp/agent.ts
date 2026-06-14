@@ -144,6 +144,11 @@ export class Agent implements ACPAgent {
   private bashSnapshots = new Map<string, string>()
   private toolStarts = new Set<string>()
   private permissionQueues = new Map<string, Promise<void>>()
+  // Serializes incoming ACP requests to prevent race conditions.
+  // The @agentclientprotocol/sdk calls #processMessage without await,
+  // so rapid requests (e.g. session/new followed by session/prompt)
+  // can execute concurrently and cause "Session not found" errors.
+  private requestChain = Promise.resolve()
   private permissionOptions: PermissionOption[] = [
     { optionId: "once", kind: "allow_once", name: "Allow once" },
     { optionId: "always", kind: "allow_always", name: "Always allow" },
@@ -551,7 +556,18 @@ export class Agent implements ACPAgent {
     throw new Error("Authentication not implemented")
   }
 
+  private serialize<T>(fn: () => Promise<T>): Promise<T> {
+    const prev = this.requestChain
+    let resolve!: () => void
+    this.requestChain = new Promise<void>((r) => { resolve = r })
+    return prev.then(() => fn()).finally(resolve)
+  }
+
   async newSession(params: NewSessionRequest) {
+    return this.serialize(() => this._newSession(params))
+  }
+
+  private async _newSession(params: NewSessionRequest) {
     const directory = params.cwd
     try {
       const model = await defaultModel(this.config, directory)
@@ -587,6 +603,10 @@ export class Agent implements ACPAgent {
   }
 
   async loadSession(params: LoadSessionRequest) {
+    return this.serialize(() => this._loadSession(params))
+  }
+
+  private async _loadSession(params: LoadSessionRequest) {
     const directory = params.cwd
     const sessionId = params.sessionId
 
@@ -1229,6 +1249,10 @@ export class Agent implements ACPAgent {
   }
 
   async unstable_setSessionModel(params: SetSessionModelRequest) {
+    return this.serialize(() => this._unstable_setSessionModel(params))
+  }
+
+  private async _unstable_setSessionModel(params: SetSessionModelRequest) {
     const session = this.sessionManager.get(params.sessionId)
     const providers = await this.sdk.config
       .providers({ directory: session.cwd }, { throwOnError: true })
@@ -1251,6 +1275,10 @@ export class Agent implements ACPAgent {
   }
 
   async setSessionMode(params: SetSessionModeRequest): Promise<SetSessionModeResponse | void> {
+    return this.serialize(() => this._setSessionMode(params))
+  }
+
+  private async _setSessionMode(params: SetSessionModeRequest): Promise<SetSessionModeResponse | void> {
     const session = this.sessionManager.get(params.sessionId)
     const availableModes = await this.loadAvailableModes(session.cwd)
     if (!availableModes.some((mode) => mode.id === params.modeId)) {
@@ -1260,6 +1288,10 @@ export class Agent implements ACPAgent {
   }
 
   async setSessionConfigOption(params: SetSessionConfigOptionRequest): Promise<SetSessionConfigOptionResponse> {
+    return this.serialize(() => this._setSessionConfigOption(params))
+  }
+
+  private async _setSessionConfigOption(params: SetSessionConfigOptionRequest): Promise<SetSessionConfigOptionResponse> {
     const session = this.sessionManager.get(params.sessionId)
     const providers = await this.sdk.config
       .providers({ directory: session.cwd }, { throwOnError: true })
@@ -1298,6 +1330,10 @@ export class Agent implements ACPAgent {
   }
 
   async prompt(params: PromptRequest) {
+    return this.serialize(() => this._prompt(params))
+  }
+
+  private async _prompt(params: PromptRequest) {
     const sessionID = params.sessionId
     const session = this.sessionManager.get(sessionID)
     const directory = session.cwd
@@ -1481,6 +1517,10 @@ export class Agent implements ACPAgent {
   }
 
   async cancel(params: CancelNotification) {
+    return this.serialize(() => this._cancel(params))
+  }
+
+  private async _cancel(params: CancelNotification) {
     const session = this.sessionManager.get(params.sessionId)
     await this.config.sdk.session.abort(
       {
