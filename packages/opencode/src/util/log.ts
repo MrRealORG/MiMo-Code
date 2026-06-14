@@ -14,7 +14,9 @@ const levelPriority: Record<Level, number> = {
   WARN: 2,
   ERROR: 3,
 }
-const keep = 10
+const keep = 5  // Reduced from 10 to prevent disk exhaustion
+const MAX_FILE_SIZE_MB = 100  // Max log file size in MB
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
 let level: Level = "INFO"
 
@@ -59,7 +61,29 @@ let write = (msg: any) => {
 
 export async function init(options: Options) {
   if (options.level) level = options.level
-  void cleanup(Global.Path.log)
+  await cleanup(Global.Path.log)
+  
+  // Check and rotate oversized log files before creating new one
+  try {
+    const logDir = Global.Path.log
+    const existingFiles = await Glob.scan("*.log", {
+      cwd: logDir,
+      absolute: false,
+      include: "file",
+    }).catch(() => [])
+    
+    for (const file of existingFiles) {
+      const filePath = path.join(logDir, file)
+      try {
+        const stat = await fs.stat(filePath)
+        if (stat.size > MAX_FILE_SIZE_BYTES) {
+          // Truncate oversized files to prevent disk exhaustion
+          await fs.truncate(filePath, MAX_FILE_SIZE_BYTES)
+        }
+      } catch {}
+    }
+  } catch {}
+  
   if (options.print) return
   logpath = path.join(
     Global.Path.log,
