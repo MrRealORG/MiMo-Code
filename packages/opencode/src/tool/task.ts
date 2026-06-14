@@ -113,9 +113,17 @@ const parameters = z.strictObject({
   // schema's `operation` node has only `anyOf`, no `type`. Some models
   // (notably mimo-v2.5-pro) then stringify the entire envelope, producing
   // {"operation":"{\"action\":\"create\",...}"} which fails zod validation.
+  // z.preprocess provides a runtime guard: if a model still returns a
+  // stringified JSON, we parse it before the discriminatedUnion validates.
   // See research-tool-call-schema/REPORT.md §2.5 "success-nested" warning.
-  operation: z
-    .discriminatedUnion("action", [
+  operation: z.preprocess(
+    (val) => {
+      if (typeof val === "string") {
+        try { return JSON.parse(val) } catch { return val }
+      }
+      return val
+    },
+    z.discriminatedUnion("action", [
       createOperation,
       listOperation,
       getOperation,
@@ -125,8 +133,8 @@ const parameters = z.strictObject({
       doneOperation,
       abandonOperation,
       renameOperation,
-    ])
-    .meta({ type: "object" }),
+    ]),
+  ).meta({ type: "object" }),
 })
 
 type TaskInput = z.infer<typeof parameters>

@@ -451,16 +451,26 @@ export const ActorTool = Tool.define(
         // The root strictObject also means flattenDiscriminatedUnion finds no
         // root-level union and passes through unchanged — root keeps exactly one
         // key (`operation`), so models can't drop the discriminator.
-        operation: z
-          .discriminatedUnion("action", [
+        // z.preprocess handles models that return operation as a stringified
+        // JSON object instead of a parsed object (e.g. mimo-v2.5-pro in JSON
+        // mode).  The .meta({ type: "object" }) hint helps most models, but
+        // this runtime guard catches the ones that still stringify.
+        operation: z.preprocess(
+          (val) => {
+            if (typeof val === "string") {
+              try { return JSON.parse(val) } catch { return val }
+            }
+            return val
+          },
+          z.discriminatedUnion("action", [
             runSchema,
             spawnSchema,
             statusSchema,
             waitSchema,
             cancelSchema,
             sendSchema,
-          ])
-          .meta({ type: "object" }),
+          ]),
+        ).meta({ type: "object" }),
       })
 
       const run = Effect.fn("ActorTool.execute")(function* (input: z.infer<typeof parameters>, ctx: Tool.Context) {
