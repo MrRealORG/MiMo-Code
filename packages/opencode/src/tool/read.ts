@@ -1,6 +1,7 @@
 import z from "zod"
 import { Effect, Option, Scope } from "effect"
 import { createReadStream } from "fs"
+import { execSync } from "child_process"
 import * as path from "path"
 import { createInterface } from "readline"
 import * as Tool from "./tool"
@@ -19,6 +20,35 @@ const MAX_LINE_SUFFIX = `... (line truncated to ${MAX_LINE_LENGTH} chars)`
 const MAX_BYTES = 50 * 1024
 const MAX_BYTES_LABEL = `${MAX_BYTES / 1024} KB`
 const SAMPLE_BYTES = 4096
+
+/**
+ * Extract plain text from a .docx file.
+ * .docx is a ZIP archive; word/document.xml contains the paragraph text.
+ * We use the system `unzip` command (available on Linux/macOS) to extract
+ * the XML content without adding a JS dependency.  Falls back gracefully
+ * if `unzip` is unavailable.
+ */
+function extractDocxText(filepath: string): string | null {
+  try {
+    const xml = execSync(`unzip -p "${filepath}" word/document.xml 2>/dev/null`, {
+      encoding: "utf-8",
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 10_000,
+    })
+    // Strip XML tags to get plain text.  <w:t> contains the actual text runs.
+    const textParts: string[] = []
+    // Match <w:t ...>content</w:t> — the w:t tag holds text in OOXML
+    const re = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g
+    let match: RegExpExecArray | null
+    while ((match = re.exec(xml)) !== null) {
+      textParts.push(match[1])
+    }
+    if (textParts.length === 0) return null
+    return textParts.join("")
+  } catch {
+    return null
+  }
+}
 
 const parameters = z.object({
   filePath: z.string().describe("The absolute path to the file or directory to read"),
@@ -227,6 +257,31 @@ export const ReadTool = Tool.define(
             },
           ],
         }
+      }
+
+      // Extract text from .docx files (Office Open XML format).  A .docx is a
+      // ZIP archive; we extract word/document.xml and strip tags to get the
+      // plain text content.  Fixes #513.
+      const ext = path.extname(filepath).toLowerCase()
+      if (ext === ".docx") {
+        const docxText = extractDocxText(filepath)
+        if (docxText) {
+          const lines = docxText.split("\n").slice(0, params.limit ?? DEFAULT_READ_LIMIT)
+          let output = [`<path>${filepath}</path>`, `<type>docx</type>`, "<content>\n"].join("\n")
+          output += lines.map((line, i) => `${i + 1}: ${line}`).join("\n")
+          const truncated = lines.length < docxText.split("\n").length
+          if (truncated) output += `\n... (truncated, ${docxText.split("\n").length} total lines)`
+          return {
+            title,
+            output,
+            metadata: {
+              preview: lines.slice(0, 20).join("\n"),
+              truncated,
+              loaded: loaded.map((item) => item.filepath),
+            },
+          }
+        }
+        return yield* Effect.fail(new Error(`Failed to extract text from .docx file: ${filepath}. The file may be corrupted or password-protected.`))
       }
 
       if (isBinaryFile(filepath, sample)) {

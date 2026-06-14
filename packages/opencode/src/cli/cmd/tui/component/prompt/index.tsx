@@ -1686,7 +1686,11 @@ export function Prompt(props: PromptProps) {
                 {(() => {
                   const busyMessage = createMemo(() => {
                     const s = status()
-                    return s.type === "busy" ? s.message : undefined
+                    if (s.type !== "busy") return undefined
+                    const msg = s.message
+                    // Truncate long messages to prevent status bar overflow (#502)
+                    if (msg && msg.length > 80) return msg.slice(0, 80) + "…"
+                    return msg
                   })
                   return (
                     <Show when={busyMessage()}>

@@ -13,7 +13,14 @@ export function isPlainTerminal(input?: { platform?: NodeJS.Platform; termProgra
   const plain = input?.plain ?? process.env.MIMOCODE_TUI_PLAIN
   if (plain === "false" || plain === "0") return false
   if (plain === "true" || plain === "1") return true
-  return isMacNativeTerminal(input)
+  if (isMacNativeTerminal(input)) return true
+  // GNU screen and tmux do not support the Kitty keyboard protocol.
+  // Enabling it causes keys like `!` to be swallowed or misinterpreted (#526).
+  const term = process.env.TERM ?? ""
+  if (term.includes("screen") || term.includes("tmux")) return true
+  // STY is set by GNU screen, TMUX by tmux
+  if (process.env.STY || process.env.TMUX) return true
+  return false
 }
 
 function parse(color: string): RGBA | null {
