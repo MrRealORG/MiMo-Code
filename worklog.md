@@ -169,3 +169,24 @@ Stage Summary:
 - PR: https://github.com/XiaomiMiMo/MiMo-Code/pull/597 (supersedes #590)
 - 7 files changed, 138 insertions, 4 deletions
 - Key improvement: i18n key now actually used, not just defined
+
+---
+Task ID: 6
+Agent: Auto Bug Fix (Cron #204274)
+Task: Complete i18n coverage for remaining locales
+
+Work Log:
+- No new issues since last run
+- Found uncommitted es.ts changes from previous crashed session
+- Reset to clean main, created new branch
+- Added 31 missing i18n keys to es.ts (Spanish)
+- Added 31 missing i18n keys to ja.ts (Japanese)
+- Added 31 missing i18n keys to fr.ts (French)
+- Added 31 missing i18n keys to ru.ts (Russian)
+- Keys cover: login dialog (13), login flow (6), CLI provider (11), model display (1)
+- Pushed and created PR #599
+
+Stage Summary:
+- PR: https://github.com/XiaomiMiMo/MiMo-Code/pull/599
+- 4 files changed, 156 insertions
+- All 8 TUI locales (en, zh, zht, es, ja, fr, ru + da/ko/de/ar/no/br/th/bs/tr via fallback) now have complete login/provider i18n
