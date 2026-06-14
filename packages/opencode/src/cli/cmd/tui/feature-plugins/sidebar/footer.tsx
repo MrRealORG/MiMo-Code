@@ -1,5 +1,5 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@mimo-ai/plugin/tui"
-import { createMemo, Show } from "solid-js"
+import { createMemo, createSignal, onCleanup, Show } from "solid-js"
 import { Global } from "@/global"
 
 const id = "internal:sidebar-footer"
@@ -22,6 +22,22 @@ function View(props: { api: TuiPluginApi }) {
       parent: list.slice(0, -1).join("/"),
       name: list.at(-1) ?? "",
     }
+  })
+
+  const [time, setTime] = createSignal("")
+  let timer: ReturnType<typeof setInterval> | undefined
+
+  function updateTime() {
+    const now = new Date()
+    setTime(
+      now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    )
+  }
+
+  updateTime()
+  timer = setInterval(updateTime, 30_000)
+  onCleanup(() => {
+    if (timer) clearInterval(timer)
   })
 
   return (
@@ -69,6 +85,8 @@ function View(props: { api: TuiPluginApi }) {
           <b>Code</b>
         </span>{" "}
         <span>{props.api.app.version}</span>
+        <span>{"  "}</span>
+        <span fg={theme().textMuted}>{time()}</span>
       </text>
     </box>
   )
