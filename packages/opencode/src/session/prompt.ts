@@ -472,7 +472,7 @@ export const layer = Layer.effect(
           messageID: userMessage.info.id,
           sessionID: userMessage.info.sessionID,
           type: "text",
-          text: `${BUILD_SWITCH}\n\nA plan file exists at ${plan}. You should execute on the plan defined within it`,
+          text: `${BUILD_SWITCH}\n\nA plan file exists at ${plan}. You should execute on the plan defined within it. Read the plan file first to understand the full implementation details.`,
           synthetic: true,
         })
         userMessage.parts.push(part)
