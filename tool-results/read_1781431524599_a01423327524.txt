@@ -1,0 +1,1235 @@
+     1→import { Context, Deferred, Effect, Exit, Fiber, Layer, Scope } from "effect"
+     2→import os from "node:os"
+     3→import { createHash } from "node:crypto"
+     4→import { spawnRef } from "@/actor/spawn-ref"
+     5→import { workflowRef } from "./runtime-ref"
+     6→import { Config } from "@/config"
+     7→import { EffectBridge } from "@/effect"
+     8→import { Bus } from "@/bus"
+     9→import { Inbox } from "@/inbox"
+    10→import { Worktree } from "@/worktree"
+    11→import { Provider } from "@/provider"
+    12→import { InstanceRef } from "@/effect/instance-ref"
+    13→import { Instance } from "@/project/instance"
+    14→import { Identifier } from "@/id/id"
+    15→import type { SessionID } from "@/session/schema"
+    16→import type { ProviderID, ModelID } from "@/provider/schema"
+    17→import { parseMeta } from "./meta"
+    18→import { evalScript, type HostFn } from "./sandbox"
+    19→import { makeFileHooks, resolveInWorkspace } from "./workspace"
+    20→import { isInlineScript, resolveWorkflowScript } from "./resolve"
+    21→import { WorkflowAgentFailed, WorkflowChildFailed, WorkflowFinished, WorkflowLog, WorkflowPhase, WorkflowStarted } from "./events"
+    22→import { WorkflowPersistence, journalKeyBase } from "./persistence"
+    23→import type { RunSummary } from "./persistence"
+    24→import { Log, Lock } from "@/util"
+    25→
+    26→const log = Log.create({ service: "workflow.runtime" })
+    27→
+    28→/** Default wall-clock budget for a whole workflow script (12h research default). */
+    29→const SCRIPT_DEADLINE_MS = 12 * 60 * 60 * 1000
+    30→/** Unique sentinel for the per-agent timeout race: a timeout winner can never
+    31→ * collide with an agent deliverable (those are object | string | null). */
+    32→const STRAGGLER_TIMEOUT = Symbol("straggler-timeout")
+    33→/** Hard ceiling on total agents a single run may spawn (lifecycle cap). */
+    34→const MAX_LIFECYCLE_AGENTS = 1000
+    35→/** Default soft cap on concurrent agents when the caller does not specify one. */
+    36→const DEFAULT_MAX_CONCURRENT = 16
+    37→/** Marker prefix on errors from STRUCTURAL workflow faults (cycle, over-depth,
+    38→ * unknown name) — workflow-wiring bugs that must fail the whole tree loud rather
+    39→ * than degrade to the never-throw null that a child's RUNTIME failure yields. The
+    40→ * workflow() hook re-propagates any child outcome whose error carries this marker,
+    41→ * so the fault surfaces at the root run the user launched. */
+    42→const WORKFLOW_STRUCTURAL_ERROR = "WorkflowStructuralError"
+    43→
+    44→type RunStatus = "running" | "completed" | "failed" | "cancelled"
+    45→
+    46→export type RunOutcome =
+    47→  | { status: "completed"; result: unknown }
+    48→  | { status: "failed"; error: string }
+    49→  | { status: "cancelled" }
+    50→
+    51→interface RunEntry {
+    52→  runID: string
+    53→  sessionID: SessionID
+    54→  status: RunStatus
+    55→  deferred: Deferred.Deferred<RunOutcome>
+    56→  fiber: Fiber.Fiber<void> | undefined
+    57→  childActorIDs: Set<string>
+    58→  worktrees: Set<string> // worktree directories pending disposition, for cancel cleanup
+    59→  childRunIDs: Set<string> // child workflow runIDs, for recursive cancel/reclaim
+    60→  name: string
+    61→  running: number
+    62→  succeeded: number
+    63→  failed: number
+    64→  agentCount: number
+    65→  capWarned: boolean
+    66→  // Model refs already warned about this run, so an unresolvable ref (e.g. a
+    67→  // workflow using "lite" with no model_groups.lite configured) logs ONCE per
+    68→  // run instead of once per agent spawn. Per-run, not layer-global, so a later
+    69→  // run re-warns. See resolveAgentModel.
+    70→  warnedModelRefs: Set<string>
+    71→  currentPhase: string | undefined
+    72→}
+    73→
+    74→interface StartInput {
+    75→  script: string
+    76→  sessionID: SessionID
+    77→  parentActorID: string
+    78→  args?: unknown
+    79→  model?: { providerID: ProviderID; modelID: ModelID }
+    80→  maxConcurrentAgents?: number
+    81→  // Hard ceiling on total agents this run may spawn (lifecycle cap). Defaults to
+    82→  // MAX_LIFECYCLE_AGENTS (1000). Over-cap agent() calls return null (graceful
+    83→  // degradation, never-throw), NOT throw — so a fan-out that wants more agents
+    84→  // than the cap degrades to the cap-limited subset instead of aborting the run.
+    85→  // Lowerable for tests; tunable in prod.
+    86→  maxLifecycleAgents?: number
+    87→  /** Per-agent wall-clock timeout (ms). When an individual agent() call's spawned
+    88→   * child produces no terminal outcome within this window, it is gracefully
+    89→   * cancelled and agent() resolves to null (the never-throw failure sentinel), so
+    90→   * one hung agent (e.g. an LLM TTFT wall) cannot stall a parallel/pipeline barrier
+    91→   * indefinitely. Default undefined = OFF (only the global scriptDeadlineMs bounds a
+    92→   * run). A per-call agent(prompt,{timeoutMs}) overrides this. */
+    93→  agentTimeoutMs?: number
+    94→  scriptDeadlineMs?: number
+    95→  // Internal (resume-only): when true, launch ignores any persisted journal and
+    96→  // truncates the stale `.jsonl` before the run appends. resume() sets this on the
+    97→  // script-change path (stored script_sha != current script's sha, MR104 P1-2) so
+    98→  // an EDITED script never replays results journaled against the OLD body. start()
+    99→  // never sets it (a fresh runID has no prior journal — nothing to invalidate).
+   100→  freshJournal?: boolean
+   101→  /** Root dir the guest's file primitives (readFile/writeFile/glob/exists) are
+   102→   * jailed to. Defaults to the caller's worktree. A child workflow inherits the
+   103→   * parent's workspace unless its workflow() opts override it. */
+   104→  workspace?: string
+   105→  /** Resolved names of ancestor workflows (root = empty). A workflow() whose
+   106→   * resolved child name is already here is a cycle → throw. */
+   107→  lineage?: readonly string[]
+   108→  /** Current nesting depth (root run = 0). */
+   109→  depth?: number
+   110→  /** Max nesting depth before workflow() throws. Defaults to config (8). */
+   111→  maxDepth?: number
+   112→}
+   113→
+   114→/** Options the guest may pass to `agent(prompt, opts?)`. */
+   115→interface AgentOpts {
+   116→  agentType?: string
+   117→  tools?: readonly string[]
+   118→  /** A model reference resolved host-side via Provider.resolveModelRef: either a
+   119→   *  "provider/model" literal or a configured tier/group name (e.g. "lite").
+   120→   *  Omitted → the run's default model. Unknown group → falls back to the run
+   121→   *  default (never throws to the guest). */
+   122→  model?: string
+   123→  schema?: Record<string, unknown>
+   124→  isolation?: "worktree"
+   125→  label?: string
+   126→  phase?: string
+   127→  /** Per-call override of the run's agentTimeoutMs (ms). */
+   128→  timeoutMs?: number
+   129→}
+   130→
+   131→export interface Interface {
+   132→  readonly start: (input: StartInput) => Effect.Effect<{ runID: string }>
+   133→  readonly status: (input: {
+   134→    runID: string
+   135→  }) => Effect.Effect<{ status: RunStatus | "unknown"; agentCount: number; currentPhase?: string }>
+   136→  readonly wait: (input: { runID: string; timeoutMs?: number }) => Effect.Effect<RunOutcome>
+   137→  readonly cancel: (input: { runID: string }) => Effect.Effect<void>
+   138→  readonly list: (input?: { sessionID?: SessionID }) => Effect.Effect<RunSummary[]>
+   139→  readonly resume: (input: { runID: string; agentTimeoutMs?: number }) => Effect.Effect<{ runID: string; resumed: boolean }>
+   140→}
+   141→
+   142→export class Service extends Context.Service<Service, Interface>()("@opencode/WorkflowRuntime") {}
+   143→
+   144→/** A plain promise-based semaphore: at most `max` concurrent `run` callbacks. */
+   145→function makeSemaphore(max: number) {
+   146→  let active = 0
+   147→  const queue: Array<() => void> = []
+   148→  const release = () => {
+   149→    active--
+   150→    const next = queue.shift()
+   151→    if (next) next()
+   152→  }
+   153→  return {
+   154→    run<T>(fn: () => Promise<T>): Promise<T> {
+   155→      return new Promise<T>((resolve, reject) => {
+   156→        const attempt = () => {
+   157→          active++
+   158→          fn().then(
+   159→            (value) => {
+   160→              release()
+   161→              resolve(value)
+   162→            },
+   163→            (err) => {
+   164→              release()
+   165→              reject(err)
+   166→            },
+   167→          )
+   168→        }
+   169→        if (active < max) attempt()
+   170→        else queue.push(attempt)
+   171→      })
+   172→    },
+   173→  }
+   174→}
+   175→
+   176→function cpuCount(): number {
+   177→  const n = os.cpus().length
+   178→  return n > 0 ? n : 4
+   179→}
+   180→
+   181→export const layer = Layer.effect(
+   182→  Service,
+   183→  Effect.gen(function* () {
+   184→    const bus = yield* Bus.Service
+   185→    const inbox = yield* Inbox.Service
+   186→    const worktree = yield* Worktree.Service
+   187→    const provider = yield* Provider.Service
+   188→    // Resolve the Config service handle at layer scope (a legitimate layer dep,
+   189→    // satisfied by Config.defaultLayer) so the requirement is discharged here and
+   190→    // does NOT leak into start/resume's effect signatures. Only config.get() runs
+   191→    // lazily below — it reads the per-instance ALS context and returns Effect<Info>
+   192→    // with no requirement, so it stays out of the public method types.
+   193→    const config = yield* Config.Service
+   194→    const scope = yield* Scope.Scope
+   195→    const runs = new Map<string, RunEntry>()
+   196→
+   197→    // Resolve a guest-supplied model ref (a "provider/model" literal OR a
+   198→    // tier/group name like "lite") to a concrete {providerID, modelID} via the
+   199→    // Provider service — host-side, inside the runtime's own Layer scope (so it
+   200→    // survives resume(), which re-reads the script with no fresh StartInput).
+   201→    // NEVER throws to the guest: an unknown group (resolveModelRef throwing
+   202→    // ModelGroupNotFoundError) falls back to the run default, matching agent()'s
+   203→    // never-throw contract. undefined ref → the run default unchanged.
+   204→    const resolveAgentModel = (
+   205→      ref: string | undefined,
+   206→      fallback: { providerID: ProviderID; modelID: ModelID } | undefined,
+   207→      warned: Set<string>,
+   208→    ): Effect.Effect<{ providerID: ProviderID; modelID: ModelID } | undefined> =>
+   209→      ref === undefined
+   210→        ? Effect.succeed(fallback)
+   211→        : provider.resolveModelRef(ref).pipe(
+   212→            Effect.map((m) => ({ providerID: m.providerID, modelID: m.id })),
+   213→            Effect.catchCause(() =>
+   214→              Effect.sync(() => {
+   215→                // Leave a breadcrumb so a bad ref isn't pure silence: an unknown
+   216→                // group/tier, a typo, or an out-of-tree script passing the old
+   217→                // {providerID, modelID} object (not a string) all land here and
+   218→                // silently use the run default. Warn ONCE per unique ref per run
+   219→                // (a fan-out like deep-research would otherwise log on every
+   220→                // agent spawn). For a non-string ref, log its sorted keys (e.g.
+   221→                // "modelID,providerID") so the operator sees it's the legacy
+   222→                // object shape — keys are schema names, no user data.
+   223→                const shown =
+   224→                  typeof ref === "string"
+   225→                    ? ref
+   226→                    : `{${Object.keys(ref as object)
+   227→                        .sort()
+   228→                        .join(",")}}`
+   229→                if (!warned.has(shown)) {
+   230→                  warned.add(shown)
+   231→                  log.warn("workflow agent model ref did not resolve — using run default", { ref: shown })
+   232→                }
+   233→                return fallback
+   234→              }),
+   235→            ),
+   236→          )
+   237→
+   238→    // Process-wide concurrency ceiling: ONE semaphore shared by every run
+   239→    // (including nested children), so tree-wide concurrent agents can never
+   240→    // exceed it regardless of nesting depth. It is a PURE process/config property,
+   241→    // sized SOLELY from config.workflow.maxConcurrentAgents (falling back to the
+   242→    // min(16, 2×cores) default) — NEVER seeded or raised by any per-launch
+   243→    // maxConcurrentAgents input. A per-run input only ever NARROWS that run's own
+   244→    // semaphore (clamped ≤ global, below); it can neither raise the global nor bind
+   245→    // a later run to an earlier run's cap. Resolved LAZILY on the first launch
+   246→    // (config.get reads the per-instance ALS context, live inside launch but NOT at
+   247→    // layer-build time) and memoized at service scope so every subsequent launch() —
+   248→    // including nested children — shares the same semaphore. `cfg`/`globalMax`/
+   249→    // `globalSem` are reused by later tasks (T12 maxDepth, T14 maxLifecycleAgents).
+   250→    let cfg: Config.Info | undefined
+   251→    let globalMax = 0
+   252→    let globalSem: ReturnType<typeof makeSemaphore> | undefined
+   253→    const ensureGlobal = Effect.fn("WorkflowRuntime.ensureGlobal")(function* () {
+   254→      if (globalSem) return globalSem
+   255→      // Resolve config once (this is the only suspension point). Cached on `cfg`
+   256→      // for reuse by later per-run reads (maxDepth, maxLifecycleAgents).
+   257→      cfg ??= yield* config.get()
+   258→      globalMax = Math.max(
+   259→        1,
+   260→        cfg.workflow?.maxConcurrentAgents ?? Math.min(DEFAULT_MAX_CONCURRENT, 2 * Math.max(1, cpuCount())),
+   261→      )
+   262→      // Assign synchronously with ??= so two concurrent first-launches that both
+   263→      // passed the guard above (the `config.get()` await is a suspension point)
+   264→      // converge on ONE semaphore instead of transiently doubling the ceiling.
+   265→      // Frozen for the process lifetime: a later config change to
+   266→      // maxConcurrentAgents does NOT rebuild it (acceptable while workflow is
+   267→      // experimental — the global ceiling is a process/config property).
+   268→      globalSem ??= makeSemaphore(globalMax)
+   269→      return globalSem
+   270→    })
+   271→
+   272→    // Debounced counter flush: coalesce high-rate running/succeeded/failed updates
+   273→    // to at most one DB write per ~250ms per run. flushNow is the synchronous final
+   274→    // flush on terminal. All best-effort.
+   275→    const flushTimers = new Map<string, ReturnType<typeof setTimeout>>()
+   276→    const flushNow = (entry: RunEntry) => {
+   277→      const t = flushTimers.get(entry.runID)
+   278→      if (t) {
+   279→        clearTimeout(t)
+   280→        flushTimers.delete(entry.runID)
+   281→      }
+   282→      return WorkflowPersistence.flushCounters({
+   283→        runID: entry.runID,
+   284→        running: entry.running,
+   285→        succeeded: entry.succeeded,
+   286→        failed: entry.failed,
+   287→      }).pipe(Effect.ignore)
+   288→    }
+   289→    const scheduleFlush = (entry: RunEntry) => {
+   290→      if (flushTimers.has(entry.runID)) return
+   291→      flushTimers.set(
+   292→        entry.runID,
+   293→        setTimeout(() => {
+   294→          flushTimers.delete(entry.runID)
+   295→          Effect.runFork(
+   296→            WorkflowPersistence.flushCounters({
+   297→              runID: entry.runID,
+   298→              running: entry.running,
+   299→              succeeded: entry.succeeded,
+   300→              failed: entry.failed,
+   301→            }).pipe(Effect.ignore),
+   302→          )
+   303→        }, 250),
+   304→      )
+   305→    }
+   306→
+   307→    // Best-effort cleanup for a NON-SUCCESS terminal (cancel, deadline, script
+   308→    // failure): graceful-cancel any in-flight child agents and remove every
+   309→    // worktree the run still owns, then clear the set. NEVER throws — a reclaim
+   310→    // failure must not mask the original terminal cause. NOT called on success:
+   311→    // kept (success+changed) worktrees are the deliverable and must survive.
+   312→    const reclaim = (entry: RunEntry) =>
+   313→      Effect.gen(function* () {
+   314→        const actor = spawnRef.current
+   315→        if (actor) {
+   316→          yield* Effect.forEach(
+   317→            [...entry.childActorIDs],
+   318→            (childID) => actor.cancel(entry.sessionID, childID, "graceful").pipe(Effect.ignore),
+   319→            { concurrency: "unbounded", discard: true },
+   320→          )
+   321→        }
+   322→        yield* Effect.forEach(
+   323→          [...entry.worktrees],
+   324→          (directory) => worktree.remove({ directory }).pipe(Effect.ignore),
+   325→          { concurrency: "unbounded", discard: true },
+   326→        )
+   327→        entry.worktrees.clear()
+   328→        // Recurse into child workflow RUNS (populated by workflow()). Cancelling the
+   329→        // orchestrator tears down the whole tree — a child still "running" here is
+   330→        // cancelled via cancelEntry (mutually recursive with reclaim).
+   331→        // SAFETY: childRunIDs edges are parent→child only (added solely at the
+   332→        // workflow() call site with a freshly-minted child runID), so the graph is a
+   333→        // tree and this recursion is finite. The status-flip guard alone does NOT stop
+   334→        // a cycle (a node's flip is post-order, after its reclaim returns), so
+   335→        // acyclicity is load-bearing — the workflow() cycle guard (Task 12) is what
+   336→        // keeps it true as the call graph grows.
+   337→        yield* Effect.forEach(
+   338→          [...entry.childRunIDs],
+   339→          (childRunID) =>
+   340→            Effect.gen(function* () {
+   341→              const child = runs.get(childRunID)
+   342→              if (child && child.status === "running") yield* cancelEntry(child)
+   343→            }).pipe(Effect.ignore),
+   344→          { concurrency: "unbounded", discard: true },
+   345→        )
+   346→      })
+   347→
+   348→    const cancelEntry = (entry: RunEntry): Effect.Effect<void> =>
+   349→      Effect.gen(function* () {
+   350→        if (entry.status !== "running") return
+   351→        yield* reclaim(entry)
+   352→        yield* flushNow(entry)
+   353→        yield* WorkflowPersistence.recordTerminal({ runID: entry.runID, status: "cancelled" }).pipe(Effect.ignore)
+   354→        if (entry.fiber) yield* Fiber.interrupt(entry.fiber)
+   355→        entry.status = "cancelled"
+   356→        yield* Deferred.succeed(entry.deferred, { status: "cancelled" })
+   357→        yield* bus.publish(WorkflowFinished, { sessionID: entry.sessionID, runID: entry.runID, status: "cancelled" })
+   358→      })
+   359→
+   360→    const waitFor = (childRunID: string) =>
+   361→      Effect.gen(function* () {
+   362→        const child = runs.get(childRunID)
+   363→        if (!child) return { status: "failed" as const, error: "child run missing" }
+   364→        return yield* Deferred.await(child.deferred)
+   365→      })
+   366→
+   367→    const launch = Effect.fn("WorkflowRuntime.launch")(function* (input: StartInput, runID: string, name: string) {
+   368→      // The guest body is the script with the `meta` literal blanked out (parseMeta
+   369→      // preserves line numbers). start already validated meta and resume only loads
+   370→      // a previously-validated script, so this parse is purely to extract the body;
+   371→      // it never gates here. Fall back to the raw script if parse somehow fails.
+   372→      const parsed = parseMeta(input.script)
+   373→      const body = parsed.ok ? parsed.body : input.script
+   374→      // Resolve the workspace root ONCE at launch (the Instance ALS context is
+   375→      // live here — the bridge below captures it). Default = the caller's
+   376→      // worktree. Captured in the closure so the file hooks read it synchronously
+   377→      // and never touch ALS from inside the forked work fiber.
+   378→      const workspaceRoot = input.workspace ?? Instance.worktree
+   379→      const fileHooks = makeFileHooks(workspaceRoot)
+   380→      const deferred = yield* Deferred.make<RunOutcome>()
+   381→      const entry: RunEntry = {
+   382→        runID,
+   383→        sessionID: input.sessionID,
+   384→        status: "running",
+   385→        deferred,
+   386→        fiber: undefined,
+   387→        childActorIDs: new Set<string>(),
+   388→        worktrees: new Set<string>(),
+   389→        childRunIDs: new Set<string>(),
+   390→        name,
+   391→        running: 0,
+   392→        succeeded: 0,
+   393→        failed: 0,
+   394→        agentCount: 0,
+   395→        capWarned: false,
+   396→        warnedModelRefs: new Set<string>(),
+   397→        currentPhase: undefined,
+   398→      }
+   399→      runs.set(runID, entry)
+   400→      // Stamp a sha256 of the FULL script body (the exact bytes writeScript persists
+   401→      // and resume's readScript reads back), so resume can detect a between-cycle
+   402→      // edit by comparing this to the current file's sha — apples-to-apples, MR104
+   403→      // P1-2. recordStart re-stamps it on every (re)launch, so a changed-script
+   404→      // relaunch overwrites the stale sha and a subsequent resume replays correctly.
+   405→      const scriptSha = createHash("sha256").update(input.script).digest("hex")
+   406→      yield* WorkflowPersistence.recordStart({
+   407→        runID,
+   408→        sessionID: input.sessionID,
+   409→        name,
+   410→        parentActorID: input.parentActorID,
+   411→        args: input.args,
+   412→        scriptSha,
+   413→        agentTimeoutMs: input.agentTimeoutMs,
+   414→      }).pipe(Effect.ignore)
+   415→      yield* WorkflowPersistence.writeScript(runID, input.script).pipe(Effect.ignore)
+   416→
+   417→      // Replay journal: prior agent() results (empty on a fresh run). On resume,
+   418→      // a cache hit returns instantly with no spawn; misses spawn + append. The
+   419→      // occ counter disambiguates byte-identical calls into distinct slots.
+   420→      // freshJournal (resume's script-change path) truncates the stale `.jsonl`
+   421→      // FIRST so loadJournal returns empty AND the run's appends don't interleave
+   422→      // with results journaled against the old script body — a later resume would
+   423→      // otherwise read both and replay the wrong results.
+   424→      if (input.freshJournal) yield* WorkflowPersistence.clearJournal(runID).pipe(Effect.ignore)
+   425→      const journal = yield* WorkflowPersistence.loadJournal(runID)
+   426→      const occ = new Map<string, number>()
+   427→      const pass = journal.pass
+   428→
+   429→      // Capture the bridge BEFORE forking so it snapshots the caller's
+   430→      // Instance/Workspace context — the quickjs Promise boundary in agent()
+   431→      // would otherwise lose it.
+   432→      const bridge = yield* EffectBridge.make()
+   433→
+   434→      // Resolve the process-wide ceiling NOW (under the live Instance context) so
+   435→      // its semaphore object exists before any spawn site closes over it. Sized
+   436→      // PURELY from config (memoized after the first launch); a per-launch
+   437→      // maxConcurrentAgents never seeds or raises it — it only narrows this run's
+   438→      // own semaphore below.
+   439→      const globalSemLocal = yield* ensureGlobal()
+   440→      // Nesting safety (T12): carried through every run. lineage = resolved names of
+   441→      // ancestor workflows (root = empty); depth = this run's level (root = 0). A
+   442→      // workflow() whose child name is already in lineage is a cycle, and a child
+   443→      // beyond maxDepth is over-deep — both throw at the call site (workflowHook).
+   444→      // maxDepth precedence: explicit per-run input > config > module default 8.
+   445→      const lineage = input.lineage ?? []
+   446→      const depth = input.depth ?? 0
+   447→      const maxDepth = input.maxDepth ?? cfg?.workflow?.maxDepth ?? 8
+   448→      // Per-run soft cap: defaults to the global ceiling, clamped to ≤ global so a
+   449→      // child can shrink its own concurrency but never exceed the process ceiling.
+   450→      // The 2×cores clamp is GONE — the global semaphore is the real throttle.
+   451→      const requested = input.maxConcurrentAgents ?? globalMax
+   452→      const max = Math.max(1, Math.min(requested, globalMax))
+   453→      const sem = makeSemaphore(max)
+   454→      // Lifecycle cap (total agents over the run's life). Resolved once here so
+   455→      // both spawn paths (shared + isolated) share it; over-cap calls return null.
+   456→      const lifecycleCap = input.maxLifecycleAgents ?? cfg?.workflow?.maxLifecycleAgents ?? MAX_LIFECYCLE_AGENTS
+   457→      // Over-cap → null (see maxLifecycleAgents doc): warn ONCE per run so the
+   458→      // dropped work is visible without spamming a log line per over-cap call.
+   459→      const warnCapOnce = () => {
+   460→        if (entry.capWarned) return
+   461→        entry.capWarned = true
+   462→        log.warn("workflow lifecycle agent cap reached — over-cap agents return null", {
+   463→          runID,
+   464→          cap: lifecycleCap,
+   465→        })
+   466→      }
+   467→      // Per-agent wall-clock timeout. Run-level default (OFF unless set); a per-call
+   468→      // opts.timeoutMs overrides it. Resolved per agent() call since opts is per-call.
+   469→      const runAgentTimeoutMs = input.agentTimeoutMs
+   470→      // Race a child's outcome-await against the effective per-agent timeout. On a
+   471→      // TRUE timeout: gracefully cancel that one child (the lever reclaim uses) and
+   472→      // yield null — the never-throw sentinel the guest already tolerates, so a hung
+   473→      // agent can't stall a parallel/pipeline barrier. A genuine null deliverable
+   474→      // (agent failed fast) is NOT a timeout → no cancel. No timeout configured
+   475→      // (undefined / <=0) ⇒ await unbounded (current behavior, only scriptDeadline bounds).
+   476→      const awaitWithTimeout = <A>(
+   477→        actorID: string,
+   478→        opts: AgentOpts,
+   479→        await_: Effect.Effect<A | null>,
+   480→        // Optional side-channel: set when the timeout branch wins, so the caller
+   481→        // can distinguish a TRUE timeout (reason="timeout") from a fast actor-error
+   482→        // null. Never throws; called once at most. Pure observability.
+   483→        onTimeout?: () => void,
+   484→      ) => {
+   485→        const ms = opts.timeoutMs ?? runAgentTimeoutMs
+   486→        if (!ms || ms <= 0) return await_
+   487→        return Effect.raceFirst(
+   488→          await_,
+   489→          Effect.sleep(`${ms} millis`).pipe(Effect.as(STRAGGLER_TIMEOUT as unknown as A | null)),
+   490→        ).pipe(
+   491→          Effect.flatMap((r) =>
+   492→            r === (STRAGGLER_TIMEOUT as unknown)
+   493→              ? (spawnRef.current
+   494→                  ? spawnRef.current.cancel(input.sessionID, actorID, "graceful").pipe(Effect.ignore)
+   495→                  : Effect.void
+   496→                ).pipe(
+   497→                  Effect.tap(() =>
+   498→                    Effect.sync(() => {
+   499→                      try {
+   500→                        onTimeout?.()
+   501→                      } catch {
+   502→                        /* observability must never escape */
+   503→                      }
+   504→                    }),
+   505→                  ),
+   506→                  Effect.as(null),
+   507→                )
+   508→              : Effect.succeed(r),
+   509→          ),
+   510→        )
+   511→      }
+   512→
+   513→      // Publish a WorkflowAgentFailed event for an agent() call that resolved to
+   514→      // null. Pure observability — counters and the agent() return value are
+   515→      // unaffected. Wrapped in try/catch so a bus problem can never break a run.
+   516→      type FailReason = "over-cap" | "spawn-reject" | "timeout" | "actor-error" | "no-deliverable"
+   517→      const publishAgentFailed = (
+   518→        o: AgentOpts,
+   519→        reason: FailReason,
+   520→        info: { actorID?: string; errorMessage?: string } = {},
+   521→      ) => {
+   522→        try {
+   523→          Effect.runFork(
+   524→            bus
+   525→              .publish(WorkflowAgentFailed, {
+   526→                sessionID: input.sessionID,
+   527→                runID,
+   528→                actorID: info.actorID,
+   529→                agentType: o.agentType ?? "general",
+   530→                label: o.label,
+   531→                phase: o.phase ?? entry.currentPhase,
+   532→                reason,
+   533→                errorMessage: info.errorMessage,
+   534→              })
+   535→              .pipe(Effect.ignore),
+   536→          )
+   537→        } catch {
+   538→          /* observability must never escape */
+   539→        }
+   540→      }
+   541→
+   542→      yield* bus.publish(WorkflowStarted, { sessionID: input.sessionID, runID, name })
+   543→
+   544→      // Observability-only spawn description from label/phase: "[Phase] label",
+   545→      // or just one of them, or undefined (then spawn falls back to agentType —
+   546→      // see spawn.ts `input.description ?? input.agentType`). label/phase NEVER
+   547→      // touch currentPhase/counters/schema — they are purely the per-agent tag
+   548→      // the actor registry stores and the /workflows view surfaces.
+   549→      const spawnDescription = (o: AgentOpts) =>
+   550→        o.label ? (o.phase ? `[${o.phase}] ${o.label}` : o.label) : o.phase ? `[${o.phase}]` : undefined
+   551→
+   552→      // Shared-tree spawn (default): the existing behavior. SUBAGENT mode — the
+   553→      // worker shares the run's parent session (cheaper, no per-agent session).
+   554→      // Safe since lastAssistant is agent-scoped (fix 59597264): each subagent's
+   555→      // result is extracted by its own agentID, so concurrent same-session
+   556→      // subagents don't cross-contaminate. context:"none" keeps each worker free
+   557→      // of parent history (parallel fan-out is the use case). NEVER throw to the
+   558→      // guest for spawn/turn failures — resolve to null so the script continues.
+   559→      const spawnShared = async (
+   560→        actor: NonNullable<typeof spawnRef.current>,
+   561→        prompt: string,
+   562→        o: AgentOpts,
+   563→        resolvedModel: { providerID: ProviderID; modelID: ModelID } | undefined,
+   564→      ) => {
+   565→        // COUNTER INVARIANT: running++ exactly once BEFORE the spawn attempt, and
+   566→        // running-- + (succeeded XOR failed)++ exactly once AFTER it settles. The
+   567→        // bookkeeping lives OUTSIDE the bridge so it still runs when the bridge
+   568→        // result is the spawn-reject sentinel (null). Counters settle on whether a
+   569→        // DELIVERABLE was produced (value !== null) — the exact thing the guest
+   570→        // observes. An agent whose turn errored finishes with status:"success" but
+   571→        // no finalText/structured, so its deliverable is null and the guest sees a
+   572→        // failure; the counter must agree. A spawn reject also yields null → failed.
+   573→        entry.running++
+   574→        scheduleFlush(entry)
+   575→        // Failure-reason refs: defaults to "actor-error" (the broad catch-all) and
+   576→        // is narrowed at known branch points. Read once at the end, on null return,
+   577→        // to publish WorkflowAgentFailed. agent()'s null contract is unchanged.
+   578→        let reason: FailReason = "actor-error"
+   579→        let actorID: string | undefined
+   580→        let errorMessage: string | undefined
+   581→        const value = await bridge
+   582→          .promise(
+   583→            Effect.gen(function* () {
+   584→              const spawned = yield* actor.spawn({
+   585→                mode: "subagent",
+   586→                sessionID: input.sessionID,
+   587→                agentType: o.agentType ?? "general",
+   588→                description: spawnDescription(o),
+   589→                task: prompt,
+   590→                context: "none",
+   591→                tools: o.tools ? [...o.tools] : "INHERIT",
+   592→                background: true,
+   593→                parentActorID: input.parentActorID,
+   594→                model: resolvedModel,
+   595→                // Register the child in the reclaim set the instant the actor
+   596→                // exists — synchronously inside the spawn Effect, BEFORE its work
+   597→                // fiber detaches. A cancel racing this spawn would otherwise miss
+   598→                // it (the child runs detached in the actor scope, so interrupting
+   599→                // the workflow fiber can't stop it) and leak an orphan. MR104 #2.
+   600→                onActorID: (id) => entry.childActorIDs.add(id),
+   601→                ...(o.schema ? { format: { type: "json_schema" as const, schema: o.schema, retryCount: 2 } } : {}),
+   602→              })
+   603→              actorID = spawned.actorID
+   604→              // Bound the outcome-await by the per-agent timeout: a hung child times
+   605→              // out to null (and is cancelled) rather than stalling the barrier. The
+   606→              // deliverable is computed inside the awaited Effect so the timeout wraps
+   607→              // the whole await→extract. schema requested ⇒ structured ?? null (never
+   608→              // prose finalText: prose breaks `r.fields`-style scripts + our pipeline).
+   609→              const deliverable = yield* awaitWithTimeout(
+   610→                spawned.actorID,
+   611→                o,
+   612→                Deferred.await(spawned.outcome).pipe(
+   613→                  Effect.map((outcome) => {
+   614→                    if (outcome.status !== "success") {
+   615→                      reason = "actor-error"
+   616→                      errorMessage = (outcome as { error?: string }).error
+   617→                      return null
+   618→                    }
+   619→                    const v = o.schema
+   620→                      ? (outcome.structured ?? null)
+   621→                      : (outcome.structured ?? outcome.finalText ?? null)
+   622→                    if (v === null) reason = "no-deliverable"
+   623→                    return v
+   624→                  }),
+   625→                ),
+   626→                () => {
+   627→                  reason = "timeout"
+   628→                },
+   629→              )
+   630→              entry.childActorIDs.delete(spawned.actorID)
+   631→              return deliverable
+   632→            }),
+   633→          )
+   634→          .catch((e) => {
+   635→            reason = "spawn-reject"
+   636→            errorMessage = e instanceof Error ? e.message : String(e)
+   637→            return null
+   638→          })
+   639→        entry.running--
+   640→        if (value !== null) entry.succeeded++
+   641→        else {
+   642→          entry.failed++
+   643→          publishAgentFailed(o, reason, { actorID, errorMessage })
+   644→        }
+   645→        scheduleFlush(entry)
+   646→        return value
+   647→      }
+   648→
+   649→      // Isolated spawn: fresh worktree, file tools rebound to it via Instance.provide.
+   650→      const spawnIsolated = async (
+   651→        actor: NonNullable<typeof spawnRef.current>,
+   652→        prompt: string,
+   653→        o: AgentOpts,
+   654→        resolvedModel: { providerID: ProviderID; modelID: ModelID } | undefined,
+   655→      ) => {
+   656→        // Failure-reason refs (parallel to spawnShared); see there for rationale.
+   657→        let reason: FailReason = "actor-error"
+   658→        let actorIDOut: string | undefined
+   659→        let errorMessage: string | undefined
+   660→        // 1) Create + fully populate a worktree (createFromInfo awaits boot).
+   661→        const info = await bridge
+   662→          .promise(
+   663→            Effect.gen(function* () {
+   664→              const i = yield* worktree.makeWorktreeInfo()
+   665→              yield* worktree.createFromInfo(i)
+   666→              return i
+   667→            }),
+   668→          )
+   669→          .catch((e) => {
+   670→            errorMessage = e instanceof Error ? e.message : String(e)
+   671→            return null
+   672→          })
+   673→        if (!info) {
+   674→          publishAgentFailed(o, "spawn-reject", { errorMessage })
+   675→          return null
+   676→        }
+   677→        // Register the worktree for cleanup the moment it exists on disk — BEFORE
+   678→        // the spawn attempt. If spawn rejects or the agent fails, cancel-cleanup
+   679→        // (and the disposition below) can still reclaim it; nothing orphans.
+   680→        entry.worktrees.add(info.directory)
+   681→        const base = await bridge.promise(worktree.head(info.directory)).catch(() => "")
+   682→        // 2) A bridge bound to the worktree's InstanceContext: provide InstanceRef =
+   683→        //    worktree ctx so Effect-side reads resolve there; the Instance.provide
+   684→        //    wrap below covers raw-ALS tool reads (the load-bearing part). The outer
+   685→        //    Instance.provide is what reroutes the agent's file tools; wtBridge is
+   686→        //    defense-in-depth for any Effect-side InstanceRef read during dispatch.
+   687→        const wtCtx = await Instance.provide({
+   688→          directory: info.directory,
+   689→          fn: () => Promise.resolve(Instance.current),
+   690→        })
+   691→        const wtBridge = await bridge.promise(EffectBridge.make().pipe(Effect.provideService(InstanceRef, wtCtx)))
+   692→        // 3) Spawn + await INSIDE Instance.provide({worktree}) — AsyncLocalStorage
+   693→        //    propagates the worktree dir across the actor's forked work fiber, so the
+   694→        //    agent's read/write/bash resolve to the worktree, not the parent tree.
+   695→        // COUNTER INVARIANT (isolated path): running++ here, BEFORE the spawn
+   696→        // attempt, so it pairs with the settle below regardless of spawn-reject
+   697→        // (spawned === null). The settle (running-- + succeeded/failed++) runs once
+   698→        // on every disposition path after `succeeded` is known.
+   699→        entry.running++
+   700→        scheduleFlush(entry)
+   701→        const spawned = await Instance.provide({
+   702→          directory: info.directory,
+   703→          fn: () =>
+   704→            wtBridge
+   705→              .promise(
+   706→                Effect.gen(function* () {
+   707→                  const s = yield* actor.spawn({
+   708→                    mode: "subagent",
+   709→                    sessionID: input.sessionID,
+   710→                    agentType: o.agentType ?? "general",
+   711→                    description: spawnDescription(o),
+   712→                    task: prompt,
+   713→                    context: "none",
+   714→                    tools: o.tools ? [...o.tools] : "INHERIT",
+   715→                    background: true,
+   716→                    parentActorID: input.parentActorID,
+   717→                    model: resolvedModel,
+   718→                    // Same MR104 #2 fix as spawnShared: register the child in the
+   719→                    // reclaim set synchronously inside the spawn Effect, before its
+   720→                    // work fiber detaches, so a racing cancel never orphans it.
+   721→                    onActorID: (id) => entry.childActorIDs.add(id),
+   722→                    ...(o.schema ? { format: { type: "json_schema" as const, schema: o.schema, retryCount: 2 } } : {}),
+   723→                  })
+   724→                  actorIDOut = s.actorID
+   725→                  // Bound the await by the per-agent timeout. On timeout the helper
+   726→                  // cancels the child and yields null; we surface that as a null
+   727→                  // `spawned` so the disposition below takes the same path as a
+   728→                  // spawn-reject/failure (worktree reclaimed, value null, failed++) —
+   729→                  // a hung isolated agent can't stall the barrier or leak a worktree.
+   730→                  const outcome = yield* awaitWithTimeout(s.actorID, o, Deferred.await(s.outcome), () => {
+   731→                    reason = "timeout"
+   732→                  })
+   733→                  entry.childActorIDs.delete(s.actorID)
+   734→                  if (outcome === null) return null
+   735→                  if (outcome.status !== "success") {
+   736→                    reason = "actor-error"
+   737→                    errorMessage = (outcome as { error?: string }).error
+   738→                  }
+   739→                  return { actorID: s.actorID, outcome }
+   740→                }),
+   741→              )
+   742→              .catch((e) => {
+   743→                reason = "spawn-reject"
+   744→                errorMessage = e instanceof Error ? e.message : String(e)
+   745→                return null
+   746→              }),
+   747→        }).catch((e) => {
+   748→          reason = "spawn-reject"
+   749→          errorMessage = e instanceof Error ? e.message : String(e)
+   750→          return null
+   751→        })
+   752→        // 4) Disposition. KEEP the worktree only when the agent SUCCEEDED and left
+   753→        //    changes (the deliverable, surfaced via _worktree). In every other case
+   754→        //    — pristine (untouched), spawn rejected, or agent failed/cancelled —
+   755→        //    remove it so nothing leaks on disk. Guard: an empty base means head()
+   756→        //    failed at create time; treat as CHANGED (never trust an unreliable
+   757→        //    pristine check to authorize a delete).
+   758→        const succeeded = !!spawned && spawned.outcome.status === "success"
+   759→        // Settle the counter once here — after `succeeded` is known and before any
+   760→        // disposition branch — so it runs exactly once on every path (spawn-reject
+   761→        // → spawned===null → failed++, keep, remove). Pairs with the running++ above.
+   762→        // We REUSE the existing `succeeded` discriminant (read-only; the worktree
+   763→        // disposition below owns it) rather than the returned deliverable: in the
+   764→        // isolated path a successful agent's work is its worktree, so a status
+   765→        // success is a success even when it returned no text.
+   766→        entry.running--
+   767→        if (succeeded) entry.succeeded++
+   768→        else {
+   769→          entry.failed++
+   770→          publishAgentFailed(o, reason, { actorID: actorIDOut, errorMessage })
+   771→        }
+   772→        scheduleFlush(entry)
+   773→        // The success deliverable. When a schema was requested it MUST be the
+   774→        // validated structured object — never prose finalText (see the shared-spawn
+   775→        // path above for why: prose breaks `r.fields`-style scripts + our pipeline
+   776→        // null-injection). schema requested ⇒ structured ?? null.
+   777→        const value =
+   778→          spawned && spawned.outcome.status === "success"
+   779→            ? o.schema
+   780→              ? (spawned.outcome.structured ?? null)
+   781→              : (spawned.outcome.structured ?? spawned.outcome.finalText ?? null)
+   782→            : null
+   783→        const pristine =
+   784→          base !== "" && (await bridge.promise(worktree.isPristine(info.directory, base)).catch(() => false))
+   785→        const keep = succeeded && !pristine
+   786→        if (!keep) {
+   787→          await bridge.promise(worktree.remove({ directory: info.directory })).catch(() => undefined)
+   788→          entry.worktrees.delete(info.directory)
+   789→          return succeeded ? value : null
+   790→        }
+   791→        // keep: the worktree stays on disk and tracked until an integrate step or
+   792→        // cancel reclaims it; surface its branch so the script can act on it.
+   793→        const wt = { branch: info.branch, directory: info.directory, changed: true }
+   794→        if (value && typeof value === "object" && !Array.isArray(value)) return { ...(value as object), _worktree: wt }
+   795→        return { _worktree: wt, result: value }
+   796→      }
+   797→
+   798→      const agent: HostFn = (prompt: unknown, opts?: unknown) => {
+   799→        const o = (opts ?? {}) as AgentOpts
+   800→        const promptStr = String(prompt)
+   801→        // Isolated agents are never journaled in v1 (their deliverable is a
+   802→        // worktree the journal can't reconstruct) — always spawn.
+   803→        if (o.isolation !== "worktree") {
+   804→          const base = journalKeyBase(promptStr, {
+   805→            agentType: o.agentType,
+   806→            model: o.model,
+   807→            schema: o.schema,
+   808→            phase: o.phase,
+   809→          })
+   810→          const n = occ.get(base) ?? 0
+   811→          occ.set(base, n + 1)
+   812→          const key = base + ":" + n
+   813→          if (journal.results.has(key)) {
+   814→            // Cache hit: no spawn, no agentCount increment (would hit the 1000
+   815→            // cap on replays alone). Outcome counter DOES climb so the live view
+   816→            // reflects reality as replay proceeds.
+   817→            entry.succeeded++
+   818→            scheduleFlush(entry)
+   819→            return Promise.resolve(journal.results.get(key))
+   820→          }
+   821→          return (async () => {
+   822→            // Spawn UNDER the semaphore (governs concurrency). The journal append
+   823→            // happens AFTER the slot is released, so file IO never holds a slot.
+   824→            const result = await sem.run(async () =>
+   825→              globalSemLocal.run(async () => {
+   826→                if (entry.agentCount >= lifecycleCap) {
+   827→                  warnCapOnce()
+   828→                  publishAgentFailed(o, "over-cap")
+   829→                  return null
+   830→                }
+   831→                entry.agentCount++
+   832→                const actor = spawnRef.current
+   833→                if (!actor) throw new Error("Actor service unavailable")
+   834→                // Resolve the guest's model ref host-side AFTER the journal key was
+   835→                // computed above (the key hashes the raw `o.model` ref, NOT the
+   836→                // resolved struct, so resume keys stay stable across config changes).
+   837→                // Never-throws: an unknown group falls back to input.model.
+   838→                const resolvedModel = await bridge.promise(resolveAgentModel(o.model, input.model, entry.warnedModelRefs))
+   839→                return spawnShared(actor, promptStr, o, resolvedModel)
+   840→              }),
+   841→            )
+   842→            // Cache successful results only (null = failure/spawn-reject/killed →
+   843→            // not journaled → re-runs on resume, self-heal). SYNCHRONOUS append so
+   844→            // the result is durable the instant it resolves: a mid-run process exit
+   845→            // / SIGKILL / deadline leaves a journal with every completed agent, which
+   846→            // is the whole point of resume. A sync write (unlike an awaited async
+   847→            // Effect.promise(fs)) does NOT starve the quickjs sandbox pump — verified.
+   848→            // Effect.ignore'd so a write failure can't break the agent.
+   849→            if (result !== null) {
+   850→              await Effect.runPromise(
+   851→                WorkflowPersistence.appendJournalSync(runID, [{ t: "agent", key, result, pass }]).pipe(Effect.ignore),
+   852→              )
+   853→            }
+   854→            return result
+   855→          })()
+   856→        }
+   857→        return sem.run(async () =>
+   858→          globalSemLocal.run(async () => {
+   859→            if (entry.agentCount >= lifecycleCap) {
+   860→              warnCapOnce()
+   861→              publishAgentFailed(o, "over-cap")
+   862→              return null
+   863→            }
+   864→            entry.agentCount++
+   865→            const actor = spawnRef.current
+   866→            if (!actor) throw new Error("Actor service unavailable")
+   867→            // Resolve the guest's model ref host-side (isolated agents aren't
+   868→            // journaled, so there's no key to keep stable here). Never-throws.
+   869→            const resolvedModel = await bridge.promise(resolveAgentModel(o.model, input.model, entry.warnedModelRefs))
+   870→            return spawnIsolated(actor, promptStr, o, resolvedModel)
+   871→          }),
+   872→        )
+   873→      }
+   874→
+   875→      const phase: HostFn = (title: unknown) => {
+   876→        entry.currentPhase = String(title)
+   877→        Effect.runFork(WorkflowPersistence.recordPhase({ runID, phase: String(title) }).pipe(Effect.ignore))
+   878→        Effect.runFork(WorkflowPersistence.appendJournal(runID, { t: "phase", title: String(title), pass }).pipe(Effect.ignore))
+   879→        Effect.runFork(bus.publish(WorkflowPhase, { sessionID: input.sessionID, runID, title: String(title) }))
+   880→        return undefined
+   881→      }
+   882→
+   883→      const logHook: HostFn = (message: unknown) => {
+   884→        Effect.runFork(WorkflowPersistence.appendJournal(runID, { t: "log", msg: String(message), pass }).pipe(Effect.ignore))
+   885→        Effect.runFork(bus.publish(WorkflowLog, { sessionID: input.sessionID, runID, message: String(message) }))
+   886→        return undefined
+   887→      }
+   888→
+   889→      // workflow(nameOrScript, args?, opts?) — schedule a CHILD workflow as its
+   890→      // own independent sub-run, awaited inline. Mirrors agent()→Actor.spawn one
+   891→      // level up: mint a deterministic child runID (stable across resume so the
+   892→      // parent journal can find the child), resolve name→script, launch it, await
+   893→      // its RunOutcome. A child that fails resolves to null (never-throw, like
+   894→      // agent()) so parallel/pipeline over children degrade gracefully. An unknown
+   895→      // name THROWS (Effect.die → the guest call rejects → the run fails loud).
+   896→      const workflowOcc = new Map<string, number>()
+   897→      const workflowHook: HostFn = (nameOrScript: unknown, childArgs?: unknown, opts?: unknown) => {
+   898→        const spec = String(nameOrScript)
+   899→        const o = (opts ?? {}) as { workspace?: string; maxConcurrentAgents?: number }
+   900→        // Content key over the SEMANTIC inputs that reach the child (spec + args).
+   901→        // occ disambiguates byte-identical workflow() calls into distinct slots.
+   902→        const base = createHash("sha256")
+   903→          .update(JSON.stringify({ spec, args: childArgs ?? null }))
+   904→          .digest("hex")
+   905→        const n = workflowOcc.get(base) ?? 0
+   906→        workflowOcc.set(base, n + 1)
+   907→        const key = base + ":" + n
+   908→        // Parent-journal hit: a completed child replays its result with NO relaunch
+   909→        // (the two-level resume short-circuit — parent journal skips the whole child
+   910→        // sub-run; the child's own journal would handle agent-level skip if it were
+   911→        // re-run). Counts as a succeeded outcome so the live view reflects replay
+   912→        // progress. The "wf:" prefix keeps this slot namespace disjoint from agent() keys.
+   913→        if (journal.results.has("wf:" + key)) {
+   914→          entry.succeeded++
+   915→          scheduleFlush(entry)
+   916→          return Promise.resolve(journal.results.get("wf:" + key))
+   917→        }
+   918→        const childRunID = "wf_" + createHash("sha256").update(runID + key).digest("hex")
+   919→        return bridge.promise(
+   920→          Effect.gen(function* () {
+   921→            const childScript = isInlineScript(spec)
+   922→              ? spec
+   923→              : yield* Effect.promise(() => resolveWorkflowScript(spec, workspaceRoot, Instance.worktree))
+   924→            if (childScript === null)
+   925→              return yield* Effect.die(new Error(`${WORKFLOW_STRUCTURAL_ERROR}: unknown workflow: ${JSON.stringify(spec)}`))
+   926→            // Nesting guards (T12) — LAUNCH path only (a journal HIT early-returned
+   927→            // above without deriving childName/childRunID, and a cached child already
+   928→            // completed in a prior pass, so re-validating would be wrong). The child's
+   929→            // lineage name is its resolved saved name, or a content-hash label for an
+   930→            // inline body so distinct inline children don't collide AND an inline body
+   931→            // that re-invokes itself is still caught as a cycle. Over-depth and cycle
+   932→            // are SCRIPT-LOGIC errors → Effect.die (fail loud), same posture as the
+   933→            // unknown-name die above. The guest await rejects → the orchestrator script
+   934→            // throws → the parent run fails with this message.
+   935→            // NOTE: saved names key on the name alone (args-independent), so saved
+   936→            // A→A with different args IS a cycle; an inline body keys on its content
+   937→            // hash WHICH INCLUDES args, so inline A→A with different args is NOT a
+   938→            // cycle and is bounded only by maxDepth.
+   939→            const childName = isInlineScript(spec) ? "inline:" + base.slice(0, 12) : spec
+   940→            if (depth + 1 > maxDepth) {
+   941→              return yield* Effect.die(new Error(`${WORKFLOW_STRUCTURAL_ERROR}: workflow nesting exceeds maxDepth (${maxDepth})`))
+   942→            }
+   943→            if (lineage.includes(childName)) {
+   944→              return yield* Effect.die(
+   945→                new Error(`${WORKFLOW_STRUCTURAL_ERROR}: workflow cycle detected: ${childName} is already an ancestor`),
+   946→              )
+   947→            }
+   948→            entry.childRunIDs.add(childRunID)
+   949→            // The child is an independent sub-run: it gets its own per-run lifecycle
+   950→            // cap + per-agent timeout (defaults), deliberately NOT inherited from the
+   951→            // parent. Tree-wide concurrency is bounded by the global semaphore,
+   952→            // not by propagating these per-run knobs.
+   953→            yield* launch(
+   954→              {
+   955→                script: childScript,
+   956→                sessionID: input.sessionID,
+   957→                parentActorID: input.parentActorID,
+   958→                args: childArgs,
+   959→                model: input.model,
+   960→                // A child may narrow its workspace to a subdir but never widen it
+   961→                // beyond the parent's root — resolveInWorkspace throws on escape
+   962→                // (a script-logic error → fail loud), same posture as the jail itself.
+   963→                workspace: o.workspace ? resolveInWorkspace(workspaceRoot, String(o.workspace)) : workspaceRoot,
+   964→                maxConcurrentAgents: o.maxConcurrentAgents,
+   965→                scriptDeadlineMs: input.scriptDeadlineMs,
+   966→                // Extend the nesting context for the child (T12): append this child to
+   967→                // the ancestor lineage, increment depth, carry the same cap down.
+   968→                lineage: [...lineage, childName],
+   969→                depth: depth + 1,
+   970→                maxDepth,
+   971→              },
+   972→              childRunID,
+   973→              isInlineScript(spec) ? "inline" : spec,
+   974→            )
+   975→            const childOutcome = yield* waitFor(childRunID)
+   976→            // Structural faults (cycle / depth / unknown-name) are workflow-wiring
+   977→            // BUGS, not runtime conditions — propagate them loud instead of degrading
+   978→            // to null like a child's runtime failure, so the fault surfaces at the root
+   979→            // run. Each ancestor re-dies in turn; slice from the marker so the message
+   980→            // doesn't accrete a "workflow script rejected:" prefix at every level.
+   981→            if (childOutcome.status === "failed" && childOutcome.error.includes(WORKFLOW_STRUCTURAL_ERROR)) {
+   982→              const idx = childOutcome.error.indexOf(WORKFLOW_STRUCTURAL_ERROR)
+   983→              return yield* Effect.die(new Error(childOutcome.error.slice(idx)))
+   984→            }
+   985→            // Runtime failure (NOT structural — that path re-died above): the child's
+   986→            // agents failed, it hit its deadline, or it was cancelled. workflow() still
+   987→            // returns null (never-throw); this event records WHY for triage. Mirrors
+   988→            // WorkflowAgentFailed. Fire-and-forget so a bus problem can't break the run.
+   989→            if (childOutcome.status !== "completed") {
+   990→              yield* bus
+   991→                .publish(WorkflowChildFailed, {
+   992→                  sessionID: input.sessionID,
+   993→                  runID,
+   994→                  childRunID,
+   995→                  name: isInlineScript(spec) ? "inline" : spec,
+   996→                  status: childOutcome.status, // "failed" | "cancelled"
+   997→                  ...(childOutcome.status === "failed" ? { error: childOutcome.error } : {}),
+   998→                })
+   999→                .pipe(Effect.ignore)
+  1000→            }
+  1001→            const value = childOutcome.status === "completed" ? (childOutcome.result ?? null) : null
+  1002→            // Journal ONLY a successful child (null = failure → not cached → re-runs
+  1003→            // on resume, self-heal — same contract as agent()). Synchronous append so
+  1004→            // it survives a mid-run kill.
+  1005→            if (value !== null) {
+  1006→              yield* WorkflowPersistence.appendJournalSync(runID, [
+  1007→                { t: "agent", key: "wf:" + key, result: value, pass },
+  1008→              ]).pipe(Effect.ignore)
+  1009→            }
+  1010→            return value
+  1011→          }),
+  1012→        )
+  1013→      }
+  1014→
+  1015→      const hooks: Record<string, HostFn> = {
+  1016→        agent,
+  1017→        phase,
+  1018→        log: logHook,
+  1019→        workflow: workflowHook,
+  1020→        readFile: fileHooks.readFile,
+  1021→        writeFile: fileHooks.writeFile,
+  1022→        glob: fileHooks.glob,
+  1023→        exists: fileHooks.exists,
+  1024→      }
+  1025→
+  1026→      const work = Effect.gen(function* () {
+  1027→        // Object-form tryPromise: bare tryPromise wraps any rejection as an
+  1028→        // UnknownError whose .message is the useless "An error occurred in
+  1029→        // Effect.tryPromise" (the real error lands in .cause), so the failed-run
+  1030→        // error field / WorkflowFinished.error below would be opaque. Catching to
+  1031→        // the raw Error makes result.failure the sandbox Error itself, whose
+  1032→        // .message already carries the guest {name,message,stack} (vm.dump
+  1033→        // preserves it through the sandbox throw site) — a script-logic crash is
+  1034→        // then diagnosable from the run's error alone, no repro needed.
+  1035→        // Per-run PRNG seed = first 4 bytes of sha1(runID). runID is unique-per-run
+  1036→        // and persisted, so resume of the SAME run derives the SAME seed → guest
+  1037→        // Math.random replays identically (the replay invariant). Two UNRELATED runs
+  1038→        // of the same script get DIFFERENT runIDs → different seeds → different
+  1039→        // sequences, so sampling-style scripts get fresh coverage instead of
+  1040→        // repeating the same picks. Bun's lifetime-classify verification sample
+  1041→        // is the motivating use case.
+  1042→        const seed = createHash("sha1").update(runID).digest().readUInt32BE(0)
+  1043→        const result = yield* Effect.tryPromise({
+  1044→          try: () => evalScript(body, hooks, { deadlineMs: input.scriptDeadlineMs ?? SCRIPT_DEADLINE_MS, args: input.args, seed }),
+  1045→          catch: (e) => (e instanceof Error ? e : new Error(String(e))),
+  1046→        }).pipe(Effect.result)
+  1047→
+  1048→        if (result._tag === "Success") {
+  1049→          entry.status = "completed"
+  1050→          yield* flushNow(entry)
+  1051→          yield* WorkflowPersistence.recordTerminal({ runID, status: "completed" }).pipe(Effect.ignore)
+  1052→          yield* Deferred.succeed(deferred, { status: "completed", result: result.success })
+  1053→          yield* bus.publish(WorkflowFinished, { sessionID: input.sessionID, runID, status: "completed" })
+  1054→          // Notify the parent so its next turn drains a completion message, the
+  1055→          // same way background actors notify on terminal (see actor/spawn.ts
+  1056→          // forkWork.notify). Fire-and-forget: a notify failure (e.g. parent row
+  1057→          // gone) must never fail the run, and wait-ers are already unblocked
+  1058→          // above by Deferred.succeed.
+  1059→          yield* inbox
+  1060→            .send({
+  1061→              receiverSessionID: input.sessionID,
+  1062→              receiverActorID: input.parentActorID,
+  1063→              senderSessionID: input.sessionID,
+  1064→              senderActorID: "workflow",
+  1065→              type: "actor_notification",
+  1066→              content: `Workflow completed. run_id: ${runID}\n` + JSON.stringify(result.success ?? null).slice(0, 4000),
+  1067→            })
+  1068→            .pipe(Effect.ignore)
+  1069→          return
+  1070→        }
+  1071→        // Non-success terminal: reclaim in-flight agents + worktrees so a
+  1072→        // deadline-fire / script throw leaves a clean slate for a convergent
+  1073→        // re-run. Success path does NOT reclaim — kept worktrees are the deliverable.
+  1074→        yield* reclaim(entry)
+  1075→        const error = result.failure instanceof Error ? result.failure.message : String(result.failure)
+  1076→        entry.status = "failed"
+  1077→        log.warn("workflow run failed", { runID, error })
+  1078→        yield* flushNow(entry)
+  1079→        yield* WorkflowPersistence.recordTerminal({ runID, status: "failed", error }).pipe(Effect.ignore)
+  1080→        yield* Deferred.succeed(deferred, { status: "failed", error })
+  1081→        yield* bus.publish(WorkflowFinished, { sessionID: input.sessionID, runID, status: "failed", error })
+  1082→        yield* inbox
+  1083→          .send({
+  1084→            receiverSessionID: input.sessionID,
+  1085→            receiverActorID: input.parentActorID,
+  1086→            senderSessionID: input.sessionID,
+  1087→            senderActorID: "workflow",
+  1088→            type: "actor_notification",
+  1089→            content: `Workflow failed. run_id: ${runID}\nerror: ${error}`,
+  1090→          })
+  1091→          .pipe(Effect.ignore)
+  1092→      })
+  1093→
+  1094→      entry.fiber = yield* work.pipe(Effect.forkIn(scope))
+  1095→      return { runID }
+  1096→    })
+  1097→
+  1098→    const start = Effect.fn("WorkflowRuntime.start")(function* (input: StartInput) {
+  1099→      const parsed = parseMeta(input.script)
+  1100→      if (!parsed.ok) return yield* Effect.die(parsed.error)
+  1101→      const runID = Identifier.descending("workflow")
+  1102→      return yield* launch(input, runID, parsed.meta.name)
+  1103→    })
+  1104→
+  1105→    const status = Effect.fn("WorkflowRuntime.status")(function* (input: { runID: string }) {
+  1106→      const entry = runs.get(input.runID)
+  1107→      if (!entry) return { status: "unknown" as const, agentCount: 0 }
+  1108→      return {
+  1109→        status: entry.status,
+  1110→        agentCount: entry.agentCount,
+  1111→        ...(entry.currentPhase !== undefined ? { currentPhase: entry.currentPhase } : {}),
+  1112→      }
+  1113→    })
+  1114→
+  1115→    const wait = Effect.fn("WorkflowRuntime.wait")(function* (input: { runID: string; timeoutMs?: number }) {
+  1116→      const entry = runs.get(input.runID)
+  1117→      if (!entry) return { status: "failed" as const, error: `unknown runID ${input.runID}` }
+  1118→      if (input.timeoutMs === undefined) return yield* Deferred.await(entry.deferred)
+  1119→      const raced = yield* Deferred.await(entry.deferred).pipe(
+  1120→        Effect.timeout(input.timeoutMs),
+  1121→        Effect.catchTag("TimeoutError", () => Effect.succeed(null)),
+  1122→      )
+  1123→      if (raced === null) return { status: "failed" as const, error: "workflow wait timed out" }
+  1124→      return raced
+  1125→    })
+  1126→
+  1127→    const cancel = Effect.fn("WorkflowRuntime.cancel")(function* (input: { runID: string }) {
+  1128→      const entry = runs.get(input.runID)
+  1129→      if (!entry) return
+  1130→      yield* cancelEntry(entry)
+  1131→    })
+  1132→
+  1133→    const list = Effect.fn("WorkflowRuntime.list")(function* (input?: { sessionID?: SessionID }) {
+  1134→      return yield* WorkflowPersistence.list(input)
+  1135→    })
+  1136→
+  1137→    // Re-launch a persisted run under the SAME runID via the shared launch path.
+  1138→    // recordStart's onConflictDoUpdate flips the existing row back to "running" and
+  1139→    // runs.set overwrites the stale terminal entry (its old fiber is already done).
+  1140→    // model/concurrency/deadline are not persisted in v1 — launch applies defaults.
+  1141→    const resume = Effect.fn("WorkflowRuntime.resume")(function* (input: { runID: string; agentTimeoutMs?: number }) {
+  1142→      // SERIALIZE same-runID resume with the repo's in-process reader/writer lock
+  1143→      // (util/lock.ts: a module-global Map mutex). The live-guard below is a
+  1144→      // check-then-act (read runs.get → decide → launch) and is NOT atomic on its
+  1145→      // own: two concurrent resume(sameRunID) of a completed run would BOTH read
+  1146→      // status !== "running", BOTH pass the guard, and BOTH launch() — and launch
+  1147→      // does runs.set(runID, entry), so the second clobbers the first (orphaned
+  1148→      // fiber, raced counter flush) and both append to the same .jsonl journal.
+  1149→      // Holding the write lock across the guard THROUGH launch closes that window:
+  1150→      // the first waiter launches and flips the entry to "running" before releasing,
+  1151→      // so the second waiter sees status "running" at the guard and bails. We do NOT
+  1152→      // hold it for the whole run (launch forks the work fiber and returns once the
+  1153→      // entry is "running") — only the resume decision + entry creation is serialized.
+  1154→      // LIMITATION: this is in-process only. Two SEPARATE processes resuming the same
+  1155→      // runID against the same DB (e.g. two server instances) are NOT covered — there
+  1156→      // is no shared/file-lock infra in this repo to reuse, and cross-process resume
+  1157→      // is out of scope for MR104 P2-1.
+  1158→      // Acquire as a JS Promise<Disposable> (Lock.write is promise-based; there is no
+  1159→      // existing Effect-context consumer to mirror, so we bridge via Effect.promise),
+  1160→      // and release in Effect.ensuring so it ALWAYS releases — even if load /
+  1161→      // readScript / launch throws — otherwise a failed resume would deadlock every
+  1162→      // future resume of this runID.
+  1163→      const lock = yield* Effect.promise(() => Lock.write("workflow-resume:" + input.runID))
+  1164→      return yield* Effect.gen(function* () {
+  1165→        // Refuse to resume a run that is still LIVE in this process: launch would
+  1166→        // runs.set() over the live entry, orphaning the running fiber (double parent
+  1167→        // notify, raced counter flush, unreclaimable by cancel). The DB row is NOT the
+  1168→        // signal — a process-exited run still reads "running" there and IS resumable;
+  1169→        // a live `runs` entry means a fiber is actually executing here.
+  1170→        const live = runs.get(input.runID)
+  1171→        if (live && live.status === "running") return { runID: input.runID, resumed: false }
+  1172→        const row = yield* WorkflowPersistence.load(input.runID)
+  1173→        if (!row) return { runID: input.runID, resumed: false }
+  1174→        // readScript is Effect.promise — a missing file rejects as a DEFECT, which
+  1175→        // Effect.exit captures (Effect.result/option/catchAll do not catch defects in
+  1176→        // this effect version). Treat a missing or empty script as not-resumable.
+  1177→        const read = yield* WorkflowPersistence.readScript(input.runID).pipe(Effect.exit)
+  1178→        const script = Exit.isSuccess(read) ? read.value : ""
+  1179→        if (!script) return { runID: input.runID, resumed: false }
+  1180→        // Script-change invalidation (MR104 P1-2): the journal keys results by
+  1181→        // {prompt,agentType,model,schema,phase}+occ, NOT by the script body — so a
+  1182→        // between-cycle edit would replay OLD results onto NEW code paths (silent
+  1183→        // divergence). Compare the persisted sha (stamped at the prior launch) to the
+  1184→        // CURRENT script's sha; on any mismatch — including a null stored sha (a run
+  1185→        // recorded before this column existed → "unknown" → treat as changed) — pass
+  1186→        // freshJournal so launch truncates the stale journal and runs from scratch,
+  1187→        // re-stamping the new sha for the next resume. A match → normal replay.
+  1188→        const currentSha = createHash("sha256").update(script).digest("hex")
+  1189→        const freshJournal = row.scriptSha !== currentSha
+  1190→        yield* launch(
+  1191→          {
+  1192→            script,
+  1193→            sessionID: row.sessionID,
+  1194→            parentActorID: row.parentActorID ?? "main",
+  1195→            args: row.args,
+  1196→            freshJournal,
+  1197→            // Per-agent timeout: caller's explicit override > persisted value > undefined (off).
+  1198→            // The row's agent_timeout_ms was stamped at the original launch (or last resume
+  1199→            // that supplied an explicit override), so a UI-side resume that doesn't know
+  1200→            // the original launch params (e.g. TUI's /workflows resume) inherits the
+  1201→            // original timeout instead of silently dropping to unbounded — which used to
+  1202→            // let a wedged mimo TTFT stall the resumed run forever.
+  1203→            agentTimeoutMs: input.agentTimeoutMs ?? row.agentTimeoutMs,
+  1204→          },
+  1205→          input.runID,
+  1206→          row.name,
+  1207→        )
+  1208→        return { runID: input.runID, resumed: true }
+  1209→      }).pipe(Effect.ensuring(Effect.sync(() => lock[Symbol.dispose]())))
+  1210→    })
+  1211→
+  1212→    const impl = Service.of({ start, status, wait, cancel, list, resume })
+  1213→    // Late-bind the impl so the `workflow` tool can resolve it without forcing a
+  1214→    // WorkflowRuntime.Service requirement onto ToolRegistry.layer. See
+  1215→    // runtime-ref.ts for rationale.
+  1216→    workflowRef.current = impl
+  1217→    yield* Effect.addFinalizer(() =>
+  1218→      Effect.sync(() => {
+  1219→        if (workflowRef.current === impl) workflowRef.current = undefined
+  1220→      }),
+  1221→    )
+  1222→    return impl
+  1223→  }),
+  1224→)
+  1225→
+  1226→export const defaultLayer = layer.pipe(
+  1227→  Layer.provide(Bus.defaultLayer),
+  1228→  Layer.provide(Inbox.defaultLayer),
+  1229→  Layer.provide(Worktree.defaultLayer),
+  1230→  Layer.provide(Provider.defaultLayer),
+  1231→  Layer.provide(Config.defaultLayer),
+  1232→)
+  1233→
+  1234→export * as WorkflowRuntime from "./runtime"
+  1235→

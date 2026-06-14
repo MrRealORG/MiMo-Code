@@ -1,0 +1,742 @@
+     1→import { Effect, Deferred, Context, Fiber, Layer, Scope, Cause } from "effect"
+     2→import type { SessionID, MessageID } from "@/session/schema"
+     3→import type { ProviderID, ModelID } from "@/provider/schema"
+     4→import type { Tool as AITool, ModelMessage } from "ai"
+     5→import { Session } from "@/session"
+     6→import { SessionPrompt } from "@/session/prompt"
+     7→import { SessionRunState } from "@/session/run-state"
+     8→import { ActorRegistry } from "@/actor/registry"
+     9→import { TaskRegistry } from "@/task/registry"
+    10→import { TaskGate, MAX_TASK_GATE_SUBAGENT_REACT } from "@/task/gate"
+    11→import { Agent } from "@/agent/agent"
+    12→import { Permission } from "@/permission"
+    13→import type { SpawnMode, ContextMode, ToolWhitelist, Lifecycle } from "@/actor/schema"
+    14→import { runTurn } from "@/actor/turn"
+    15→import { spawnRef } from "@/actor/spawn-ref"
+    16→import { Bus } from "@/bus"
+    17→import { MessageV2 } from "@/session/message-v2"
+    18→import { Inbox } from "@/inbox"
+    19→import { renderActorNotification } from "@/inbox/render"
+    20→import { Plugin, HookEvent } from "@/plugin"
+    21→import { parseReturnHeader, type ReturnStatus } from "./return-header"
+    22→import { Log } from "@/util"
+    23→
+    24→const log = Log.create({ service: "actor.spawn" })
+    25→
+    26→/**
+    27→ * Cap on preStop ReAct re-entries per spawn — prevents infinite loops.
+    28→ * TODO: lift to mimocode.json config (e.g. actor.maxPreReact) and add per-hook
+    29→ * `maxContinue` clamp at registration. Plan: platform cap = hard ceiling, hook
+    30→ * cap may only narrow, never widen. See spec Future work.
+    31→ */
+    32→export const MAX_PRE_REACT = 3
+    33→/** Cap on postStop ReAct re-entries per spawn. See MAX_PRE_REACT TODO. */
+    34→export const MAX_POST_REACT = 3
+    35→const RETURN_FORMAT_INSTRUCTION = `
+    36→
+    37→---
+    38→
+    39→## Return format (required)
+    40→
+    41→Your FINAL assistant message — what the spawning agent will receive — MUST start with this header block:
+    42→
+    43→  **Status**: success | partial | failed | blocked
+    44→  **Summary**: <one sentence describing what happened>
+    45→
+    46→After the header, include the actual deliverable (whatever the task asked for in its prompt).
+    47→
+    48→If applicable, also include below the deliverable:
+    49→
+    50→  **Files touched**: <comma-separated paths or "(none)">
+    51→  **Findings worth promoting**: <bullet list of cross-task transferable facts; "(none)" if just routine work>
+    52→
+    53→This format lets the spawning agent and the checkpoint writer extract your progress without parsing free-form prose. Do NOT precede the header with an introduction — your final message must start with "**Status**:".
+    54→`
+    55→
+    56→export interface ForkContext {
+    57→  readonly system: string[]
+    58→  /**
+    59→   * Tool schema as parent would emit at watermark, captured for invariant
+    60→   * verification only. NOT consumed by fork's runLoop for the actual LLM
+    61→   * request — that uses `resolveTools(forkAgent)` for executable tools with
+    62→   * dispatch closures. Schema parity is currently enforced because
+    63→   * checkpoint-writer has no `toolAllowlist` (Task 2.6); both paths call
+    64→   * `registry.tools` with equivalent agent inputs and produce identical
+    65→   * schemas. If `toolAllowlist` is ever re-added, this field would still
+    66→   * snapshot parent's schema while the runtime tools would diverge, silently
+    67→   * breaking cache parity. Test guard: `test/agent/agent.test.ts` asserts
+    68→   * `cp.toolAllowlist === undefined` for checkpoint-writer.
+    69→   */
+    70→  readonly tools: Record<string, AITool>
+    71→  /**
+    72→   * Parent agent's permission ruleset, captured at spawn. The fork evaluates
+    73→   * permissions and filters its LLM-visible tool list against THIS (the parent's)
+    74→   * ruleset rather than the checkpoint-writer agent's own — restoring prompt-cache
+    75→   * tool-visibility parity with the parent and keeping permission semantics
+    76→   * consistent with the captor. Memory-tree writes are still governed by
+    77→   * memory-path-guard (see askEditUnlessMemory), so an inherited `edit:deny`
+    78→   * does not block the writer's own checkpoint files.
+    79→   */
+    80→  readonly parentPermission: Permission.Ruleset
+    81→  readonly inheritedMessages: ModelMessage[]
+    82→  /**
+    83→   * Boundary marker — the last main-slice message id at spawn. Used by fork's
+    84→   * runLoop to filter ownNew messages (belt-and-braces alongside the agent_id
+    85→   * check; agent_id is sufficient on its own, watermark is the documentary
+    86→   * anchor). NEVER use this for slicing inheritedMessages — inheritedMessages
+    87→   * is captured as a complete snapshot at spawn time.
+    88→   * See docs/superpowers/specs/2026-05-26-fork-agent-prefix-cache-design.md
+    89→   */
+    90→  readonly watermarkMsgID: MessageID
+    91→  readonly model: { providerID: ProviderID; modelID: ModelID }
+    92→}
+    93→
+    94→export type AgentOutcome =
+    95→  | {
+    96→      status: "success"
+    97→      finalText?: string
+    98→      // Structured-output (json_schema) result — when the spawn requested a
+    99→      // format, the validated object is surfaced here and takes precedence over
+   100→      // finalText (DW spec P3).
+   101→      structured?: unknown
+   102→      // Subagent's self-reported header status (parsed from finalText), possibly
+   103→      // overridden by the completion gate (DB truth wins — see onSuccess).
+   104→      reportedStatus?: ReturnStatus
+   105→      reportedSummary?: string
+   106→      // Task IDs the subagent left non-terminal after the gate's cap. Present
+   107→      // only when reportedStatus was downgraded to "partial"/"blocked".
+   108→      incompleteTasks?: string[]
+   109→    }
+   110→  | { status: "failure"; error: string }
+   111→  | { status: "cancelled" }
+   112→
+   113→export interface SpawnInput {
+   114→  mode: SpawnMode
+   115→  sessionID: SessionID
+   116→  /**
+   117→   * Parent session id when the actor runs in a child session (Axis A: checkpoint
+   118→   * writer spawns under a child session keyed on parent_id but writes to the
+   119→   * parent's checkpoint.md / memory.md). Hooks (actor.preStop / actor.postStop)
+   120→   * receive this so plugins re-deriving paths from sessionID can fall back to
+   121→   * `parentSessionID ?? sessionID` and reach the parent's artifacts.
+   122→   *
+   123→   * Defaults to `sessionID` inside spawnSubagent when omitted, so existing
+   124→   * callers (peer / dream / distill / regular subagents where parent ===
+   125→   * session) need no change.
+   126→   */
+   127→  parentSessionID?: SessionID
+   128→  agentType: string
+   129→  task: string
+   130→  description?: string
+   131→  context: ContextMode
+   132→  tools: ToolWhitelist
+   133→  model?: { providerID: ProviderID; modelID: ModelID }
+   134→  background: boolean
+   135→  parentActorID?: string
+   136→  task_id?: string // Spec ②: bound user-task ID for postStop progress.md validation
+   137→  cwd?: string
+   138→  forkContext?: ForkContext // NEW
+   139→  lifecycle?: Lifecycle
+   140→  /**
+   141→   * Optional structured-output format. When set to a json_schema format, the
+   142→   * child's SessionPrompt.prompt requests structured output: the runLoop injects
+   143→   * the StructuredOutput tool, forces toolChoice=required, and the validated
+   144→   * object flows back via message.structured (see runAgentLoop). The validated
+   145→   * object is surfaced on AgentOutcome.structured.
+   146→   */
+   147→  format?: MessageV2.OutputFormat
+   148→  /**
+   149→   * Fired SYNCHRONOUSLY with the freshly-allocated actorID inside the spawn
+   150→   * Effect — right after the actor is registered, BEFORE its work fiber detaches
+   151→   * (forkWork forks into the actor scope). Lets a caller record the child id the
+   152→   * instant the actor exists, closing the window where an in-flight spawn would
+   153→   * otherwise be invisible to a concurrent cancel/reclaim. The WorkflowRuntime
+   154→   * uses this to add the id to its reclaim set before detach (MR104 #2). Best-
+   155→   * effort: a throw is swallowed so a buggy callback can't fail the spawn. Only
+   156→   * the subagent path invokes it (the workflow spawns subagents); spawnPeer does
+   157→   * not — peers are not orchestrated by the workflow runtime.
+   158→   */
+   159→  onActorID?: (actorID: string) => void
+   160→}
+   161→
+   162→export interface SpawnResult {
+   163→  actorID: string
+   164→  sessionID: SessionID
+   165→  outcome: Deferred.Deferred<AgentOutcome>
+   166→}
+   167→
+   168→export interface Interface {
+   169→  readonly spawn: (input: SpawnInput) => Effect.Effect<SpawnResult>
+   170→  readonly cancel: (sessionID: SessionID, actorID: string, mode: "graceful" | "forced") => Effect.Effect<void>
+   171→  readonly getForkContext: (actorID: string) => Effect.Effect<ForkContext | undefined>
+   172→}
+   173→
+   174→export class Service extends Context.Service<Service, Interface>()("@opencode/Actor") {}
+   175→
+   176→export const layer = Layer.effect(
+   177→  Service,
+   178→  Effect.gen(function* () {
+   179→    const session = yield* Session.Service
+   180→    const actorReg = yield* ActorRegistry.Service
+   181→    const agents = yield* Agent.Service
+   182→    const sessionPrompt = yield* SessionPrompt.Service
+   183→    const inbox = yield* Inbox.Service
+   184→    const state = yield* SessionRunState.Service
+   185→    const plugin = yield* Plugin.Service
+   186→    const bus = yield* Bus.Service
+   187→    const taskRegistry = yield* TaskRegistry.Service
+   188→    const scope = yield* Scope.Scope
+   189→
+   190→    // ForkContext snapshot per actor, captured at spawn for fork agents
+   191→    // (contextMode = "full"). Read by fork's runLoop (see prompt.ts) and
+   192→    // cleared on terminal status. Fiber tracking moved to SessionRunState.
+   193→    const forkContexts = new Map<string, ForkContext>()
+   194→
+   195→    // Real agent loop: marks the actor running, then drives a SessionPrompt.prompt
+   196→    // turn. The user message persisted by SessionPrompt carries the actor's
+   197→    // agentID, which the projector writes to MessageTable.agent_id — that is the
+   198→    // load-bearing piece this primitive exists for.
+   199→    //
+   200→    // Returns the assistant's final text (if any) so forkWork's onSuccess can
+   201→    // pass it to inbox.send (notification body) and into the success Deferred.
+   202→    const runAgentLoop = Effect.fn("Actor.runAgentLoop")(function* (input: {
+   203→      sessionID: SessionID
+   204→      actorID: string
+   205→      agentType: string
+   206→      task: string
+   207→      task_id?: string
+   208→      model?: { providerID: ProviderID; modelID: ModelID }
+   209→      source: "spawn" | "hook"
+   210→      provenance?: MessageV2.Provenance
+   211→      format?: MessageV2.OutputFormat
+   212→    }) {
+   213→      const result = yield* sessionPrompt.prompt({
+   214→        sessionID: input.sessionID,
+   215→        agent: input.agentType,
+   216→        agentID: input.actorID,
+   217→        source: input.source,
+   218→        provenance: input.provenance,
+   219→        model: input.model,
+   220→        task_id: input.task_id,
+   221→        parts: [{ type: "text", text: input.task }],
+   222→        ...(input.format ? { format: input.format } : {}),
+   223→      })
+   224→      // structured output (json_schema) takes precedence over finalText: when the
+   225→      // child produced a validated object it IS the authoritative result and the
+   226→      // last text part (often a pre-tool-call preamble) is dropped to avoid
+   227→      // duplicating the result downstream. See spec §5.2.
+   228→      const info = (result as MessageV2.WithParts | undefined)?.info
+   229→      const structured = info?.role === "assistant" ? info.structured : undefined
+   230→      const finalText =
+   231→        structured !== undefined
+   232→          ? undefined
+   233→          : (result as MessageV2.WithParts | undefined)?.parts.findLast(
+   234→              (p): p is Extract<MessageV2.Part, { type: "text" }> => p.type === "text",
+   235→            )?.text
+   236→      return { finalText, structured }
+   237→    })
+   238→
+   239→    const forkWork = (input: {
+   240→      sessionID: SessionID
+   241→      parentSessionID: SessionID
+   242→      parentActorID?: string
+   243→      actorID: string
+   244→      agentType: string
+   245→      task: string
+   246→      description?: string
+   247→      background: boolean
+   248→      model?: { providerID: ProviderID; modelID: ModelID }
+   249→      lifecycle: "ephemeral" | "persistent"
+   250→      task_id?: string
+   251→      // True for non-specialized subagents (those that received
+   252→      // RETURN_FORMAT_INSTRUCTION). Only these are subject to the completion
+   253→      // gate; specialized/system agents and peers create no user tasks.
+   254→      gateEligible?: boolean
+   255→      format?: MessageV2.OutputFormat
+   256→    }) =>
+   257→      Effect.gen(function* () {
+   258→        const outcome = yield* Deferred.make<AgentOutcome>()
+   259→        const description = input.description ?? input.agentType
+   260→        // Auto-start the bound task: spawning an actor for a task IS that task
+   261→        // beginning work. Status transition is a structural side-effect of spawn,
+   262→        // not a model action (the model maintains task status unreliably).
+   263→        // `done` stays gate/model-driven. Uses parentSessionID because the task
+   264→        // lives in the parent/main session, not a peer's child session.
+   265→        // ignoreCause (not ignore): TaskRegistry.start raises a missing task_id as
+   266→        // a *defect* (Effect.die), which Effect.ignore does NOT swallow — only
+   267→        // ignoreCause does. A stale/missing task_id must never block the spawn,
+   268→        // but log on swallow so a genuine bug in start() leaves a breadcrumb.
+   269→        if (input.task_id) {
+   270→          yield* taskRegistry
+   271→            .start({ session_id: input.parentSessionID, id: input.task_id, owner: input.actorID })
+   272→            .pipe(Effect.ignoreCause({ log: "Warn", message: `auto-start of task ${input.task_id} failed` }))
+   273→        }
+   274→        const notify = (
+   275→          status: "completed" | "failed" | "cancelled",
+   276→          extra: { result?: string; error?: string; reportedStatus?: ReturnStatus; reportedSummary?: string },
+   277→        ) =>
+   278→          input.background && input.agentType !== "checkpoint-writer"
+   279→            ? inbox
+   280→                .send({
+   281→                  receiverSessionID: input.parentSessionID,
+   282→                  receiverActorID: input.parentActorID ?? "main",
+   283→                  senderSessionID: input.sessionID,
+   284→                  senderActorID: input.actorID,
+   285→                  type: "actor_notification",
+   286→                  content: renderActorNotification({
+   287→                    actorID: input.actorID,
+   288→                    description,
+   289→                    status,
+   290→                    ...extra,
+   291→                  }),
+   292→                })
+   293→                .pipe(Effect.ignore)
+   294→            : Effect.void
+   295→
+   296→        // Derive actor mode from spawn shape: peer creates a new session, subagent shares parent's
+   297→        const actorMode: "peer" | "subagent" = input.parentSessionID === input.sessionID ? "subagent" : "peer"
+   298→
+   299→        // Writability of THIS agent, derived from the same predicate the runtime uses to
+   300→        // strip the Write tool (llm.ts resolveTools → Permission.disabled). Read-only agents
+   301→        // (e.g. explore: "*":deny) → canWrite=false → postStop progress check is skipped for
+   302→        // them (they cannot satisfy a "write the journal" nudge; their findings return via
+   303→        // finalText). Agent-static: uses agentInfo.permission ONLY, not the session-merged
+   304→        // ruleset resolveTools builds (merge(agent, session)). So canWrite diverges from
+   305→        // runtime tool-stripping only under a session-level override — e.g. session "*":allow
+   306→        // un-stripping a read-only agent's write (we skip though runtime allows), or session
+   307→        // "*":deny on a writable agent (we nudge though runtime strips). Both are deliberately
+   308→        // ignored: not reachable in normal usage (mimo run sets no such rule, spawn doesn't
+   309→        // rewrite session.permission). See spec §Decision. Unknown agent → fail-open (true).
+   310→        const forkAgentInfo = yield* agents.get(input.agentType)
+   311→        const canWrite = forkAgentInfo ? !Permission.disabled(["write"], forkAgentInfo.permission).has("write") : true
+   312→
+   313→        const work = Effect.gen(function* () {
+   314→          let finalText: string | undefined
+   315→          let structured: unknown | undefined
+   316→          let iteration = 0
+   317→          let lastDecision:
+   318→            | { reason: string; contributingPluginNames: string[]; contributingHookIDs: string[] }
+   319→            | undefined
+   320→
+   321→          while (true) {
+   322→            const reentryDecision = iteration > 0 ? lastDecision : undefined
+   323→            const turn = yield* runTurn(
+   324→              input.sessionID,
+   325→              input.actorID,
+   326→              runAgentLoop({
+   327→                ...input,
+   328→                task: reentryDecision ? reentryDecision.reason : input.task,
+   329→                source: reentryDecision ? "hook" : "spawn",
+   330→                provenance: reentryDecision
+   331→                  ? {
+   332→                      hookPhase: "pre",
+   333→                      hookIteration: iteration,
+   334→                      pluginNames: reentryDecision.contributingPluginNames,
+   335→                      hookIDs: reentryDecision.contributingHookIDs,
+   336→                    }
+   337→                  : undefined,
+   338→              }),
+   339→            )
+   340→            finalText = turn.finalText
+   341→            structured = turn.structured
+   342→
+   343→            iteration++
+   344→            if (iteration > MAX_PRE_REACT) {
+   345→              yield* bus.publish(HookEvent.ReActMaxReached, {
+   346→                phase: "pre",
+   347→                actorID: input.actorID,
+   348→                agentType: input.agentType,
+   349→              })
+   350→              log.warn("actor.preStop hit MAX_PRE_REACT cap; skipping further hook checks", {
+   351→                actorID: input.actorID,
+   352→                totalTurns: iteration,
+   353→              })
+   354→              break
+   355→            }
+   356→
+   357→            const decision = yield* plugin.triggerActorPreStop({
+   358→              sessionID: input.sessionID,
+   359→              parentSessionID: input.parentSessionID,
+   360→              actorID: input.actorID,
+   361→              parentActorID: input.parentActorID,
+   362→              agentType: input.agentType,
+   363→              mode: actorMode,
+   364→              lifecycle: input.lifecycle,
+   365→              finalText,
+   366→              task: input.task,
+   367→              description: input.description,
+   368→              task_id: input.task_id,
+   369→              iteration: iteration - 1,
+   370→            })
+   371→            if (!decision.continue) break
+   372→            if (!decision.reason) break // defense-in-depth — T4 invariant guarantees this won't fire
+   373→
+   374→            yield* bus.publish(HookEvent.ReActReentered, {
+   375→              phase: "pre",
+   376→              actorID: input.actorID,
+   377→              agentType: input.agentType,
+   378→              iteration,
+   379→              triggeredByPlugins: decision.contributingPluginNames,
+   380→              reasonPreview: decision.reason.slice(0, 200),
+   381→            })
+   382→
+   383→            lastDecision = {
+   384→              reason: decision.reason,
+   385→              contributingPluginNames: decision.contributingPluginNames,
+   386→              contributingHookIDs: decision.contributingHookIDs,
+   387→            }
+   388→          }
+   389→
+   390→          return { finalText, structured }
+   391→        }).pipe(
+   392→          Effect.provideService(ActorRegistry.Service, actorReg),
+   393→          Effect.matchCauseEffect({
+   394→            onSuccess: ({ finalText, structured }) =>
+   395→              Effect.gen(function* () {
+   396→                // === COMPLETION GATE (B) + structured parse (A) ===
+   397→                // Delegates the list/decide step to TaskGate.decide so the
+   398→                // logic is shared with the main-session taskGate (prompt.ts).
+   399→                // We retain the runTurn re-entry + delivered-text update here
+   400→                // because that is gate-policy, not list-policy.
+   401→                let deliveredText = finalText
+   402→                if (input.gateEligible) {
+   403→                  let gateIter = 0
+   404→                  while (true) {
+   405→                    const decision = yield* TaskGate.decide({
+   406→                      session_id: input.parentSessionID,
+   407→                      owner: input.actorID,
+   408→                      reactCount: gateIter,
+   409→                      maxReact: MAX_TASK_GATE_SUBAGENT_REACT,
+   410→                      mode: "subagent",
+   411→                    }).pipe(Effect.provideService(TaskRegistry.Service, taskRegistry))
+   412→                    if (!decision.needReentry) break
+   413→                    gateIter++
+   414→                    const gateTurn = yield* runTurn(
+   415→                      input.sessionID,
+   416→                      input.actorID,
+   417→                      runAgentLoop({
+   418→                        ...input,
+   419→                        task: decision.reentryText,
+   420→                        source: "hook",
+   421→                        provenance: { hookPhase: "post", hookIteration: gateIter, pluginNames: [], hookIDs: [] },
+   422→                      }),
+   423→                    ).pipe(
+   424→                      Effect.catch(() =>
+   425→                        Effect.gen(function* () {
+   426→                          log.error("actor.gate runTurn failed", { actorID: input.actorID })
+   427→                          return { finalText: undefined as string | undefined, structured: undefined as unknown }
+   428→                        }),
+   429→                      ),
+   430→                      Effect.provideService(ActorRegistry.Service, actorReg),
+   431→                    )
+   432→                    // The gate re-run's re-emitted text updates the delivered body
+   433→                    // (and structured, if it produced one) so the reconciliation +
+   434→                    // delivery below see the latest turn.
+   435→                    if (gateTurn.finalText !== undefined) deliveredText = gateTurn.finalText
+   436→                    if (gateTurn.structured !== undefined) structured = gateTurn.structured
+   437→                  }
+   438→                }
+   439→
+   440→                // Reconcile: DB truth wins over the model's self-reported header.
+   441→                const remaining = input.gateEligible
+   442→                  ? yield* taskRegistry
+   443→                      .list({ session_id: input.parentSessionID, owner: input.actorID, include_terminal: false })
+   444→                      .pipe(Effect.orElseSucceed(() => []))
+   445→                  : []
+   446→                const stillActionable = remaining.filter((t) => t.status === "open" || t.status === "in_progress")
+   447→                const downgrade: ReturnStatus | undefined =
+   448→                  stillActionable.length > 0 ? "partial" : remaining.length > 0 ? "blocked" : undefined
+   449→                const parsed = parseReturnHeader(deliveredText)
+   450→                const reportedStatus = downgrade ?? parsed.status
+   451→                const incompleteTasks = remaining.map((t) => t.id)
+   452→                const reconciledText =
+   453→                  downgrade && incompleteTasks.length > 0
+   454→                    ? `${deliveredText ?? ""}\n\n**Incomplete tasks**: ${incompleteTasks.join(", ")}`
+   455→                    : deliveredText
+   456→
+   457→                // === DELIVERY ===
+   458→                // structured (json_schema result) takes precedence over text for the
+   459→                // notification body (DW spec P3 §5.2); otherwise deliver the gate's
+   460→                // reconciled text. The success outcome carries both the reconciled
+   461→                // text + completion-gate fields AND structured when present.
+   462→                const deliveryText =
+   463→                  structured !== undefined ? JSON.stringify(structured) : (reconciledText ?? "(no output)")
+   464→                yield* notify("completed", {
+   465→                  result: deliveryText,
+   466→                  ...(reportedStatus ? { reportedStatus } : {}),
+   467→                  ...(parsed.summary ? { reportedSummary: parsed.summary } : {}),
+   468→                })
+   469→                yield* Deferred.succeed(outcome, {
+   470→                  status: "success" as const,
+   471→                  ...(reconciledText !== undefined ? { finalText: reconciledText } : {}),
+   472→                  ...(structured !== undefined ? { structured } : {}),
+   473→                  ...(reportedStatus ? { reportedStatus } : {}),
+   474→                  ...(parsed.summary ? { reportedSummary: parsed.summary } : {}),
+   475→                  ...(incompleteTasks.length > 0 ? { incompleteTasks } : {}),
+   476→                })
+   477→
+   478→                // === postStop ReAct loop ===
+   479→                // Caller has already resolved; new finalTexts are not propagated.
+   480→                // NOTE: parallel structure to preStop loop above — pre runs turn THEN checks,
+   481→                // post checks THEN runs turn. Both give 1 (delivery) + MAX_POST_REACT re-entries.
+   482→                let postIter = 0
+   483→                let lastFinalText = finalText
+   484→                let postReentry:
+   485→                  | { reason: string; contributingPluginNames: string[]; contributingHookIDs: string[] }
+   486→                  | undefined
+   487→
+   488→                while (true) {
+   489→                  const decision = yield* plugin.triggerActorPostStop({
+   490→                    sessionID: input.sessionID,
+   491→                    parentSessionID: input.parentSessionID,
+   492→                    actorID: input.actorID,
+   493→                    parentActorID: input.parentActorID,
+   494→                    agentType: input.agentType,
+   495→                    mode: actorMode,
+   496→                    lifecycle: input.lifecycle,
+   497→                    finalText: lastFinalText,
+   498→                    task: input.task,
+   499→                    description: input.description,
+   500→                    task_id: input.task_id,
+   501→                    outcome: "success",
+   502→                    iteration: postIter,
+   503→                    canWrite,
+   504→                  })
+   505→
+   506→                  if (!decision.continue) break
+   507→                  if (!decision.reason) break // defense-in-depth
+   508→                  if (postIter >= MAX_POST_REACT) {
+   509→                    yield* bus.publish(HookEvent.ReActMaxReached, {
+   510→                      phase: "post",
+   511→                      actorID: input.actorID,
+   512→                      agentType: input.agentType,
+   513→                    })
+   514→                    log.warn("actor.postStop hit MAX_POST_REACT cap; skipping further hook checks", {
+   515→                      actorID: input.actorID,
+   516→                      totalTurns: postIter + 1,
+   517→                    })
+   518→                    break
+   519→                  }
+   520→                  postIter++
+   521→
+   522→                  yield* bus.publish(HookEvent.ReActReentered, {
+   523→                    phase: "post",
+   524→                    actorID: input.actorID,
+   525→                    agentType: input.agentType,
+   526→                    iteration: postIter,
+   527→                    triggeredByPlugins: decision.contributingPluginNames,
+   528→                    reasonPreview: decision.reason.slice(0, 200),
+   529→                  })
+   530→
+   531→                  postReentry = {
+   532→                    reason: decision.reason,
+   533→                    contributingPluginNames: decision.contributingPluginNames,
+   534→                    contributingHookIDs: decision.contributingHookIDs,
+   535→                  }
+   536→
+   537→                  // Run another turn (new finalText is not written back to outcome)
+   538→                  const newTurn = yield* runTurn(
+   539→                    input.sessionID,
+   540→                    input.actorID,
+   541→                    runAgentLoop({
+   542→                      ...input,
+   543→                      task: postReentry.reason,
+   544→                      source: "hook",
+   545→                      provenance: {
+   546→                        hookPhase: "post",
+   547→                        hookIteration: postIter,
+   548→                        pluginNames: postReentry.contributingPluginNames,
+   549→                        hookIDs: postReentry.contributingHookIDs,
+   550→                      },
+   551→                    }),
+   552→                  ).pipe(
+   553→                    // postStop LLM failure: log + break loop, do NOT propagate
+   554→                    Effect.catch(() =>
+   555→                      Effect.gen(function* () {
+   556→                        log.error("actor.postStop runTurn failed", {
+   557→                          actorID: input.actorID,
+   558→                        })
+   559→                        return { finalText: undefined as string | undefined, structured: undefined as unknown }
+   560→                      }),
+   561→                    ),
+   562→                    Effect.provideService(ActorRegistry.Service, actorReg),
+   563→                  )
+   564→
+   565→                  if (newTurn.finalText === undefined) break
+   566→                  lastFinalText = newTurn.finalText
+   567→                }
+   568→
+   569→                yield* Effect.sync(() => forkContexts.delete(input.actorID))
+   570→              }),
+   571→            onFailure: (cause) =>
+   572→              Effect.gen(function* () {
+   573→                const cancelled = Cause.hasInterruptsOnly(cause)
+   574→                const error = Cause.pretty(cause)
+   575→                yield* notify(cancelled ? "cancelled" : "failed", cancelled ? {} : { error })
+   576→                yield* Deferred.succeed(
+   577→                  outcome,
+   578→                  cancelled ? { status: "cancelled" as const } : { status: "failure" as const, error },
+   579→                )
+   580→                yield* Effect.sync(() => forkContexts.delete(input.actorID))
+   581→              }),
+   582→          }),
+   583→        )
+   584→        const fiber = yield* work.pipe(Effect.forkIn(scope))
+   585→        return { fiber, outcome }
+   586→      })
+   587→
+   588→    const spawnPeer = Effect.fn("Actor.spawnPeer")(function* (input: SpawnInput) {
+   589→      const child = yield* session.create({
+   590→        parentID: input.sessionID,
+   591→        contextFrom: input.context === "full" ? input.sessionID : undefined,
+   592→        title: `${input.agentType}: ${input.task.slice(0, 40)}`,
+   593→      })
+   594→      yield* actorReg.register({
+   595→        sessionID: child.id,
+   596→        actorID: child.id,
+   597→        mode: "peer",
+   598→        parentActorID: input.parentActorID,
+   599→        agent: input.agentType,
+   600→        description: input.description ?? input.agentType,
+   601→        contextMode: input.context,
+   602→        contextWatermark: undefined,
+   603→        background: input.background,
+   604→        lifecycle: input.lifecycle ?? "persistent",
+   605→        tools: input.tools,
+   606→      })
+   607→      if (input.forkContext) {
+   608→        forkContexts.set(child.id, input.forkContext) // peer's actorID === child.id
+   609→      }
+   610→      const { fiber, outcome } = yield* forkWork({
+   611→        sessionID: child.id,
+   612→        parentSessionID: input.sessionID,
+   613→        parentActorID: input.parentActorID,
+   614→        actorID: child.id,
+   615→        agentType: input.agentType,
+   616→        task: input.task,
+   617→        description: input.description,
+   618→        background: input.background,
+   619→        model: input.model,
+   620→        lifecycle: input.lifecycle ?? "persistent",
+   621→        task_id: input.task_id,
+   622→        format: input.format,
+   623→      })
+   624→      if (!input.background) yield* Fiber.join(fiber).pipe(Effect.ignore)
+   625→      return { actorID: child.id, sessionID: child.id, outcome }
+   626→    })
+   627→
+   628→    const spawnSubagent = Effect.fn("Actor.spawnSubagent")(function* (input: SpawnInput) {
+   629→      const actorID = yield* actorReg.allocateActorID(input.sessionID, input.agentType)
+   630→
+   631→      const watermark = input.context === "full" ? yield* session.lastMainMessageID(input.sessionID) : undefined
+   632→
+   633→      yield* actorReg.register({
+   634→        sessionID: input.sessionID,
+   635→        actorID,
+   636→        mode: "subagent",
+   637→        parentActorID: input.parentActorID,
+   638→        agent: input.agentType,
+   639→        description: input.description ?? input.agentType,
+   640→        contextMode: input.context,
+   641→        contextWatermark: watermark,
+   642→        background: input.background,
+   643→        lifecycle: input.lifecycle ?? "ephemeral",
+   644→        tools: input.tools,
+   645→      })
+   646→
+   647→      // The actor now EXISTS in the registry. Hand the caller its id before the
+   648→      // work fiber detaches below, so a concurrent reclaim can see it (MR104 #2).
+   649→      // Synchronous + best-effort: a throwing callback must not fail the spawn.
+   650→      if (input.onActorID) yield* Effect.sync(() => input.onActorID!(actorID)).pipe(Effect.ignore)
+   651→
+   652→      if (input.forkContext) {
+   653→        forkContexts.set(actorID, input.forkContext)
+   654→      }
+   655→
+   656→      // Auto-inject return-format instruction for non-specialized subagents.
+   657→      // Excluded: agents with hardcoded `prompt` (explore/title/summary — own
+   658→      // contracts), checkpoint-writer (special — task is itself a complete
+   659→      // writer-instruction string), and peer mode (routes via spawnPeer).
+   660→      const agentInfo = yield* agents.get(input.agentType)
+   661→      const gateEligible =
+   662→        agentInfo?.mode === "subagent" && !agentInfo?.prompt && input.agentType !== "checkpoint-writer"
+   663→      const taskWithFormat = gateEligible ? input.task + RETURN_FORMAT_INSTRUCTION : input.task
+   664→
+   665→      const { fiber, outcome } = yield* forkWork({
+   666→        sessionID: input.sessionID,
+   667→        parentSessionID: input.parentSessionID ?? input.sessionID,
+   668→        parentActorID: input.parentActorID,
+   669→        actorID,
+   670→        agentType: input.agentType,
+   671→        task: taskWithFormat,
+   672→        description: input.description,
+   673→        background: input.background,
+   674→        model: input.model,
+   675→        lifecycle: input.lifecycle ?? "ephemeral",
+   676→        task_id: input.task_id,
+   677→        gateEligible,
+   678→        format: input.format,
+   679→      })
+   680→      if (!input.background) yield* Fiber.join(fiber).pipe(Effect.ignore)
+   681→      return { actorID, sessionID: input.sessionID, outcome }
+   682→    })
+   683→
+   684→    const spawn = Effect.fn("Actor.spawn")(function* (input: SpawnInput) {
+   685→      if (input.mode === "peer") return yield* spawnPeer(input)
+   686→      return yield* spawnSubagent(input)
+   687→    })
+   688→
+   689→    const cancel: (sessionID: SessionID, actorID: string, mode: "graceful" | "forced") => Effect.Effect<void> =
+   690→      Effect.fn("Actor.cancel")(function* (sessionID: SessionID, actorID: string, mode: "graceful" | "forced") {
+   691→        const children = yield* actorReg.listByParent(sessionID, actorID)
+   692→        yield* Effect.forEach(children, (c) => cancel(sessionID, c.actorID, mode), {
+   693→          concurrency: "unbounded",
+   694→          discard: true,
+   695→        })
+   696→        yield* state.cancelActor(sessionID, actorID)
+   697→        yield* actorReg
+   698→          .updateStatus(sessionID, actorID, { status: "idle", lastOutcome: "cancelled" })
+   699→          .pipe(Effect.ignore)
+   700→        yield* Effect.sync(() => forkContexts.delete(actorID))
+   701→      })
+   702→
+   703→    const getForkContext = Effect.fn("Actor.getForkContext")(function* (actorID: string) {
+   704→      return forkContexts.get(actorID)
+   705→    })
+   706→
+   707→    const impl = Service.of({ spawn, cancel, getForkContext })
+   708→    // Late-bind the impl so SessionCheckpoint.tryStartCheckpointWriter can resolve it
+   709→    // without forming a layer cycle. See spawn-ref.ts for rationale.
+   710→    spawnRef.current = impl
+   711→    yield* Effect.addFinalizer(() =>
+   712→      Effect.sync(() => {
+   713→        if (spawnRef.current === impl) spawnRef.current = undefined
+   714→      }),
+   715→    )
+   716→    return impl
+   717→  }),
+   718→)
+   719→
+   720→// Wrapped in Layer.suspend so the cross-module `.defaultLayer` reads defer to
+   721→// first use instead of running at module load. Without this, the
+   722→// spawn → prompt → app-runtime import cycle hits a load order where
+   723→// AppLayer's mergeAll runs while SessionPrompt is mid-init and throws
+   724→// "Cannot access 'defaultLayer' before initialization", breaking every
+   725→// it.live test harness. Same pattern session/prompt, session/checkpoint,
+   726→// tool/registry, provider, etc. already use.
+   727→export const defaultLayer = Layer.suspend(() =>
+   728→  layer.pipe(
+   729→    Layer.provide(Session.defaultLayer),
+   730→    Layer.provide(ActorRegistry.defaultLayer),
+   731→    Layer.provide(Agent.defaultLayer),
+   732→    Layer.provide(SessionPrompt.defaultLayer),
+   733→    Layer.provide(SessionRunState.defaultLayer),
+   734→    Layer.provide(Inbox.defaultLayer),
+   735→    Layer.provide(Plugin.defaultLayer),
+   736→    Layer.provide(Bus.layer),
+   737→    Layer.provide(TaskRegistry.defaultLayer),
+   738→  ),
+   739→)
+   740→
+   741→export * as Actor from "./spawn"
+   742→
