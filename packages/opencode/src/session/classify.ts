@@ -1,6 +1,20 @@
 import { MessageV2 } from "./message-v2"
 
 /**
+ * Known end-of-turn / end-of-sequence tokens that some models (Gemma,
+ * Llama, Mistral, Qwen, …) leak into assistant content as literal text.
+ * When these are the *only* content the step produced, the loop should
+ * treat the step as empty (→ invalid / think-only) rather than final,
+ * so the auto-continue nudge can retry.
+ */
+const EOS_PATTERNS = /<eos>|<\/s>|<end_of_turn>|<\|im_end\|>|<\|end\|>|<\|eot_id\|>/gi
+
+/** Strip known EOS tokens and return the cleaned string. */
+function stripEos(text: string): string {
+  return text.replace(EOS_PATTERNS, "").trim()
+}
+
+/**
  * Outcome of classifying a single assistant step. Pure data — `runLoop` decides
  * what side effect (nudge / retry / error / break) each category triggers.
  *
@@ -80,13 +94,17 @@ export function classifyAssistantStep(input: {
   // 8. stop / length / other → inspect produced content. An "other" finish that
   // still produced usable text is a usable-but-abnormal completion: surface it as
   // `degraded` so runLoop can record it instead of silently treating it as clean.
+  // Leaked EOS tokens (<eos>, <end_of_turn>, etc.) are stripped first so they
+  // don't masquerade as meaningful content and prematurely terminate the loop
+  // with local models that don't suppress these tokens (#578).
   if (
     input.parts.some(
-      (part) => part.type === "text" && !part.synthetic && !part.ignored && part.text.trim().length > 0,
+      (part) =>
+        part.type === "text" && !part.synthetic && !part.ignored && stripEos(part.text).length > 0,
     )
   )
     return assistant.finish === "other" ? { type: "final", degraded: true } : { type: "final" }
-  if (input.parts.some((part) => part.type === "reasoning" && part.text.trim().length > 0))
+  if (input.parts.some((part) => part.type === "reasoning" && stripEos(part.text).length > 0))
     return { type: "think-only" }
   return { type: "invalid", reason: "empty output" }
 }

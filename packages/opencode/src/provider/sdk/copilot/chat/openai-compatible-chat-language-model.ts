@@ -690,7 +690,14 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
 
             controller.enqueue({
               type: "finish",
-              finishReason,
+              // Some local providers (e.g. oMLX, llama.cpp) return
+              // finish_reason "stop" even when tool_calls are present.
+              // Override to "tool-calls" so the agent loop correctly
+              // continues after executing the tools (#578).
+              finishReason:
+                toolCalls.length > 0 && finishReason.unified !== "tool-calls"
+                  ? { unified: "tool-calls", raw: finishReason.raw }
+                  : finishReason,
               usage: {
                 inputTokens: {
                   total: usage.promptTokens,

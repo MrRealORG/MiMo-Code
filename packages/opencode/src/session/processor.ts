@@ -26,6 +26,17 @@ import { isRecord } from "@/util/record"
 const DOOM_LOOP_THRESHOLD = 3
 const log = Log.create({ service: "session.processor" })
 
+/**
+ * Known EOS / stop tokens that local models sometimes leak as literal text.
+ * We strip them from the stored message to keep the UI and history clean.
+ * Kept in sync with the same pattern in classify.ts.
+ */
+const EOS_RE = /<eos>|<\/s>|<end_of_turn>|<\|im_end\|>|<\|end\|>|<\|eot_id\|>/gi
+
+function stripLeakedEos(text: string): string {
+  return text.replace(EOS_RE, "").trim()
+}
+
 export type Result = "overflow" | "stop" | "continue"
 
 export type Event = LLM.Event
@@ -572,6 +583,10 @@ export const layer: Layer.Layer<
               },
               { text: ctx.currentText.text },
             )).text
+            // Strip leaked EOS tokens that some local models emit as literal
+            // text (e.g. Gemma's <eos>, Llama's </s>). This cleans the stored
+            // message and prevents them from appearing in the TUI / history.
+            ctx.currentText.text = stripLeakedEos(ctx.currentText.text)
             {
               const end = Date.now()
               ctx.currentText.time = { start: ctx.currentText.time?.start ?? end, end }
