@@ -451,16 +451,28 @@ export const ActorTool = Tool.define(
         // The root strictObject also means flattenDiscriminatedUnion finds no
         // root-level union and passes through unchanged — root keeps exactly one
         // key (`operation`), so models can't drop the discriminator.
-        operation: z
-          .discriminatedUnion("action", [
-            runSchema,
-            spawnSchema,
-            statusSchema,
-            waitSchema,
-            cancelSchema,
-            sendSchema,
-          ])
-          .meta({ type: "object" }),
+        operation: z.preprocess(
+          (val) => {
+            if (typeof val === "string") {
+              try {
+                return JSON.parse(val)
+              } catch {
+                return val
+              }
+            }
+            return val
+          },
+          z
+            .discriminatedUnion("action", [
+              runSchema,
+              spawnSchema,
+              statusSchema,
+              waitSchema,
+              cancelSchema,
+              sendSchema,
+            ])
+            .meta({ type: "object" }),
+        ),
       })
 
       const run = Effect.fn("ActorTool.execute")(function* (input: z.infer<typeof parameters>, ctx: Tool.Context) {

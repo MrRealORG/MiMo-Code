@@ -114,19 +114,31 @@ const parameters = z.strictObject({
   // (notably mimo-v2.5-pro) then stringify the entire envelope, producing
   // {"operation":"{\"action\":\"create\",...}"} which fails zod validation.
   // See research-tool-call-schema/REPORT.md §2.5 "success-nested" warning.
-  operation: z
-    .discriminatedUnion("action", [
-      createOperation,
-      listOperation,
-      getOperation,
-      startOperation,
-      blockOperation,
-      unblockOperation,
-      doneOperation,
-      abandonOperation,
-      renameOperation,
-    ])
-    .meta({ type: "object" }),
+  operation: z.preprocess(
+    (val) => {
+      if (typeof val === "string") {
+        try {
+          return JSON.parse(val)
+        } catch {
+          return val
+        }
+      }
+      return val
+    },
+    z
+      .discriminatedUnion("action", [
+        createOperation,
+        listOperation,
+        getOperation,
+        startOperation,
+        blockOperation,
+        unblockOperation,
+        doneOperation,
+        abandonOperation,
+        renameOperation,
+      ])
+      .meta({ type: "object" }),
+  ),
 })
 
 type TaskInput = z.infer<typeof parameters>
