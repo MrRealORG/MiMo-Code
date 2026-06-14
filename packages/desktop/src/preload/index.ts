@@ -66,6 +66,7 @@ const api: ElectronAPI = {
   checkUpdate: () => ipcRenderer.invoke("check-update"),
   installUpdate: () => ipcRenderer.invoke("install-update"),
   setBackgroundColor: (color: string) => ipcRenderer.invoke("set-background-color", color),
+  setNativeTheme: (mode: "light" | "dark") => ipcRenderer.invoke("set-native-theme", mode),
 }
 
 contextBridge.exposeInMainWorld("api", api)

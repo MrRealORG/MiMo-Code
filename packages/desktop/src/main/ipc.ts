@@ -11,7 +11,7 @@ import type {
   WslConfig,
 } from "../preload/types"
 import { getStore } from "./store"
-import { setTitlebar } from "./windows"
+import { setTitlebar, setNativeThemeSource } from "./windows"
 
 const pickerFilters = (ext?: string[]) => {
   if (!ext || ext.length === 0) return undefined
@@ -38,6 +38,7 @@ type Deps = {
   checkUpdate: () => Promise<{ updateAvailable: boolean; version?: string }>
   installUpdate: () => Promise<void> | void
   setBackgroundColor: (color: string) => void
+  setNativeTheme: (mode: "light" | "dark") => void
 }
 
 export function registerIpcHandlers(deps: Deps) {
@@ -69,6 +70,7 @@ export function registerIpcHandlers(deps: Deps) {
   ipcMain.handle("check-update", () => deps.checkUpdate())
   ipcMain.handle("install-update", () => deps.installUpdate())
   ipcMain.handle("set-background-color", (_event: IpcMainInvokeEvent, color: string) => deps.setBackgroundColor(color))
+  ipcMain.handle("set-native-theme", (_event: IpcMainInvokeEvent, mode: "light" | "dark") => setNativeThemeSource(mode))
   ipcMain.handle("store-get", (_event: IpcMainInvokeEvent, name: string, key: string) => {
     const store = getStore(name)
     const value = store.get(key)

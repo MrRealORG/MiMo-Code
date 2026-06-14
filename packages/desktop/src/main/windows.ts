@@ -52,6 +52,10 @@ function overlay(theme: Partial<TitlebarTheme> = {}) {
   }
 }
 
+export function setNativeThemeSource(mode: "light" | "dark") {
+  nativeTheme.themeSource = mode
+}
+
 export function setTitlebar(win: BrowserWindow, theme: Partial<TitlebarTheme> = {}) {
   if (process.platform !== "win32") return
   win.setTitleBarOverlay(overlay(theme))

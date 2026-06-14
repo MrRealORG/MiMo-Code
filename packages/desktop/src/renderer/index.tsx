@@ -310,11 +310,12 @@ render(() => {
 
     createEffect(() => {
       theme.themeId()
-      theme.mode()
+      const mode = theme.mode()
       const bg = getComputedStyle(document.documentElement).getPropertyValue("--background-base").trim()
       if (bg) {
         void window.api.setBackgroundColor(bg)
       }
+      void window.api.setNativeTheme(mode)
     })
 
     return null

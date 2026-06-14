@@ -188,10 +188,9 @@ export async function runCustomProviderWizard(opts: {
   const baseURL = baseURLRaw.trim()
   if (!baseURL) return
 
-  const apiKeyRaw = await step(4, 6, "API key", "sk-...")
+  const apiKeyRaw = await step(4, 6, "API key (optional, Enter to skip)", "sk-...")
   if (apiKeyRaw === null) return
   const apiKey = apiKeyRaw.trim()
-  if (!apiKey) return
 
   const modelIDRaw = await step(5, 6, "First model id", "e.g. claude-sonnet-4-6")
   if (modelIDRaw === null) return
@@ -208,7 +207,7 @@ export async function runCustomProviderWizard(opts: {
       [providerID]: {
         name,
         npm: "@ai-sdk/openai-compatible",
-        env: [envKey],
+        ...(apiKey ? { env: [envKey] } : {}),
         options: {
           baseURL,
           setCacheKey: true,
@@ -228,13 +227,15 @@ export async function runCustomProviderWizard(opts: {
     return
   }
 
-  const authRes = await sdk.client.auth.set({
-    providerID,
-    auth: { type: "api", key: apiKey },
-  })
-  if (authRes.error) {
-    toast.show({ variant: "error", message: JSON.stringify(authRes.error) })
-    return
+  if (apiKey) {
+    const authRes = await sdk.client.auth.set({
+      providerID,
+      auth: { type: "api", key: apiKey },
+    })
+    if (authRes.error) {
+      toast.show({ variant: "error", message: JSON.stringify(authRes.error) })
+      return
+    }
   }
 
   await sdk.client.instance.dispose()
