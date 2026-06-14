@@ -481,6 +481,15 @@ export const layer = Layer.effect(
 
       if (input.agent.name !== "plan" || assistantMessage?.info.agent === "plan") return input.messages
 
+      // Skip the full plan workflow for simple questions that don't need planning
+      const lastUserText = userMessage.parts
+        .filter((p) => p.type === "text" && "text" in p && (p as any).text?.trim())
+        .map((p) => (p as any).text.trim())
+        .join("\n")
+      if (lastUserText && lastUserText.length < 200 && !lastUserText.includes("\n")) {
+        return input.messages
+      }
+
       const plan = Session.plan(input.session)
       const exists = yield* fsys.existsSafe(plan)
       if (!exists) yield* fsys.ensureDir(path.dirname(plan)).pipe(Effect.catch(Effect.die))
@@ -491,6 +500,8 @@ export const layer = Layer.effect(
         type: "text",
         text: `<system-reminder>
 Plan mode is active. The user indicated that they do not want you to execute yet -- you MUST NOT make any edits (with the exception of the plan file mentioned below), run any non-readonly tools (including changing configs or making commits), or otherwise make any changes to the system. This supersedes any other instructions you have received.
+
+**Important:** If the user's message is a simple question that can be answered directly without code changes (e.g., "what does this function do?", "how many files are here?", "explain this error"), you do NOT need to create a plan file or go through the plan workflow. Just answer the question directly.
 
 ## Plan File Info:
 ${exists ? `A plan file already exists at ${plan}. You can read it and make incremental edits using the edit tool.` : `No plan file exists yet. You should create your plan at ${plan} using the write tool.`}

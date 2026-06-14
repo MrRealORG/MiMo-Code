@@ -1433,6 +1433,7 @@ export function Prompt(props: PromptProps) {
                   e.preventDefault()
                   return
                 }
+                if (e.defaultPrevented) return
                 // Check clipboard for images before terminal-handled paste runs.
                 // This helps terminals that forward Ctrl+V to the app; Windows
                 // Terminal 1.25+ usually handles Ctrl+V before this path.
@@ -1546,6 +1547,7 @@ export function Prompt(props: PromptProps) {
                 // Windows Terminal <1.25 can surface image-only clipboard as an
                 // empty bracketed paste. Windows Terminal 1.25+ does not.
                 if (!normalizedText.trim()) {
+                  event.preventDefault()
                   command.trigger("prompt.paste")
                   return
                 }
