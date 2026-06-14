@@ -9,11 +9,10 @@
  *   const text = await LocalWhisper.transcribe(audioInt16Array)
  */
 
-import { execSync } from "node:child_process"
-import { existsSync, mkdirSync, chmodSync, statSync, writeFileSync } from "node:fs"
-import { createWriteStream } from "node:fs"
+import { existsSync, mkdirSync, chmodSync, statSync, writeFileSync, unlinkSync, renameSync, createWriteStream } from "node:fs"
 import { homedir, tmpdir, platform, arch, cpus } from "node:os"
 import { join } from "node:path"
+import { randomUUID } from "node:crypto"
 import { Process } from "@/util"
 import { which } from "@/util/which"
 import { encodeWav } from "./voice"
@@ -159,28 +158,32 @@ export async function ensureSetup(
 export async function transcribe(audio: Int16Array): Promise<string | null> {
   if (!isSetupComplete()) return null
 
-  // Write WAV to temp file
+  // Write WAV to temp file (UUID avoids collision across concurrent calls)
   const wavBuffer = encodeWav(audio)
-  const tmpFile = join(tmpdir(), `mimocode-whisper-${Date.now()}.wav`)
-  const outFile = tmpFile.replace(".wav", "")
+  const id = randomUUID()
+  const tmpFile = join(tmpdir(), `mimocode-whisper-${id}.wav`)
+  const outTxtFile = join(tmpdir(), `mimocode-whisper-${id}.txt`)
 
   try {
     // Write WAV
     const { writeFile } = await import("node:fs/promises")
     await writeFile(tmpFile, Buffer.from(wavBuffer))
 
-    const threads = Math.min(cpus().length, 8)
+    const threads = Math.min(cpus().length, 4)
     const binPath = getWhisperBinPath()
+    const outFileBase = tmpFile.replace(/\.wav$/, "")
 
     const proc = Process.spawn(
-      [binPath, "-m", MODEL_PATH, "-f", tmpFile, "-t", String(threads), "--no-timestamps", "-ofmt", "txt", "-otxt", outFile],
+      [binPath, "-m", MODEL_PATH, "-f", tmpFile, "-t", String(threads), "--no-timestamps", "-ofmt", "txt", "-otxt", outFileBase],
       { stdin: "ignore", stdout: "pipe", stderr: "pipe" },
     )
 
-    // Timeout safety — whisper.cpp should not take more than 60s for short clips
+    // Timeout proportional to audio length (3x realtime, min 30s, max 120s)
+    const audioSeconds = audio.length / 16000
+    const timeoutMs = Math.max(30_000, Math.min(120_000, Math.ceil(audioSeconds * 3000)))
     const timeout = setTimeout(() => {
       try { proc.kill("SIGTERM") } catch {}
-    }, 60_000)
+    }, timeoutMs)
 
     let stderr = ""
     proc.stderr?.on("data", (d: Buffer) => {
@@ -193,9 +196,9 @@ export async function transcribe(audio: Int16Array): Promise<string | null> {
 
     // Read output
     try {
-      const { readFile, unlink } = await import("node:fs/promises")
-      const text = (await readFile(outFile + ".txt", "utf-8")).trim()
-      await unlink(outFile + ".txt").catch(() => {})
+      const { readFile } = await import("node:fs/promises")
+      const text = (await readFile(outTxtFile, "utf-8")).trim()
+      await import("node:fs/promises").then(fs => fs.unlink(outTxtFile).catch(() => {}))
       return text || null
     } catch {
       return null
@@ -214,16 +217,7 @@ export async function transcribe(audio: Int16Array): Promise<string | null> {
 // ---------------------------------------------------------------------------
 
 function detectRecorder(): boolean {
-  if (which("rec") || which("sox") || which("arecord")) return true
-  try {
-    execSync("rec --version", { stdio: "pipe" })
-    return true
-  } catch {}
-  try {
-    execSync("arecord --version", { stdio: "pipe" })
-    return true
-  } catch {}
-  return false
+  return !!(which("rec") || which("sox") || which("arecord"))
 }
 
 type DLProgress = { percent: number; speed: string }
@@ -244,17 +238,36 @@ async function downloadFile(url: string, dest: string, onProgress: (p: DLProgres
   const https = await import("node:https")
   const http = await import("node:http")
 
+  // Download to a .tmp file first; rename on success to prevent partial corruption
+  const tmpDest = dest + ".tmp"
+  // Clean up any leftover tmp from previous failed attempts
+  try { unlinkSync(tmpDest) } catch {}
+
   await new Promise<void>((resolve, reject) => {
+    const MAX_REDIRECTS = 5
+    let redirectCount = 0
+
+    function cleanup() {
+      try { unlinkSync(tmpDest) } catch {}
+    }
+
     function tryURL(u: string) {
       const reqMod = u.startsWith("https") ? https : http
       reqMod.get(u, { timeout: 30_000 }, (res: any) => {
         if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
           if (res.headers.location) {
+            redirectCount++
+            if (redirectCount > MAX_REDIRECTS) {
+              cleanup()
+              reject(new Error(`Too many redirects (>${MAX_REDIRECTS})`))
+              return
+            }
             tryURL(res.headers.location)
             return
           }
         }
         if (res.statusCode !== 200) {
+          cleanup()
           reject(new Error(`HTTP ${res.statusCode}`))
           return
         }
@@ -262,7 +275,7 @@ async function downloadFile(url: string, dest: string, onProgress: (p: DLProgres
         const total = parseInt(res.headers["content-length"] || "0", 10)
         let downloaded = 0
         const startTime = Date.now()
-        const file = createWriteStream(dest)
+        const file = createWriteStream(tmpDest)
 
         res.on("data", (chunk: Buffer) => {
           downloaded += chunk.length
@@ -284,12 +297,27 @@ async function downloadFile(url: string, dest: string, onProgress: (p: DLProgres
 
         res.on("end", () => {
           file.end()
+          // Rename .tmp → final dest only on successful download
+          try {
+            renameSync(tmpDest, dest)
+          } catch {
+            cleanup()
+            reject(new Error("Failed to rename downloaded file"))
+            return
+          }
           resolve()
         })
 
-        res.on("error", reject)
-        file.on("error", reject)
+        res.on("error", () => {
+          cleanup()
+          reject(new Error(`Stream error`))
+        })
+        file.on("error", () => {
+          cleanup()
+          reject(new Error("Write error"))
+        })
       }).on("error", () => {
+        cleanup()
         reject(new Error(`Connection failed: ${u}`))
       })
     }

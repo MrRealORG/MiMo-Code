@@ -138,6 +138,7 @@ export function Prompt(props: PromptProps) {
 
   // Push-to-talk state for local mode
   let pttActive = false
+  let pttBusy = false  // guards against re-entry while pttStop() is awaiting
   let pttRecorder: Voice.StreamingHandle | null = null
   let pttAudioChunks: Int16Array[] = []
   let pttAnimFrame = 0
@@ -202,7 +203,7 @@ export function Prompt(props: PromptProps) {
     else toast.show({ message: t("tui.voice.error.unknown_agent", { name: name }), variant: "error", duration: 3000 })
   }
 
-  function voiceSetState(type: "idle" | "listening" | "speaking" | "processing" | "finishing") {
+  function voiceSetState(type: "idle" | "listening" | "speaking" | "processing" | "finishing" | "installing") {
     setVoiceState(type)
     if (type === "speaking") voiceTimerStart()
     if (type === "idle" || type === "listening" || type === "processing") voiceTimerStop()
@@ -400,7 +401,7 @@ export function Prompt(props: PromptProps) {
   }
 
   function pttStart() {
-    if (pttActive || !voiceLocalMode()) return
+    if (pttActive || pttBusy || !voiceLocalMode()) return
     if (!Voice.isAvailable()) {
       toast.show({ message: t("tui.voice.error.no_recorder"), variant: "error" })
       return
@@ -433,11 +434,23 @@ export function Prompt(props: PromptProps) {
         pttStop()
       },
     })
+
+    // Guard: if startStreaming returned null (recorder vanished between check and start)
+    if (!pttRecorder) {
+      pttActive = false
+      if (pttAnimInterval) {
+        clearInterval(pttAnimInterval)
+        pttAnimInterval = undefined
+      }
+      voiceTimerStop()
+      setVoiceState("idle")
+    }
   }
 
   async function pttStop() {
     if (!pttActive) return
     pttActive = false
+    pttBusy = true
 
     if (pttAnimInterval) {
       clearInterval(pttAnimInterval)
@@ -455,6 +468,7 @@ export function Prompt(props: PromptProps) {
 
     if (pttAudioChunks.length === 0) {
       setVoiceState("idle")
+      pttBusy = false
       return
     }
 
@@ -471,18 +485,23 @@ export function Prompt(props: PromptProps) {
     if (merged.length < 800) {
       // Less than 50ms of audio — too short
       setVoiceState("idle")
+      pttBusy = false
       return
     }
 
     setVoiceState("processing")
-    const text = await LocalWhisper.transcribe(merged)
-    setVoiceState("idle")
-
-    if (text) {
-      voiceAppendText(text.trim())
-    } else {
-      toast.show({ message: "No speech detected", variant: "info", duration: 2000 })
+    try {
+      const text = await LocalWhisper.transcribe(merged)
+      if (text) {
+        voiceAppendText(text.trim())
+      } else {
+        toast.show({ message: "No speech detected", variant: "info", duration: 2000 })
+      }
+    } catch {
+      toast.show({ message: "Transcription failed", variant: "error", duration: 3000 })
     }
+    setVoiceState("idle")
+    pttBusy = false
   }
 
   const list = createMemo(() => props.placeholders?.normal ?? [])
