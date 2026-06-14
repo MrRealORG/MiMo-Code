@@ -1,0 +1,963 @@
+     1→     1→import { Cause, Deferred, Effect, Layer, Context, Scope } from "effect"
+     2→     2→import * as Stream from "effect/Stream"
+     3→     3→import { Agent } from "@/agent/agent"
+     4→     4→import { SYSTEM_SPAWNED_AGENT_TYPES } from "@/agent/config"
+     5→     5→import { Bus } from "@/bus"
+     6→     6→import { Metrics } from "@/metrics"
+     7→     7→import { Config } from "@/config"
+     8→     8→import { Permission } from "@/permission"
+     9→     9→import { Plugin } from "@/plugin"
+    10→    10→import { Snapshot } from "@/snapshot"
+    11→    11→import * as Session from "./session"
+    12→    12→import { LLM } from "./llm"
+    13→    13→import { MessageV2 } from "./message-v2"
+    14→    14→import { isOverflow } from "./overflow"
+    15→    15→import { PartID } from "./schema"
+    16→    16→import type { SessionID } from "./schema"
+    17→    17→import { SessionRetry } from "./retry"
+    18→    18→import { SessionStatus } from "./status"
+    19→    19→import { SessionSummary } from "./summary"
+    20→    20→import type { Provider } from "@/provider"
+    21→    21→import { Question } from "@/question"
+    22→    22→import { errorMessage } from "@/util/error"
+    23→    23→import { Log } from "@/util"
+    24→    24→import { isRecord } from "@/util/record"
+    25→    25→
+    26→    26→const DOOM_LOOP_THRESHOLD = 3
+    27→    27→const log = Log.create({ service: "session.processor" })
+    28→    28→
+    29→    29→export type Result = "overflow" | "stop" | "continue"
+    30→    30→
+    31→    31→export type Event = LLM.Event
+    32→    32→
+    33→    33→/**
+    34→    34→ * A proposed tool call captured from a candidate stream (max mode), before
+    35→    35→ * any execution. `input` is the parsed tool arguments.
+    36→    36→ */
+    37→    37→export type ProposedToolCall = {
+    38→    38→  toolCallId: string
+    39→    39→  toolName: string
+    40→    40→  input: Record<string, any>
+    41→    41→  providerMetadata?: Record<string, any>
+    42→    42→}
+    43→    43→
+    44→    44→/**
+    45→    45→ * The winning candidate selected by the judge in max mode. Captures the full
+    46→    46→ * reasoning + text + proposed tool calls of one candidate stream so the
+    47→    47→ * processor can replay it: lay down the reasoning/text parts and actually
+    48→    48→ * execute the tool calls via the execute-bearing tools.
+    49→    49→ */
+    50→    50→export type ReplayInput = {
+    51→    51→  reasoning?: string
+    52→    52→  reasoningMetadata?: Record<string, any>
+    53→    53→  text?: string
+    54→    54→  textMetadata?: Record<string, any>
+    55→    55→  toolCalls: ProposedToolCall[]
+    56→    56→  finishReason: string
+    57→    57→  usage?: any
+    58→    58→  providerMetadata?: Record<string, any>
+    59→    59→  /** Execute-bearing tools (from resolveTools) used to run the winner's calls. */
+    60→    60→  tools: Record<string, { execute?: (input: any, options: any) => Promise<any> }>
+    61→    61→  /** Model messages passed to tool execute contexts. */
+    62→    62→  messages: any[]
+    63→    63→  /**
+    64→    64→   * Max-mode selection metadata. When set, a short note is prepended to the
+    65→    65→   * replayed reasoning so the user can see the ensemble happened and which
+    66→    66→   * candidate won. `winner` is 0-based.
+    67→    67→   */
+    68→    68→  selection?: { winner: number; total: number }
+    69→    69→  /**
+    70→    70→   * Real wall-clock duration (ms) the winning candidate spent thinking, so the
+    71→    71→   * replayed reasoning part shows a meaningful duration instead of the ~1ms
+    72→    72→   * synthetic replay time. Optional.
+    73→    73→   */
+    74→    74→  thinkingMs?: number
+    75→    75→  /**
+    76→    76→   * Max-mode ensemble overhead: the cost and token counts of the losing
+    77→    77→   * candidates + the judge call. These are real spend but consume NO context,
+    78→    78→   * so they are added to `cost` and the ModelCall metric ONLY — never to the
+    79→    79→   * message's `tokens`, which must stay the winner's real footprint so context
+    80→    80→   * overflow / prune estimation stays correct.
+    81→    81→   */
+    82→    82→  overhead?: { cost: number; tokensIn: number; tokensOut: number }
+    83→    83→}
+    84→    84→
+    85→    85→export interface Handle {
+    86→    86→  readonly message: MessageV2.Assistant
+    87→    87→  readonly updateToolCall: (
+    88→    88→    toolCallID: string,
+    89→    89→    update: (part: MessageV2.ToolPart) => MessageV2.ToolPart,
+    90→    90→  ) => Effect.Effect<MessageV2.ToolPart | undefined>
+    91→    91→  readonly completeToolCall: (
+    92→    92→    toolCallID: string,
+    93→    93→    output: {
+    94→    94→      title: string
+    95→    95→      metadata: Record<string, any>
+    96→    96→      output: string
+    97→    97→      attachments?: MessageV2.FilePart[]
+    98→    98→    },
+    99→    99→  ) => Effect.Effect<void>
+   100→   100→  readonly process: (streamInput: LLM.StreamInput) => Effect.Effect<Result>
+   101→   101→  /**
+   102→   102→   * Replay a pre-selected candidate (max mode): synthesize the stream events a
+   103→   103→   * real model call would have produced for the winner — reasoning, text, then
+   104→   104→   * each tool call (input-start → call → execute → result) — and run them
+   105→   105→   * through the same event handler used by `process`. Tool execution, snapshot
+   106→   106→   * tracking, permission asks and metrics are all reused. Returns the same
+   107→   107→   * Result contract as `process`.
+   108→   108→   */
+   109→   109→  readonly replay: (input: ReplayInput) => Effect.Effect<Result>
+   110→   110→}
+   111→   111→
+   112→   112→export type AgentMetrics = {
+   113→   113→  tokens_in: number
+   114→   114→  tokens_out: number
+   115→   115→  files_changed: number
+   116→   116→}
+   117→   117→
+   118→   118→type Input = {
+   119→   119→  assistantMessage: MessageV2.Assistant
+   120→   120→  sessionID: SessionID
+   121→   121→  model: Provider.Model
+   122→   122→  agentMetrics?: AgentMetrics
+   123→   123→}
+   124→   124→
+   125→   125→export interface Interface {
+   126→   126→  readonly create: (input: Input) => Effect.Effect<Handle>
+   127→   127→}
+   128→   128→
+   129→   129→type ToolCall = {
+   130→   130→  partID: MessageV2.ToolPart["id"]
+   131→   131→  messageID: MessageV2.ToolPart["messageID"]
+   132→   132→  sessionID: MessageV2.ToolPart["sessionID"]
+   133→   133→  done: Deferred.Deferred<void>
+   134→   134→}
+   135→   135→
+   136→   136→interface ProcessorContext extends Input {
+   137→   137→  toolcalls: Record<string, ToolCall>
+   138→   138→  shouldBreak: boolean
+   139→   139→  snapshot: string | undefined
+   140→   140→  blocked: boolean
+   141→   141→  needsOverflowHandling: boolean
+   142→   142→  currentText: MessageV2.TextPart | undefined
+   143→   143→  reasoningMap: Record<string, MessageV2.ReasoningPart>
+   144→   144→  stepStartedAt: number | undefined
+   145→   145→  firstTokenAt: number | undefined
+   146→   146→  stepPartIds: PartID[]
+   147→   147→}
+   148→   148→
+   149→   149→type StreamEvent = Event
+   150→   150→
+   151→   151→export class Service extends Context.Service<Service, Interface>()("@opencode/SessionProcessor") {}
+   152→   152→
+   153→   153→export const layer: Layer.Layer<
+   154→   154→  Service,
+   155→   155→  never,
+   156→   156→  | Session.Service
+   157→   157→  | Config.Service
+   158→   158→  | Bus.Service
+   159→   159→  | Snapshot.Service
+   160→   160→  | Agent.Service
+   161→   161→  | LLM.Service
+   162→   162→  | Permission.Service
+   163→   163→  | Plugin.Service
+   164→   164→  | SessionSummary.Service
+   165→   165→  | SessionStatus.Service
+   166→   166→> = Layer.effect(
+   167→   167→  Service,
+   168→   168→  Effect.gen(function* () {
+   169→   169→    const session = yield* Session.Service
+   170→   170→    const config = yield* Config.Service
+   171→   171→    const bus = yield* Bus.Service
+   172→   172→    const snapshot = yield* Snapshot.Service
+   173→   173→    const agents = yield* Agent.Service
+   174→   174→    const llm = yield* LLM.Service
+   175→   175→    const permission = yield* Permission.Service
+   176→   176→    const plugin = yield* Plugin.Service
+   177→   177→    const summary = yield* SessionSummary.Service
+   178→   178→    const scope = yield* Scope.Scope
+   179→   179→    const status = yield* SessionStatus.Service
+   180→   180→
+   181→   181→    const create = Effect.fn("SessionProcessor.create")(function* (input: Input) {
+   182→   182→      // Pre-capture snapshot before the LLM stream starts. The AI SDK
+   183→   183→      // may execute tools internally before emitting start-step events,
+   184→   184→      // so capturing inside the event handler can be too late.
+   185→   185→      const initialSnapshot = yield* snapshot.track()
+   186→   186→      const ctx: ProcessorContext = {
+   187→   187→        assistantMessage: input.assistantMessage,
+   188→   188→        sessionID: input.sessionID,
+   189→   189→        model: input.model,
+   190→   190→        agentMetrics: input.agentMetrics,
+   191→   191→        toolcalls: {},
+   192→   192→        shouldBreak: false,
+   193→   193→        snapshot: initialSnapshot,
+   194→   194→        blocked: false,
+   195→   195→        needsOverflowHandling: false,
+   196→   196→        currentText: undefined,
+   197→   197→        reasoningMap: {},
+   198→   198→        stepStartedAt: undefined,
+   199→   199→        firstTokenAt: undefined,
+   200→   200→        stepPartIds: [],
+   201→   201→      }
+   202→   202→      let aborted = false
+   203→   203→      // Only the main agent owns session-level status. Subagents (explore,
+   204→   204→      // general, checkpoint-writer, etc.) share the parent sessionID but their
+   205→   205→      // run-state onIdle deliberately does NOT reset status (run-state.ts) — so
+   206→   206→      // if a subagent's stream sets session status here, nothing ever clears it
+   207→   207→      // and the TUI spinner stays spinning after the main agent has finished.
+   208→   208→      const isMain = !ctx.assistantMessage.agentID || ctx.assistantMessage.agentID === "main"
+   209→   209→      const slog = log.clone().tag("session.id", input.sessionID).tag("messageID", input.assistantMessage.id)
+   210→   210→
+   211→   211→      const parse = (e: unknown) =>
+   212→   212→        MessageV2.fromError(e, {
+   213→   213→          providerID: input.model.providerID,
+   214→   214→          aborted,
+   215→   215→        })
+   216→   216→
+   217→   217→      const settleToolCall = Effect.fn("SessionProcessor.settleToolCall")(function* (toolCallID: string) {
+   218→   218→        const done = ctx.toolcalls[toolCallID]?.done
+   219→   219→        delete ctx.toolcalls[toolCallID]
+   220→   220→        if (done) yield* Deferred.succeed(done, undefined).pipe(Effect.ignore)
+   221→   221→      })
+   222→   222→
+   223→   223→      const readToolCall = Effect.fn("SessionProcessor.readToolCall")(function* (toolCallID: string) {
+   224→   224→        const call = ctx.toolcalls[toolCallID]
+   225→   225→        if (!call) return
+   226→   226→        const part = yield* session.getPart({
+   227→   227→          partID: call.partID,
+   228→   228→          messageID: call.messageID,
+   229→   229→          sessionID: call.sessionID,
+   230→   230→        })
+   231→   231→        if (!part || part.type !== "tool") {
+   232→   232→          delete ctx.toolcalls[toolCallID]
+   233→   233→          return
+   234→   234→        }
+   235→   235→        return { call, part }
+   236→   236→      })
+   237→   237→
+   238→   238→      const updateToolCall = Effect.fn("SessionProcessor.updateToolCall")(function* (
+   239→   239→        toolCallID: string,
+   240→   240→        update: (part: MessageV2.ToolPart) => MessageV2.ToolPart,
+   241→   241→      ) {
+   242→   242→        const match = yield* readToolCall(toolCallID)
+   243→   243→        if (!match) return
+   244→   244→        const part = yield* session.updatePart(update(match.part))
+   245→   245→        ctx.toolcalls[toolCallID] = {
+   246→   246→          ...match.call,
+   247→   247→          partID: part.id,
+   248→   248→          messageID: part.messageID,
+   249→   249→          sessionID: part.sessionID,
+   250→   250→        }
+   251→   251→        return part
+   252→   252→      })
+   253→   253→
+   254→   254→      const completeToolCall = Effect.fn("SessionProcessor.completeToolCall")(function* (
+   255→   255→        toolCallID: string,
+   256→   256→        output: {
+   257→   257→          title: string
+   258→   258→          metadata: Record<string, any>
+   259→   259→          output: string
+   260→   260→          attachments?: MessageV2.FilePart[]
+   261→   261→        },
+   262→   262→      ) {
+   263→   263→        const match = yield* readToolCall(toolCallID)
+   264→   264→        if (!match || match.part.state.status !== "running") return
+   265→   265→        yield* session.updatePart({
+   266→   266→          ...match.part,
+   267→   267→          state: {
+   268→   268→            status: "completed",
+   269→   269→            input: match.part.state.input,
+   270→   270→            output: output.output,
+   271→   271→            metadata: output.metadata,
+   272→   272→            title: output.title,
+   273→   273→            time: { start: match.part.state.time.start, end: Date.now() },
+   274→   274→            attachments: output.attachments,
+   275→   275→          },
+   276→   276→        })
+   277→   277→        yield* settleToolCall(toolCallID)
+   278→   278→      })
+   279→   279→
+   280→   280→      const failToolCall = Effect.fn("SessionProcessor.failToolCall")(function* (toolCallID: string, error: unknown) {
+   281→   281→        const match = yield* readToolCall(toolCallID)
+   282→   282→        if (!match || match.part.state.status !== "running") return false
+   283→   283→        yield* session.updatePart({
+   284→   284→          ...match.part,
+   285→   285→          state: {
+   286→   286→            status: "error",
+   287→   287→            input: match.part.state.input,
+   288→   288→            error: errorMessage(error),
+   289→   289→            time: { start: match.part.state.time.start, end: Date.now() },
+   290→   290→          },
+   291→   291→        })
+   292→   292→        if (error instanceof Permission.RejectedError || error instanceof Question.RejectedError) {
+   293→   293→          ctx.blocked = ctx.shouldBreak
+   294→   294→        }
+   295→   295→        yield* settleToolCall(toolCallID)
+   296→   296→        return true
+   297→   297→      })
+   298→   298→
+   299→   299→      const handleEvent = Effect.fnUntraced(function* (value: StreamEvent) {
+   300→   300→        switch (value.type) {
+   301→   301→          case "start":
+   302→   302→            if (isMain) yield* status.set(ctx.sessionID, { type: "busy" })
+   303→   303→            return
+   304→   304→
+   305→   305→          case "reasoning-start":
+   306→   306→            if (value.id in ctx.reasoningMap) return
+   307→   307→            ctx.reasoningMap[value.id] = {
+   308→   308→              id: PartID.ascending(),
+   309→   309→              messageID: ctx.assistantMessage.id,
+   310→   310→              sessionID: ctx.assistantMessage.sessionID,
+   311→   311→              type: "reasoning",
+   312→   312→              text: "",
+   313→   313→              // Replayed candidates (max mode) carry a backdated start so the
+   314→   314→              // displayed thinking duration reflects the real candidate latency
+   315→   315→              // instead of the ~1ms synthetic replay. Live streams omit `time`.
+   316→   316→              time: { start: (value as { time?: { start: number } }).time?.start ?? Date.now() },
+   317→   317→              metadata: value.providerMetadata,
+   318→   318→            }
+   319→   319→            yield* session.updatePart(ctx.reasoningMap[value.id])
+   320→   320→            ctx.stepPartIds.push(ctx.reasoningMap[value.id].id)
+   321→   321→            return
+   322→   322→
+   323→   323→          case "reasoning-delta":
+   324→   324→            if (!ctx.firstTokenAt) ctx.firstTokenAt = Date.now()
+   325→   325→            if (!(value.id in ctx.reasoningMap)) return
+   326→   326→            ctx.reasoningMap[value.id].text += value.text
+   327→   327→            if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
+   328→   328→            yield* session.updatePartDelta({
+   329→   329→              sessionID: ctx.reasoningMap[value.id].sessionID,
+   330→   330→              messageID: ctx.reasoningMap[value.id].messageID,
+   331→   331→              partID: ctx.reasoningMap[value.id].id,
+   332→   332→              field: "text",
+   333→   333→              delta: value.text,
+   334→   334→            })
+   335→   335→            return
+   336→   336→
+   337→   337→          case "reasoning-end":
+   338→   338→            if (!(value.id in ctx.reasoningMap)) return
+   339→   339→            // oxlint-disable-next-line no-self-assign -- reactivity trigger
+   340→   340→            ctx.reasoningMap[value.id].text = ctx.reasoningMap[value.id].text
+   341→   341→            ctx.reasoningMap[value.id].time = { ...ctx.reasoningMap[value.id].time, end: Date.now() }
+   342→   342→            if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
+   343→   343→            yield* session.updatePart(ctx.reasoningMap[value.id])
+   344→   344→            delete ctx.reasoningMap[value.id]
+   345→   345→            return
+   346→   346→
+   347→   347→          case "tool-input-start":
+   348→   348→            if (ctx.assistantMessage.summary) {
+   349→   349→              throw new Error(`Tool call not allowed while generating summary: ${value.toolName}`)
+   350→   350→            }
+   351→   351→            const part = yield* session.updatePart({
+   352→   352→              id: ctx.toolcalls[value.id]?.partID ?? PartID.ascending(),
+   353→   353→              messageID: ctx.assistantMessage.id,
+   354→   354→              sessionID: ctx.assistantMessage.sessionID,
+   355→   355→              type: "tool",
+   356→   356→              tool: value.toolName,
+   357→   357→              callID: value.id,
+   358→   358→              state: { status: "pending", input: {}, raw: "" },
+   359→   359→              metadata: value.providerExecuted ? { providerExecuted: true } : undefined,
+   360→   360→            } satisfies MessageV2.ToolPart)
+   361→   361→            ctx.stepPartIds.push(part.id)
+   362→   362→            ctx.toolcalls[value.id] = {
+   363→   363→              done: yield* Deferred.make<void>(),
+   364→   364→              partID: part.id,
+   365→   365→              messageID: part.messageID,
+   366→   366→              sessionID: part.sessionID,
+   367→   367→            }
+   368→   368→            return
+   369→   369→
+   370→   370→          case "tool-input-delta":
+   371→   371→            return
+   372→   372→
+   373→   373→          case "tool-input-end":
+   374→   374→            return
+   375→   375→
+   376→   376→          case "tool-call": {
+   377→   377→            if (ctx.assistantMessage.summary) {
+   378→   378→              throw new Error(`Tool call not allowed while generating summary: ${value.toolName}`)
+   379→   379→            }
+   380→   380→            yield* updateToolCall(value.toolCallId, (match) => ({
+   381→   381→              ...match,
+   382→   382→              tool: value.toolName,
+   383→   383→              state: {
+   384→   384→                ...match.state,
+   385→   385→                status: "running",
+   386→   386→                input: value.input,
+   387→   387→                time: { start: Date.now() },
+   388→   388→              },
+   389→   389→              metadata: match.metadata?.providerExecuted
+   390→   390→                ? { ...value.providerMetadata, providerExecuted: true }
+   391→   391→                : value.providerMetadata,
+   392→   392→            }))
+   393→   393→
+   394→   394→            const parts = MessageV2.parts(ctx.assistantMessage.id)
+   395→   395→            const recentParts = parts.slice(-DOOM_LOOP_THRESHOLD)
+   396→   396→
+   397→   397→            if (
+   398→   398→              recentParts.length !== DOOM_LOOP_THRESHOLD ||
+   399→   399→              !recentParts.every(
+   400→   400→                (part) =>
+   401→   401→                  part.type === "tool" &&
+   402→   402→                  part.tool === value.toolName &&
+   403→   403→                  part.state.status !== "pending" &&
+   404→   404→                  JSON.stringify(part.state.input) === JSON.stringify(value.input),
+   405→   405→              )
+   406→   406→            ) {
+   407→   407→              return
+   408→   408→            }
+   409→   409→
+   410→   410→            const agent = yield* agents.get(ctx.assistantMessage.agent)
+   411→   411→            yield* permission.ask({
+   412→   412→              permission: "doom_loop",
+   413→   413→              patterns: [value.toolName],
+   414→   414→              sessionID: ctx.assistantMessage.sessionID,
+   415→   415→              metadata: { tool: value.toolName, input: value.input },
+   416→   416→              always: [value.toolName],
+   417→   417→              ruleset: agent.permission,
+   418→   418→              // System-spawned background agents have no human to answer — fail clean.
+   419→   419→              interactive: !SYSTEM_SPAWNED_AGENT_TYPES.has(ctx.assistantMessage.agent),
+   420→   420→            })
+   421→   421→            return
+   422→   422→          }
+   423→   423→
+   424→   424→          case "tool-result": {
+   425→   425→            yield* completeToolCall(value.toolCallId, value.output)
+   426→   426→            return
+   427→   427→          }
+   428→   428→
+   429→   429→          case "tool-error": {
+   430→   430→            yield* failToolCall(value.toolCallId, value.error)
+   431→   431→            yield* bus
+   432→   432→              .publish(Metrics.ToolCall, {
+   433→   433→                sessionID: ctx.sessionID,
+   434→   434→                tool_name: value.toolName,
+   435→   435→                input_bytes: Metrics.jsonByteLength(value.input),
+   436→   436→                output_bytes: 0,
+   437→   437→                tool_call_id: value.toolCallId,
+   438→   438→                tool_call_status: "error",
+   439→   439→              })
+   440→   440→              .pipe(Effect.ignore)
+   441→   441→            return
+   442→   442→          }
+   443→   443→
+   444→   444→          case "error":
+   445→   445→            throw value.error
+   446→   446→
+   447→   447→          case "start-step":
+   448→   448→            ctx.stepStartedAt = Date.now()
+   449→   449→            ctx.firstTokenAt = undefined
+   450→   450→            if (!ctx.snapshot) ctx.snapshot = yield* snapshot.track()
+   451→   451→            const stepStartPartId = PartID.ascending()
+   452→   452→            yield* session.updatePart({
+   453→   453→              id: stepStartPartId,
+   454→   454→              messageID: ctx.assistantMessage.id,
+   455→   455→              sessionID: ctx.sessionID,
+   456→   456→              snapshot: ctx.snapshot,
+   457→   457→              type: "step-start",
+   458→   458→            })
+   459→   459→            ctx.stepPartIds.push(stepStartPartId)
+   460→   460→            return
+   461→   461→
+   462→   462→          case "finish-step": {
+   463→   463→            const usage = Session.getUsage({
+   464→   464→              model: ctx.model,
+   465→   465→              usage: value.usage,
+   466→   466→              metadata: value.providerMetadata,
+   467→   467→            })
+   468→   468→            ctx.assistantMessage.finish = value.finishReason
+   469→   469→            ctx.assistantMessage.cost += usage.cost
+   470→   470→            ctx.assistantMessage.tokens = usage.tokens
+   471→   471→            yield* session.updatePart({
+   472→   472→              id: PartID.ascending(),
+   473→   473→              reason: value.finishReason,
+   474→   474→              snapshot: yield* snapshot.track(),
+   475→   475→              messageID: ctx.assistantMessage.id,
+   476→   476→              sessionID: ctx.assistantMessage.sessionID,
+   477→   477→              type: "step-finish",
+   478→   478→              tokens: usage.tokens,
+   479→   479→              cost: usage.cost,
+   480→   480→            })
+   481→   481→            yield* session.updateMessage(ctx.assistantMessage)
+   482→   482→            let stepFilesChanged = 0
+   483→   483→            if (ctx.snapshot) {
+   484→   484→              const patch = yield* snapshot.patch(ctx.snapshot)
+   485→   485→              stepFilesChanged = patch.files.length
+   486→   486→              if (patch.files.length) {
+   487→   487→                yield* session.updatePart({
+   488→   488→                  id: PartID.ascending(),
+   489→   489→                  messageID: ctx.assistantMessage.id,
+   490→   490→                  sessionID: ctx.sessionID,
+   491→   491→                  type: "patch",
+   492→   492→                  hash: patch.hash,
+   493→   493→                  files: patch.files,
+   494→   494→                })
+   495→   495→              }
+   496→   496→              ctx.snapshot = undefined
+   497→   497→            }
+   498→   498→            const stepTokensIn = usage.tokens.input + usage.tokens.cache.read + usage.tokens.cache.write
+   499→   499→            const stepTokensOut = usage.tokens.output + usage.tokens.reasoning
+   500→   500→            if (ctx.agentMetrics) {
+   501→   501→              ctx.agentMetrics.tokens_in += stepTokensIn
+   502→   502→              ctx.agentMetrics.tokens_out += stepTokensOut
+   503→   503→              ctx.agentMetrics.files_changed += stepFilesChanged
+   504→   504→            }
+   505→   505→            yield* bus
+   506→   506→              .publish(Metrics.ModelCall, {
+   507→   507→                sessionID: ctx.sessionID,
+   508→   508→                finish_reason: value.finishReason,
+   509→   509→                ttft_ms:
+   510→   510→                  ctx.firstTokenAt && ctx.stepStartedAt ? ctx.firstTokenAt - ctx.stepStartedAt : undefined,
+   511→   511→                latency_ms: ctx.stepStartedAt ? Date.now() - ctx.stepStartedAt : 0,
+   512→   512→                cached_read_tokens: usage.tokens.cache.read,
+   513→   513→                model_id: ctx.model.id,
+   514→   514→                provider: ctx.model.providerID,
+   515→   515→                total_tokens_in: stepTokensIn,
+   516→   516→                total_tokens_out: stepTokensOut,
+   517→   517→              })
+   518→   518→              .pipe(Effect.ignore)
+   519→   519→            yield* summary
+   520→   520→              .summarize({
+   521→   521→                sessionID: ctx.sessionID,
+   522→   522→                messageID: ctx.assistantMessage.parentID,
+   523→   523→              })
+   524→   524→              .pipe(Effect.ignore, Effect.forkIn(scope))
+   525→   525→            if (
+   526→   526→              !ctx.assistantMessage.summary &&
+   527→   527→              isOverflow({ cfg: yield* config.get(), tokens: usage.tokens, model: ctx.model })
+   528→   528→            ) {
+   529→   529→              ctx.needsOverflowHandling = true
+   530→   530→            }
+   531→   531→            return
+   532→   532→          }
+   533→   533→
+   534→   534→          case "text-start":
+   535→   535→            ctx.currentText = {
+   536→   536→              id: PartID.ascending(),
+   537→   537→              messageID: ctx.assistantMessage.id,
+   538→   538→              sessionID: ctx.assistantMessage.sessionID,
+   539→   539→              type: "text",
+   540→   540→              text: "",
+   541→   541→              time: { start: Date.now() },
+   542→   542→              metadata: value.providerMetadata,
+   543→   543→            }
+   544→   544→            yield* session.updatePart(ctx.currentText)
+   545→   545→            ctx.stepPartIds.push(ctx.currentText.id)
+   546→   546→            return
+   547→   547→
+   548→   548→          case "text-delta":
+   549→   549→            if (!ctx.firstTokenAt) ctx.firstTokenAt = Date.now()
+   550→   550→            if (!ctx.currentText) return
+   551→   551→            ctx.currentText.text += value.text
+   552→   552→            if (value.providerMetadata) ctx.currentText.metadata = value.providerMetadata
+   553→   553→            yield* session.updatePartDelta({
+   554→   554→              sessionID: ctx.currentText.sessionID,
+   555→   555→              messageID: ctx.currentText.messageID,
+   556→   556→              partID: ctx.currentText.id,
+   557→   557→              field: "text",
+   558→   558→              delta: value.text,
+   559→   559→            })
+   560→   560→            return
+   561→   561→
+   562→   562→          case "text-end":
+   563→   563→            if (!ctx.currentText) return
+   564→   564→            // oxlint-disable-next-line no-self-assign -- reactivity trigger
+   565→   565→            ctx.currentText.text = ctx.currentText.text
+   566→   566→            ctx.currentText.text = (yield* plugin.trigger(
+   567→   567→              "experimental.text.complete",
+   568→   568→              {
+   569→   569→                sessionID: ctx.sessionID,
+   570→   570→                messageID: ctx.assistantMessage.id,
+   571→   571→                partID: ctx.currentText.id,
+   572→   572→              },
+   573→   573→              { text: ctx.currentText.text },
+   574→   574→            )).text
+   575→   575→            {
+   576→   576→              const end = Date.now()
+   577→   577→              ctx.currentText.time = { start: ctx.currentText.time?.start ?? end, end }
+   578→   578→            }
+   579→   579→            if (value.providerMetadata) ctx.currentText.metadata = value.providerMetadata
+   580→   580→            yield* session.updatePart(ctx.currentText)
+   581→   581→            ctx.currentText = undefined
+   582→   582→            return
+   583→   583→
+   584→   584→          case "finish":
+   585→   585→            return
+   586→   586→
+   587→   587→          default:
+   588→   588→            slog.info("unhandled", { event: value.type, value })
+   589→   589→            return
+   590→   590→        }
+   591→   591→      })
+   592→   592→
+   593→   593→      const cleanup = Effect.fn("SessionProcessor.cleanup")(function* () {
+   594→   594→        if (ctx.snapshot) {
+   595→   595→          const patch = yield* snapshot.patch(ctx.snapshot)
+   596→   596→          if (patch.files.length) {
+   597→   597→            yield* session.updatePart({
+   598→   598→              id: PartID.ascending(),
+   599→   599→              messageID: ctx.assistantMessage.id,
+   600→   600→              sessionID: ctx.sessionID,
+   601→   601→              type: "patch",
+   602→   602→              hash: patch.hash,
+   603→   603→              files: patch.files,
+   604→   604→            })
+   605→   605→          }
+   606→   606→          ctx.snapshot = undefined
+   607→   607→        }
+   608→   608→
+   609→   609→        if (ctx.currentText) {
+   610→   610→          const end = Date.now()
+   611→   611→          ctx.currentText.time = { start: ctx.currentText.time?.start ?? end, end }
+   612→   612→          yield* session.updatePart(ctx.currentText)
+   613→   613→          ctx.currentText = undefined
+   614→   614→        }
+   615→   615→
+   616→   616→        for (const part of Object.values(ctx.reasoningMap)) {
+   617→   617→          const end = Date.now()
+   618→   618→          yield* session.updatePart({
+   619→   619→            ...part,
+   620→   620→            time: { start: part.time.start ?? end, end },
+   621→   621→          })
+   622→   622→        }
+   623→   623→        ctx.reasoningMap = {}
+   624→   624→
+   625→   625→        yield* Effect.forEach(
+   626→   626→          Object.values(ctx.toolcalls),
+   627→   627→          (call) => Deferred.await(call.done).pipe(Effect.timeout("250 millis"), Effect.ignore),
+   628→   628→          { concurrency: "unbounded" },
+   629→   629→        )
+   630→   630→
+   631→   631→        for (const toolCallID of Object.keys(ctx.toolcalls)) {
+   632→   632→          const match = yield* readToolCall(toolCallID)
+   633→   633→          if (!match) continue
+   634→   634→          const part = match.part
+   635→   635→          const end = Date.now()
+   636→   636→          const metadata = "metadata" in part.state && isRecord(part.state.metadata) ? part.state.metadata : {}
+   637→   637→          yield* session.updatePart({
+   638→   638→            ...part,
+   639→   639→            state: {
+   640→   640→              ...part.state,
+   641→   641→              status: "error",
+   642→   642→              error: "Tool execution aborted",
+   643→   643→              metadata: { ...metadata, interrupted: true },
+   644→   644→              time: { start: "time" in part.state ? part.state.time.start : end, end },
+   645→   645→            },
+   646→   646→          })
+   647→   647→        }
+   648→   648→        ctx.toolcalls = {}
+   649→   649→        ctx.assistantMessage.time.completed = Date.now()
+   650→   650→        yield* session.updateMessage(ctx.assistantMessage)
+   651→   651→      })
+   652→   652→
+   653→   653→      const halt = Effect.fn("SessionProcessor.halt")(function* (e: unknown) {
+   654→   654→        slog.error("process", { error: errorMessage(e), stack: e instanceof Error ? e.stack : undefined })
+   655→   655→        const error = parse(e)
+   656→   656→        if (MessageV2.ContextOverflowError.isInstance(error)) {
+   657→   657→          ctx.needsOverflowHandling = true
+   658→   658→          yield* bus.publish(Session.Event.Error, { sessionID: ctx.sessionID, error })
+   659→   659→          return
+   660→   660→        }
+   661→   661→        ctx.assistantMessage.error = error
+   662→   662→        yield* bus.publish(Session.Event.Error, {
+   663→   663→          sessionID: ctx.assistantMessage.sessionID,
+   664→   664→          error: ctx.assistantMessage.error,
+   665→   665→        })
+   666→   666→        if (isMain) yield* status.set(ctx.sessionID, { type: "idle" })
+   667→   667→      })
+   668→   668→
+   669→   669→      const process = Effect.fn("SessionProcessor.process")(function* (streamInput: LLM.StreamInput) {
+   670→   670→        slog.info("process")
+   671→   671→        ctx.needsOverflowHandling = false
+   672→   672→        ctx.shouldBreak = (yield* config.get()).experimental?.continue_loop_on_deny !== true
+   673→   673→
+   674→   674→        return yield* Effect.gen(function* () {
+   675→   675→          yield* Effect.gen(function* () {
+   676→   676→            ctx.currentText = undefined
+   677→   677→            ctx.reasoningMap = {}
+   678→   678→            ctx.stepPartIds = []
+   679→   679→            ctx.toolcalls = {}
+   680→   680→            const stream = llm.stream(streamInput)
+   681→   681→
+   682→   682→            yield* stream.pipe(
+   683→   683→              Stream.tap((event) => handleEvent(event)),
+   684→   684→              Stream.takeUntil(() => ctx.needsOverflowHandling),
+   685→   685→              Stream.runDrain,
+   686→   686→            )
+   687→   687→          }).pipe(
+   688→   688→            Effect.onInterrupt(() =>
+   689→   689→              Effect.gen(function* () {
+   690→   690→                aborted = true
+   691→   691→                if (!ctx.assistantMessage.error) {
+   692→   692→                  yield* halt(new DOMException("Aborted", "AbortError"))
+   693→   693→                }
+   694→   694→              }),
+   695→   695→            ),
+   696→   696→            Effect.catchCauseIf(
+   697→   697→              (cause) => !Cause.hasInterruptsOnly(cause),
+   698→   698→              (cause) => Effect.fail(Cause.squash(cause)),
+   699→   699→            ),
+   700→   700→            Effect.tapError(() =>
+   701→   701→              Effect.gen(function* () {
+   702→   702→                for (const partId of ctx.stepPartIds) {
+   703→   703→                  yield* session.removePart({
+   704→   704→                    sessionID: ctx.sessionID,
+   705→   705→                    messageID: ctx.assistantMessage.id,
+   706→   706→                    partID: partId,
+   707→   707→                  })
+   708→   708→                }
+   709→   709→                ctx.stepPartIds = []
+   710→   710→              }),
+   711→   711→            ),
+   712→   712→            Effect.retry(
+   713→   713→              SessionRetry.policy({
+   714→   714→                parse,
+   715→   715→                set: (info) =>
+   716→   716→                  isMain
+   717→   717→                    ? status.set(ctx.sessionID, {
+   718→   718→                        type: "retry",
+   719→   719→                        attempt: info.attempt,
+   720→   720→                        message: info.message,
+   721→   721→                        next: info.next,
+   722→   722→                      })
+   723→   723→                    : Effect.void,
+   724→   724→              }),
+   725→   725→            ),
+   726→   726→            Effect.catch(halt),
+   727→   727→            Effect.ensuring(cleanup()),
+   728→   728→          )
+   729→   729→
+   730→   730→          if (ctx.needsOverflowHandling) return "overflow"
+   731→   731→          if (ctx.blocked || ctx.assistantMessage.error) return "stop"
+   732→   732→          return "continue"
+   733→   733→        })
+   734→   734→      })
+   735→   735→
+   736→   736→      const replay = Effect.fn("SessionProcessor.replay")(function* (input: ReplayInput) {
+   737→   737→        slog.info("replay", { toolCalls: input.toolCalls.length, finish: input.finishReason })
+   738→   738→        ctx.needsOverflowHandling = false
+   739→   739→        ctx.shouldBreak = (yield* config.get()).experimental?.continue_loop_on_deny !== true
+   740→   740→
+   741→   741→        const ctrl = new AbortController()
+   742→   742→
+   743→   743→        const emptyUsage = {
+   744→   744→          inputTokens: 0,
+   745→   745→          outputTokens: 0,
+   746→   746→          totalTokens: 0,
+   747→   747→        }
+   748→   748→
+   749→   749→        return yield* Effect.gen(function* () {
+   750→   750→          yield* Effect.gen(function* () {
+   751→   751→            ctx.currentText = undefined
+   752→   752→            ctx.reasoningMap = {}
+   753→   753→
+   754→   754→            // Mirror a real model call: start → start-step → reasoning → text →
+   755→   755→            // (tool-input-start → tool-call → execute → tool-result)* → finish-step
+   756→   756→            yield* handleEvent({ type: "start" } as StreamEvent)
+   757→   757→            yield* handleEvent({
+   758→   758→              type: "start-step",
+   759→   759→              request: {},
+   760→   760→              warnings: [],
+   761→   761→            } as unknown as StreamEvent)
+   762→   762→
+   763→   763→            const selectionNote = input.selection
+   764→   764→              ? `[max mode] selected candidate ${input.selection.winner + 1} of ${input.selection.total}`
+   765→   765→              : undefined
+   766→   766→            const reasoningText = [selectionNote, input.reasoning].filter(Boolean).join("\n\n")
+   767→   767→
+   768→   768→            if (reasoningText) {
+   769→   769→              const rid = "reasoning-replay"
+   770→   770→              const backdatedStart = input.thinkingMs ? Date.now() - input.thinkingMs : undefined
+   771→   771→              yield* handleEvent({
+   772→   772→                type: "reasoning-start",
+   773→   773→                id: rid,
+   774→   774→                providerMetadata: input.reasoningMetadata,
+   775→   775→                ...(backdatedStart ? { time: { start: backdatedStart } } : {}),
+   776→   776→              } as unknown as StreamEvent)
+   777→   777→              yield* handleEvent({
+   778→   778→                type: "reasoning-delta",
+   779→   779→                id: rid,
+   780→   780→                text: reasoningText,
+   781→   781→                providerMetadata: input.reasoningMetadata,
+   782→   782→              } as unknown as StreamEvent)
+   783→   783→              yield* handleEvent({
+   784→   784→                type: "reasoning-end",
+   785→   785→                id: rid,
+   786→   786→                providerMetadata: input.reasoningMetadata,
+   787→   787→              } as unknown as StreamEvent)
+   788→   788→            }
+   789→   789→
+   790→   790→            if (input.text) {
+   791→   791→              const tid = "text-replay"
+   792→   792→              yield* handleEvent({
+   793→   793→                type: "text-start",
+   794→   794→                id: tid,
+   795→   795→                providerMetadata: input.textMetadata,
+   796→   796→              } as unknown as StreamEvent)
+   797→   797→              yield* handleEvent({
+   798→   798→                type: "text-delta",
+   799→   799→                id: tid,
+   800→   800→                text: input.text,
+   801→   801→                providerMetadata: input.textMetadata,
+   802→   802→              } as unknown as StreamEvent)
+   803→   803→              yield* handleEvent({
+   804→   804→                type: "text-end",
+   805→   805→                id: tid,
+   806→   806→                providerMetadata: input.textMetadata,
+   807→   807→              } as unknown as StreamEvent)
+   808→   808→            }
+   809→   809→
+   810→   810→            for (const call of input.toolCalls) {
+   811→   811→              if (ctx.needsOverflowHandling) break
+   812→   812→              yield* handleEvent({
+   813→   813→                type: "tool-input-start",
+   814→   814→                id: call.toolCallId,
+   815→   815→                toolName: call.toolName,
+   816→   816→                providerMetadata: call.providerMetadata,
+   817→   817→              } as unknown as StreamEvent)
+   818→   818→              yield* handleEvent({
+   819→   819→                type: "tool-call",
+   820→   820→                toolCallId: call.toolCallId,
+   821→   821→                toolName: call.toolName,
+   822→   822→                input: call.input,
+   823→   823→                providerMetadata: call.providerMetadata,
+   824→   824→              } as unknown as StreamEvent)
+   825→   825→
+   826→   826→              const t = input.tools[call.toolName]
+   827→   827→              if (!t || !t.execute) {
+   828→   828→                yield* handleEvent({
+   829→   829→                  type: "tool-error",
+   830→   830→                  toolCallId: call.toolCallId,
+   831→   831→                  toolName: call.toolName,
+   832→   832→                  input: call.input,
+   833→   833→                  error: new Error(`Tool "${call.toolName}" has no executor`),
+   834→   834→                } as unknown as StreamEvent)
+   835→   835→                continue
+   836→   836→              }
+   837→   837→
+   838→   838→              const outcome = yield* Effect.tryPromise({
+   839→   839→                try: () =>
+   840→   840→                  t.execute!(call.input, {
+   841→   841→                    toolCallId: call.toolCallId,
+   842→   842→                    messages: input.messages,
+   843→   843→                    abortSignal: ctrl.signal,
+   844→   844→                  }),
+   845→   845→                catch: (e) => e,
+   846→   846→              }).pipe(
+   847→   847→                Effect.map((output) => ({ ok: true as const, output })),
+   848→   848→                Effect.catch((error) => Effect.succeed({ ok: false as const, error })),
+   849→   849→              )
+   850→   850→
+   851→   851→              if (!outcome.ok) {
+   852→   852→                yield* handleEvent({
+   853→   853→                  type: "tool-error",
+   854→   854→                  toolCallId: call.toolCallId,
+   855→   855→                  toolName: call.toolName,
+   856→   856→                  input: call.input,
+   857→   857→                  error: outcome.error,
+   858→   858→                } as unknown as StreamEvent)
+   859→   859→              } else {
+   860→   860→                // The execute closure resolves with { title, metadata, output, attachments }.
+   861→   861→                // Feeding it through the tool-result handler completes the part
+   862→   862→                // (unless execute already completed it on abort — completeToolCall
+   863→   863→                // is a no-op once the part is no longer "running").
+   864→   864→                yield* handleEvent({
+   865→   865→                  type: "tool-result",
+   866→   866→                  toolCallId: call.toolCallId,
+   867→   867→                  toolName: call.toolName,
+   868→   868→                  input: call.input,
+   869→   869→                  output: outcome.output,
+   870→   870→                } as unknown as StreamEvent)
+   871→   871→              }
+   872→   872→            }
+   873→   873→
+   874→   874→            yield* handleEvent({
+   875→   875→              type: "finish-step",
+   876→   876→              usage: input.usage ?? emptyUsage,
+   877→   877→              finishReason: input.finishReason,
+   878→   878→              providerMetadata: input.providerMetadata,
+   879→   879→            } as unknown as StreamEvent)
+   880→   880→
+   881→   881→            // Account for ensemble overhead (losing candidates + judge): real
+   882→   882→            // spend that consumed no context. Add it to cost + agent metrics +
+   883→   883→            // a supplementary ModelCall metric, but NOT to message.tokens (set
+   884→   884→            // by the finish-step above from the winner only) so context
+   885→   885→            // estimators stay honest.
+   886→   886→            if (input.overhead && (input.overhead.cost > 0 || input.overhead.tokensIn > 0 || input.overhead.tokensOut > 0)) {
+   887→   887→              ctx.assistantMessage.cost += input.overhead.cost
+   888→   888→              yield* session.updateMessage(ctx.assistantMessage)
+   889→   889→              if (ctx.agentMetrics) {
+   890→   890→                ctx.agentMetrics.tokens_in += input.overhead.tokensIn
+   891→   891→                ctx.agentMetrics.tokens_out += input.overhead.tokensOut
+   892→   892→              }
+   893→   893→              yield* bus
+   894→   894→                .publish(Metrics.ModelCall, {
+   895→   895→                  sessionID: ctx.sessionID,
+   896→   896→                  finish_reason: "max-mode-overhead",
+   897→   897→                  latency_ms: 0,
+   898→   898→                  cached_read_tokens: 0,
+   899→   899→                  model_id: ctx.model.id,
+   900→   900→                  provider: ctx.model.providerID,
+   901→   901→                  total_tokens_in: input.overhead.tokensIn,
+   902→   902→                  total_tokens_out: input.overhead.tokensOut,
+   903→   903→                })
+   904→   904→                .pipe(Effect.ignore)
+   905→   905→            }
+   906→   906→          }).pipe(
+   907→   907→            Effect.onInterrupt(() =>
+   908→   908→              Effect.gen(function* () {
+   909→   909→                aborted = true
+   910→   910→                // Propagate cancellation into the currently-executing tool so a
+   911→   911→                // long-running winner tool call is actually interrupted.
+   912→   912→                ctrl.abort()
+   913→   913→                if (!ctx.assistantMessage.error) {
+   914→   914→                  yield* halt(new DOMException("Aborted", "AbortError"))
+   915→   915→                }
+   916→   916→              }),
+   917→   917→            ),
+   918→   918→            Effect.catchCauseIf(
+   919→   919→              (cause) => !Cause.hasInterruptsOnly(cause),
+   920→   920→              (cause) => Effect.fail(Cause.squash(cause)),
+   921→   921→            ),
+   922→   922→            Effect.catch(halt),
+   923→   923→            Effect.ensuring(cleanup()),
+   924→   924→          )
+   925→   925→
+   926→   926→          if (ctx.needsOverflowHandling) return "overflow"
+   927→   927→          if (ctx.blocked || ctx.assistantMessage.error) return "stop"
+   928→   928→          return "continue"
+   929→   929→        })
+   930→   930→      })
+   931→   931→
+   932→   932→      return {
+   933→   933→        get message() {
+   934→   934→          return ctx.assistantMessage
+   935→   935→        },
+   936→   936→        updateToolCall,
+   937→   937→        completeToolCall,
+   938→   938→        process,
+   939→   939→        replay,
+   940→   940→      } satisfies Handle
+   941→   941→    })
+   942→   942→
+   943→   943→    return Service.of({ create })
+   944→   944→  }),
+   945→   945→)
+   946→   946→
+   947→   947→export const defaultLayer = Layer.suspend(() =>
+   948→   948→  layer.pipe(
+   949→   949→    Layer.provide(Session.defaultLayer),
+   950→   950→    Layer.provide(Snapshot.defaultLayer),
+   951→   951→    Layer.provide(Agent.defaultLayer),
+   952→   952→    Layer.provide(LLM.defaultLayer),
+   953→   953→    Layer.provide(Permission.defaultLayer),
+   954→   954→    Layer.provide(Plugin.defaultLayer),
+   955→   955→    Layer.provide(SessionSummary.defaultLayer),
+   956→   956→    Layer.provide(SessionStatus.defaultLayer),
+   957→   957→    Layer.provide(Bus.layer),
+   958→   958→    Layer.provide(Config.defaultLayer),
+   959→   959→  ),
+   960→   960→)
+   961→   961→
+   962→   962→export * as SessionProcessor from "./processor"
+   963→   963→

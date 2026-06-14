@@ -1,0 +1,60 @@
+@github-actions github-actions Bot added needs work ready for review and removed needs work labels 2 days ago
+Merge info
+Review required
+Code owner review required by reviewers with write access.
+
+
+list of pending reviews
+pewdiepie-archdaemon's avatar image
+pewdiepie-archdaemon
+was requested for review as a codeowner
+Some checks haven't completed yet
+14 expected, 3 successful checks
+
+
+pending checks
+actionlintExpected — Waiting for status to be reported
+Required
+actionlint
+actionlintExpected — Waiting for status to be reported
+Required
+dependency-review (PR gate)Expected — Waiting for status to be reported
+Required
+dependency-review (PR gate)
+dependency-review (PR gate)Expected — Waiting for status to be reported
+Required
+gitleaksExpected — Waiting for status to be reported
+Required
+gitleaks
+gitleaksExpected — Waiting for status to be reported
+Required
+hadolint (Dockerfile lint)Expected — Waiting for status to be reported
+Required
+hadolint (Dockerfile lint)
+hadolint (Dockerfile lint)Expected — Waiting for status to be reported
+Required
+JS syntax (node --check)Expected — Waiting for status to be reported
+Required
+JS syntax (node --check)
+JS syntax (node --check)Expected — Waiting for status to be reported
+Required
+Python syntax (compileall)Expected — Waiting for status to be reported
+Required
+Python syntax (compileall)
+Python syntax (compileall)Expected — Waiting for status to be reported
+Required
+zizmor (Actions SAST)Expected — Waiting for status to be reported
+Required
+zizmor (Actions SAST)
+zizmor (Actions SAST)Expected — Waiting for status to be reported
+Required
+successful checks
+ci / PR checks / Check PR description (pull_request_target)
+ci / PR checks / Check PR description (pull_request_target)Successful in 7s
+ci / PR checks / Check PR title (Conventional Commits) (pull_request_target)
+ci / PR checks / Check PR title (Conventional Commits) (pull_request_target)Successful in 3s
+ci / PR checks / Flag unmergeable PRs (pull_request_target)
+ci / PR checks / Flag unmergeable PRs (pull_request_target)Successful in 4s
+Merging is blocked
+Waiting on code owner review from pewdiepie-archdaemon.
+ 

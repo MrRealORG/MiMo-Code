@@ -1,0 +1,252 @@
+/home/z/my-project/MiMo-Code/packages/opencode/src/actor/return-header.ts:17:  const summary = finalText.match(SUMMARY_RE)?.[1]?.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts:109:  }).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/ui.ts:57:    return result.join("").trimEnd()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/ui.ts:104:  return result.join("").trimEnd()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/ui.ts:117:      resolve(answer.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/actor/spawn.ts:300:        // strip the Write tool (llm.ts resolveTools → Permission.disabled). Read-only agents
+/home/z/my-project/MiMo-Code/packages/opencode/src/actor/spawn.ts:305:        // runtime tool-stripping only under a session-level override — e.g. session "*":allow
+/home/z/my-project/MiMo-Code/packages/opencode/src/actor/spawn.ts:306:        // un-stripping a read-only agent's write (we skip though runtime allows), or session
+/home/z/my-project/MiMo-Code/packages/opencode/src/actor/spawn.ts:307:        // "*":deny on a writable agent (we nudge though runtime strips). Both are deliberately
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/export.ts:13:  return value.trim() ? `[redacted:${kind}:${id}]` : value
+/home/z/my-project/MiMo-Code/packages/opencode/src/actor/turn.ts:10:  // Wrap the entire turn in Effect.uninterruptible so that status cleanup
+/home/z/my-project/MiMo-Code/packages/opencode/src/project/project.ts:241:          const common = resolveGitPath(sandbox, commonDir.text.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/project/project.ts:259:        sandbox = resolveGitPath(sandbox, topLevel.text.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/project/project.ts:400:        throw new Error(result.stderr.trim() || result.text.trim() || "Failed to initialize git repository")
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/debug/agent.ts:102:  const trimmed = input.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/debug/agent.ts:103:  if (trimmed.length === 0) return {}
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/debug/agent.ts:107:      return JSON.parse(trimmed)
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/debug/agent.ts:110:        return new Function(`return (${trimmed})`)()
+/home/z/my-project/MiMo-Code/packages/opencode/src/project/project-id.ts:13:      const content = fs.readFileSync(candidate, "utf-8").trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/project/project-id.ts:24:function readFileTrimmedOrNull(p: string): string | null {
+/home/z/my-project/MiMo-Code/packages/opencode/src/project/project-id.ts:26:  const text = fs.readFileSync(p, "utf-8").trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/project/project-id.ts:35:    const cached = readFileTrimmedOrNull(idFile)
+/home/z/my-project/MiMo-Code/packages/opencode/src/project/project-id.ts:43:  const cached = readFileTrimmedOrNull(localFile)
+/home/z/my-project/MiMo-Code/packages/opencode/src/permission/index.ts:203:      // attached to reply, so an ask that would block instead fails clean with
+/home/z/my-project/MiMo-Code/packages/opencode/src/permission/index.ts:229:      // cleanup returned from the body, which removes the addEventListener.
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts:17:    case "content_filter":
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts:18:      return "content-filter"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/agent.ts:126:          selectedTools = cliTools ? cliTools.split(",").map((t) => t.trim()) : AVAILABLE_TOOLS
+/home/z/my-project/MiMo-Code/packages/opencode/src/mcp/oauth-callback.ts:67:function cleanupStateIndex(oauthState: string) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/mcp/oauth-callback.ts:107:      cleanupStateIndex(state)
+/home/z/my-project/MiMo-Code/packages/opencode/src/mcp/oauth-callback.ts:134:  cleanupStateIndex(state)
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/runtime.ts:58:  worktrees: Set<string> // worktree directories pending disposition, for cancel cleanup
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/runtime.ts:307:    // Best-effort cleanup for a NON-SUCCESS terminal (cancel, deadline, script
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/runtime.ts:677:        // Register the worktree for cleanup the moment it exists on disk — BEFORE
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/runtime.ts:678:        // the spawn attempt. If spawn rejects or the agent fails, cancel-cleanup
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/runtime.ts:1072:        // deadline-fire / script throw leaves a clean slate for a convergent
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/sandbox.ts:112:    const strip = vm.evalCode(`
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/sandbox.ts:128:    if (strip.error) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/sandbox.ts:129:      strip.error.dispose()
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/sandbox.ts:131:      strip.value.dispose()
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/sandbox.ts:189:    // unsettled deferred before the context, so no process abort on cleanup.
+/home/z/my-project/MiMo-Code/packages/opencode/src/acp/README.md:3:This directory contains a clean, protocol-compliant implementation of the [Agent Client Protocol](https://agentclientprotocol.com/) for opencode.
+/home/z/my-project/MiMo-Code/packages/opencode/src/acp/README.md:7:The implementation follows a clean separation of concerns:
+/home/z/my-project/MiMo-Code/packages/opencode/src/acp/README.md:150:### Clean Architecture
+/home/z/my-project/MiMo-Code/packages/opencode/src/acp/README.md:163:ACP sessions map cleanly to opencode's internal session model:
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx:39:    const needle = query().trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx:225:  const modelID = modelIDRaw.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-model.tsx:230:  const modelName = modelNameRaw.trim() || modelID
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/background-image.tsx:1:import { createEffect, createMemo, createResource, onCleanup, Show } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/background-image.tsx:97:  onCleanup(() => kittyClear(id))
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:80:    return this.config.provider.split(".")[0].trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/acp/agent.ts:1393:        .trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/acp/agent.ts:1398:      return { name, args: rest.join(" ").trim() }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/map-openai-compatible-finish-reason.ts:11:    case "content_filter":
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/map-openai-compatible-finish-reason.ts:12:      return "content-filter"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-go-upsell.tsx:4:import { createSignal, onCleanup, onMount } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-go-upsell.tsx:70:  onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/builtin/deep-research.js:109:const TOPIC = (typeof args === "string" && args.trim()) || ""
+/home/z/my-project/MiMo-Code/packages/opencode/src/workflow/builtin/deep-research.js:122:  "Return the question (as given or lightly cleaned up), a one-line plan, and the search lines.\n\nReturn structured output only.",
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-mimo-login.tsx:93:            // strip Claude Code context-window suffix e.g. claude-opus-4-6[1m]
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-mimo-login.tsx:211:          code: value.trim(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:21:// generic capability check would strip images before they reach the model.
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:71:  // Anthropic rejects messages with empty content - filter out empty string messages
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:81:        const filtered = msg.content.filter((part) => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:88:        return { ...msg, content: filtered }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:141:        { ...msg, content: parts.filter((part) => part.type !== "tool-call") },
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:142:        { ...msg, content: parts.filter((part) => part.type === "tool-call") },
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:200:        const reasoningParts = msg.content.filter((part: any) => part.type === "reasoning")
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:204:        const filteredContent = msg.content.filter((part: any) => part.type !== "reasoning")
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:210:            content: filteredContent,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:223:          content: filteredContent,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:366:    return { ...msg, content: filtered }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/transform.ts:388:        ? sum + msg.content.filter((part) => part.type === "image").length
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-stash.tsx:25:  const firstLine = input.split("\n")[0].trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/startup-loading.tsx:1:import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/startup-loading.tsx:51:  onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/control-plane/util.ts:8:      cleanup()
+/home/z/my-project/MiMo-Code/packages/opencode/src/control-plane/util.ts:15:        cleanup()
+/home/z/my-project/MiMo-Code/packages/opencode/src/control-plane/util.ts:18:        cleanup()
+/home/z/my-project/MiMo-Code/packages/opencode/src/control-plane/util.ts:23:    const cleanup = () => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/control-plane/util.ts:30:      cleanup()
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/provider.ts:218:        if (typeof name === "string" && name.trim() !== "") return name
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/provider.ts:489:          const id = String(modelID).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/provider.ts:507:          const id = String(modelID).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/provider.ts:1505:          // Strip openai itemId metadata following what codex does
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/logo.tsx:2:import { For, createMemo, createSignal, onCleanup, onMount, type JSX } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/logo.tsx:641:  onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/util/effect-zod.ts:32: * The cleanest upstream fix would be either:
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:49:  readonly cleanup: () => Effect.Effect<void>
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:191:          const file = result.text.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:201:            file ? (yield* read(file)).trimEnd() : "",
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:275:        const cleanup = Effect.fnUntraced(function* () {
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:282:                log.warn("cleanup failed", {
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:288:              log.info("cleanup", { prune })
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:311:              const hash = result.text.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:333:                .trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:335:                .map((x) => x.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:403:                if (tree.code === 0 && tree.text.trim()) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:453:                    .trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:455:                    .map((item) => item.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:507:              return result.text.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:659:              for (const line of statuses.text.trim().split("\n")) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:674:                .trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:728:        yield* cleanup().pipe(
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:730:            log.error("cleanup loop failed", { cause: Cause.pretty(cause) })
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:738:        return { cleanup, track, patch, restore, revert, diff, diffFull }
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:746:      cleanup: Effect.fn("Snapshot.cleanup")(function* () {
+/home/z/my-project/MiMo-Code/packages/opencode/src/snapshot/index.ts:747:        return yield* InstanceState.useEffect(state, (s) => s.cleanup())
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-theme-list.tsx:4:import { onCleanup } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-theme-list.tsx:19:  onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/util/log.ts:62:  void cleanup(Global.Path.log)
+/home/z/my-project/MiMo-Code/packages/opencode/src/util/log.ts:70:    // forensics. cleanup() above already prunes old timestamped logs.
+/home/z/my-project/MiMo-Code/packages/opencode/src/util/log.ts:92:async function cleanup(dir: string) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/memory/fts-query.ts:32:      ?.map((t) => t.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/util/process.ts:42:    const text = stderr.toString().trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-workflows.tsx:6:import { createMemo, onCleanup, onMount } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-workflows.tsx:25:    onCleanup(() => clearInterval(interval))
+/home/z/my-project/MiMo-Code/packages/opencode/src/memory/service.ts:114:      // Over-fetch (3x, capped) so the relative floor can trim common-word
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-command.tsx:9:  onCleanup,
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-command.tsx:148:      // runWithOwner attaches createMemo/onCleanup to this owner so plugin registrations stay reactive and dispose correctly.
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-command.tsx:154:        onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/bg-pulse.tsx:2:import { createMemo, createSignal, For, onCleanup, onMount } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/bg-pulse.tsx:32:  onCleanup(() => clearInterval(timer))
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/bg-pulse.tsx:44:  onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-skill.tsx:31:      description: skill.description?.replace(/\s+/g, " ").trim(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:129:    .trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:140:      .map((line) => line.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:144:        const value = match[1]?.trim().replace(/^['"]|['"]$/g, "")
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:249:      const extra = startCommand?.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:323:        .map((line) => line.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:327:            acc.push({ path: line.slice("worktree ".length).trim() })
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:333:            current.branch = line.slice("branch ".length).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:358:    function cleanDirectory(target: string) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:389:          yield* cleanDirectory(directory)
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:410:      yield* cleanDirectory(entry.path)
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:454:      const text = cmd.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:470:      const startup = project?.commands?.start?.trim() ?? ""
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:493:      const first = yield* git(["clean", "-ffdx"], { cwd: root })
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:500:      return yield* git(["clean", "-ffdx"], { cwd: root })
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:549:      const cleanResult = yield* sweep(worktreePath)
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:550:      if (cleanResult.code !== 0) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:551:        throw new ResetFailedError({ message: cleanResult.stderr || cleanResult.text || "Failed to clean worktree" })
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:567:        ["submodule", "foreach", "--recursive", "git", "clean", "-fdx"],
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:569:        (r) => new ResetFailedError({ message: r.stderr || r.text || "Failed to clean submodules" }),
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:577:      if (status.text.trim()) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:578:        throw new ResetFailedError({ message: `Worktree reset left local changes:\n${status.text.trim()}` })
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:591:      return res.text.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:597:      if (status.text.trim() !== "") return false
+/home/z/my-project/MiMo-Code/packages/opencode/src/worktree/index.ts:599:      return current.code === 0 && current.text.trim() === base
+/home/z/my-project/MiMo-Code/packages/opencode/src/installation/index.ts:221:          const r = (yield* text(["npm", "config", "get", "registry"])).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/installation/index.ts:294:          //     const dir = repo.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/util/lock.ts:40:  // Clean up empty locks
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-image-list.tsx:8:import { createResource, onCleanup } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-image-list.tsx:41:  onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-image-list.tsx:50:    const src = expandHome(raw.trim().replace(/^['"]|['"]$/g, ""))
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx:5:import { createMemo, createResource, createEffect, onMount, onCleanup, Index, Show, createSignal } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx:108:      onCleanup(() => clearInterval(interval))
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx:416:        (obj) => removeLineRange((obj.value ?? obj.display).trimEnd()),
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/autocomplete.tsx:475:    const displayText = selected.display.trimEnd()
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/watcher.ts:137:              result.exitCode === 0 ? path.resolve(Instance.project.worktree, result.text().trim()) : undefined
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/installation.ts:11:  if (existing && existing.trim()) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/installation.ts:12:    cached = existing.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/history.tsx:86:        let trimmed = false
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/history.tsx:92:              trimmed = true
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/history.tsx:98:        if (trimmed) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/schema.ts:20:  cleanup_after: z.number().optional(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/ripgrep.ts:170:  const err = new Error(stderr.trim() || `ripgrep failed with code ${code}`)
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/ripgrep.ts:175:function clean(file: string) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/ripgrep.ts:184:      text: clean(data.path.text),
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/ripgrep.ts:361:                  Stream.runForEach((line) => Effect.sync(() => Queue.offerUnsafe(queue, clean(line)))),
+/home/z/my-project/MiMo-Code/packages/opencode/src/index.ts:61:  const text = out.trimStart()
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:26:    cleanup_after: row.cleanup_after ?? undefined,
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:89:    const cleanupAfter = Effect.fn("TaskRegistry.cleanupAfter")(function* (now: number) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:91:      const days = cfg.checkpoint?.task_archive_days ?? cfg.checkpoint?.task_cleanup_days ?? 7
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:150:        cleanup_after: null,
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:180:        const notArchived = or(isNull(TaskTable.cleanup_after), gt(TaskTable.cleanup_after, now))
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:268:      // done/abandoned task. done()/abandon() stamp ended_at + cleanup_after; start()
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:270:      // (status=in_progress yet carrying ended_at/cleanup_after) that list() drops from
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:304:      const cleanup = yield* cleanupAfter(now)
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:311:            cleanup_after: cleanup,
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:330:      const cleanup = yield* cleanupAfter(now)
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/registry.ts:337:            cleanup_after: cleanup,
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:443:      if (diffOutput.trim()) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:444:        for (const line of diffOutput.trim().split("\n")) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:465:      if (untrackedOutput.trim()) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:466:        for (const file of untrackedOutput.trim().split("\n")) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:491:      if (deletedOutput.trim()) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:492:        for (const file of deletedOutput.trim().split("\n")) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:557:        Effect.map((s) => s.trim()),
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:563:        if (!diff.trim()) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:566:        if (diff.trim()) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/file/index.ts:631:      const query = input.query.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/gate.ts:78: * cleanly. Mirrors actor/spawn.ts:412 today.
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:2:import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:210:  onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:284:                    if (voiceSendEnabled() && av.getPlainText().trim()) await av.submit()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:285:                    else if (!av.getPlainText().trim()) av.showError(t("tui.voice.error.empty_send"))
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:306:              if (voiceSendEnabled() && Voice.SEND_RE.test(text.replace(/[\s。.!！？?，,]+$/g, "").trim())) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:309:                av.appendText(text.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:400:    const text = res?.data?.prediction?.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:435:  // The cleanup resumes keybinds on any dismissal (typing, accept, submit,
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:440:    onCleanup(() => command.keybinds(true))
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:795:  onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:976:    const trimmed = store.prompt.input.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:977:    if (trimmed === "exit" || trimmed === "quit" || trimmed === ":q") {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:1060:      ? command.slashes().find((s) => s.display === inputText.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:1191:    const pastedContent = normalizedText.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:1548:                if (!normalizedText.trim()) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/index.tsx:1724:                      onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/task/task.sql.ts:20:    cleanup_after: integer(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/part.ts:6:export function strip(part: Item & { id: string; messageID: string; sessionID: string }): Item {
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:81:    const filePath = line.slice("*** Add File:".length).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:86:    const filePath = line.slice("*** Delete File:".length).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:91:    const filePath = line.slice("*** Update File:".length).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:97:      movePath = lines[nextIdx].slice("*** Move to:".length).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:114:      const contextLine = lines[i].substring(2).trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:180:function stripHeredoc(input: string): string {
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:190:  const cleaned = stripHeredoc(patchText.trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:191:  const lines = cleaned.split("\n")
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:199:  const beginIdx = lines.findIndex((line) => line.trim() === beginMarker)
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:200:  const endIdx = lines.findIndex((line) => line.trim() === endMarker)
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:470:  // Pass 2: rstrip (trim trailing whitespace)
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:471:  const rstrip = tryMatch(lines, pattern, startIndex, (a, b) => a.trimEnd() === b.trimEnd(), eof)
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:472:  if (rstrip !== -1) return rstrip
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:474:  // Pass 3: trim (both ends)
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:475:  const trim = tryMatch(lines, pattern, startIndex, (a, b) => a.trim() === b.trim(), eof)
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:476:  if (trim !== -1) return trim
+/home/z/my-project/MiMo-Code/packages/opencode/src/patch/index.ts:483:    (a, b) => normalizeUnicode(a.trim()) === normalizeUnicode(b.trim()),
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/stash.tsx:56:        let trimmed = false
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/stash.tsx:62:              trimmed = true
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/prompt/stash.tsx:67:        if (trimmed) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx:179:  const providerID = providerIDRaw.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx:184:  const name = nameRaw.trim() || providerID
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx:188:  const baseURL = baseURLRaw.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx:193:  const apiKey = apiKeyRaw.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx:198:  const modelID = modelIDRaw.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/dialog-provider.tsx:203:  const modelName = modelNameRaw.trim() || modelID
+/home/z/my-project/MiMo-Code/packages/opencode/src/effect/logger.ts:16:const clean = (input?: Fields): Fields =>
+/home/z/my-project/MiMo-Code/packages/opencode/src/effect/logger.ts:31:  const ann = clean({ ...base, ...extra })
+/home/z/my-project/MiMo-Code/packages/opencode/src/effect/logger.ts:37:  const extra = clean(opts.fiber.getRef(References.CurrentLogAnnotations))
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/starry-background.tsx:1:import { createEffect, createSignal, onCleanup, onMount, createMemo } from "solid-js"
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/tui/component/starry-background.tsx:146:  onCleanup(() => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/github.ts:265:            ).then((x) => x.text().trim())
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/github.ts:508:        return result.text().trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/github.ts:703:        // Also output the clean error message for the action to capture
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/github.ts:799:          .map((m) => m.trim().toLowerCase())
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/github.ts:805:          const body = (payload as IssueCommentEvent | PullRequestReviewCommentEvent).comment.body.trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/github.ts:1076:          gitConfig = ret.stdout.toString().trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/github.ts:1182:        const status = ret.stdout.toString().trim()
+/home/z/my-project/MiMo-Code/packages/opencode/src/cli/cmd/github.ts:1204:          return parseInt(retry.stdout.toString().trim()) > 0
+
+[Showing results with pagination = limit: 250]
