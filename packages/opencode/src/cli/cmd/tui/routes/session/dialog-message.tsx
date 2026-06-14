@@ -89,6 +89,10 @@ export function DialogMessage(props: {
               sessionID: props.sessionID,
               messageID: props.messageID,
             })
+            if (result.error || !result.data) {
+              dialog.clear()
+              return
+            }
             const msg = message()
             const prompt = msg
               ? sync.data.part[msg.id].reduce(
@@ -103,7 +107,7 @@ export function DialogMessage(props: {
                 )
               : undefined
             route.navigate({
-              sessionID: result.data!.id,
+              sessionID: result.data.id,
               type: "session",
               prompt,
             })
