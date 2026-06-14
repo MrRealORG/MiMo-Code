@@ -4,6 +4,7 @@ import { Session } from "../../session"
 import { bootstrap } from "../bootstrap"
 import { Database } from "../../storage"
 import { SessionTable } from "../../session/session.sql"
+import { ClaudeImportTable } from "../../session/claude-import.sql"
 import { Project } from "../../project"
 import { Instance } from "../../project/instance"
 import { AppRuntime } from "@/effect/app-runtime"
@@ -89,8 +90,20 @@ async function getCurrentProject(): Promise<Project.Info> {
 }
 
 async function getAllSessions(): Promise<Session.Info[]> {
+  // Exclude sessions that were imported from Claude Code (#494).
+  // Imported sessions are tracked in the claude_import table; including them
+  // inflates stats (sessions, days, tokens, cost) with historical data the
+  // user did not generate in MiMo.
+  const importedSessionIDs = new Set<string>(
+    Database.use((db) => db.select({ session_id: ClaudeImportTable.session_id }).from(ClaudeImportTable).all()).map(
+      (r) => r.session_id,
+    ),
+  )
+
   const rows = Database.use((db) => db.select().from(SessionTable).all())
-  return rows.map((row) => Session.fromRow(row))
+  return rows
+    .filter((row) => !importedSessionIDs.has(row.id))
+    .map((row) => Session.fromRow(row))
 }
 
 export async function aggregateSessionStats(days?: number, projectFilter?: string): Promise<SessionStats> {

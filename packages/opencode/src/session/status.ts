@@ -18,7 +18,7 @@ export const Info = z
     }),
     z.object({
       type: z.literal("busy"),
-      message: z.string().optional(),
+      message: z.string().max(200).optional(),
     }),
   ])
   .meta({
