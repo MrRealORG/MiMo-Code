@@ -366,9 +366,17 @@ export function Prompt(props: PromptProps) {
 
   async function localVoiceSetup() {
     if (LocalWhisper.isSetupComplete()) {
+      if (!Voice.isAvailable()) {
+        toast.show({
+          message: "Voice setup done but no audio recorder found. Install sox: sudo apt install sox",
+          variant: "error",
+          duration: 6000,
+        })
+        return
+      }
       kv.set("voice_local_mode", true)
       kv.set("voice_enabled", true)
-      toast.show({ message: "Voice enabled (local Whisper)", variant: "info", duration: 3000 })
+      toast.show({ message: "Voice enabled! Hold Ctrl+Space to talk.", variant: "success", duration: 4000 })
       return
     }
 
@@ -1850,16 +1858,25 @@ export function Prompt(props: PromptProps) {
                       </text>
                     </Match>
                     <Match when={voiceState() === "idle"}>
-                      <text
-                        fg={voiceLocalMode() ? theme.success : theme.textMuted}
-                        selectable={false}
-                        onMouseUp={() => {
-                          if (voiceLocalMode()) localVoiceDisable()
-                          else voiceToggle()
-                        }}
-                      >
-                        {voiceLocalMode() ? "[ Voice ON (local) ]" : "[ Voice ]"}
-                      </text>
+                      {voiceLocalMode() ? (
+                        <text
+                          fg={Voice.isAvailable() ? theme.success : theme.error}
+                          selectable={false}
+                          onMouseUp={() => localVoiceDisable()}
+                        >
+                          {Voice.isAvailable()
+                            ? "[ Voice ON \u2022 Ctrl+Space ]"
+                            : "[ Voice ON \u2022 No recorder! ]"}
+                        </text>
+                      ) : (
+                        <text
+                          fg={theme.textMuted}
+                          selectable={false}
+                          onMouseUp={() => voiceToggle()}
+                        >
+                          {"[ Voice ]"}
+                        </text>
+                      )}
                     </Match>
                     <Match when={voiceState() === "listening"}>
                       <text fg={theme.primary} selectable={false} onMouseUp={() => voiceToggle()}>

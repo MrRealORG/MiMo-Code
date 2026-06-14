@@ -87,8 +87,9 @@ export function startRawRecording(): RawRecordingHandle | null {
 
   let leftover: Buffer | null = null
   const reading = (async () => {
-    const stdout = proc.stdout as AsyncIterable<Buffer>
-    for await (const chunk of stdout) {
+    const stdout = proc.stdout
+    if (!stdout) return
+    for await (const chunk of stdout as AsyncIterable<Buffer>) {
       if (proc.killed) break
       const buf: Buffer = leftover ? Buffer.concat([leftover, chunk]) : chunk
       leftover = null
@@ -97,7 +98,9 @@ export function startRawRecording(): RawRecordingHandle | null {
         leftover = Buffer.from(buf.subarray(alignedLen))
       }
       if (alignedLen > 0) {
-        chunks.push(new Int16Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + alignedLen)))
+        const aligned = Buffer.alloc(alignedLen)
+        buf.copy(aligned, 0, 0, alignedLen)
+        chunks.push(new Int16Array(aligned.buffer, aligned.byteOffset, alignedLen / 2))
       }
     }
   })().catch(() => {})
