@@ -443,23 +443,32 @@ export const ActorTool = Tool.define(
           ),
       })
 
+      const operationUnion = z.discriminatedUnion("action", [
+        runSchema,
+        spawnSchema,
+        statusSchema,
+        waitSchema,
+        cancelSchema,
+        sendSchema,
+      ])
+
       const parameters = z.strictObject({
-        // .meta({ type: "object" }) is REQUIRED — without it the emitted JSON
-        // schema's `operation` node has only `anyOf`, no `type`, and some models
-        // (notably mimo-v2.5-pro) stringify the whole envelope
-        // ({"operation":"{\"action\":\"run\",...}"}) which fails zod validation.
-        // The root strictObject also means flattenDiscriminatedUnion finds no
-        // root-level union and passes through unchanged — root keeps exactly one
-        // key (`operation`), so models can't drop the discriminator.
+        // z.preprocess auto-heals models that stringify the operation field
+        // (e.g. {"operation":"{\"action\":\"run\",...}"}) in JSON mode.
+        // Shell mode is already handled by recoverActorArgs, but JSON-mode
+        // calls bypass shellWrap entirely — this covers that gap.
+        // .meta({ type: "object" }) prevents some models from stringifying
+        // in the first place, but not all comply.
         operation: z
-          .discriminatedUnion("action", [
-            runSchema,
-            spawnSchema,
-            statusSchema,
-            waitSchema,
-            cancelSchema,
-            sendSchema,
-          ])
+          .preprocess((val) => {
+            if (typeof val === "string") {
+              try {
+                const parsed = JSON.parse(val)
+                if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed
+              } catch { /* fall through */ }
+            }
+            return val
+          }, operationUnion)
           .meta({ type: "object" }),
       })
 
@@ -788,10 +797,20 @@ export const ActorTool = Tool.define(
         }
       })
 
+      function formatValidationError(error: z.ZodError): string {
+        // Detect common model mistakes and provide actionable guidance.
+        const issues = error.issues.map((i) => i.message).join("; ")
+        if (issues.includes("Expected object") && !issues.includes("operation")) {
+          return `The "operation" field must be a JSON object, not a string. Example: {"operation":{"action":"run","subagent_type":"<type>","description":"...","prompt":"..."}}. Do NOT JSON.stringify the operation value.`
+        }
+        return `Invalid actor tool arguments: ${issues}\nExpected format: {"operation":{"action":"run|spawn|status|wait|cancel|send", ...}}`
+      }
+
       return {
         description: DESCRIPTION,
         parameters,
         execute: (input: z.infer<typeof parameters>, ctx: Tool.Context) => run(input, ctx).pipe(Effect.orDie),
+        formatValidationError,
         shell: {
           description: SHELL_DESCRIPTION,
           parse: parseActorScript,
