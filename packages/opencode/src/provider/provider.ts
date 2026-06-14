@@ -31,7 +31,13 @@ import * as ProviderTransform from "./transform"
 import { ModelID, ProviderID } from "./schema"
 
 const log = Log.create({ service: "provider" })
-const DEFAULT_CONTEXT_WINDOW = 1_000_000
+// Conservative default for models without an explicit limit.context.
+// All models listed on models.dev have their own limits; this only applies
+// to custom / local OpenAI-compatible models.  128 Ki tokens is a safe
+// middle-ground that avoids silent context-overflow while still being
+// generous enough for most local setups.  Users should set limit.context
+// explicitly in mimocode.json for accurate accounting.
+const DEFAULT_CONTEXT_WINDOW = 128_000
 // Reserved built-in model tiers: always resolve, falling back to the default
 // model when not configured in `model_groups` (zero-config never errors).
 const BUILTIN_TIERS = new Set(["ultra", "standard", "lite"])
