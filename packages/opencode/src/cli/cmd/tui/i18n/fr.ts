@@ -435,6 +435,9 @@ export const dict = {
   "tui.question.plan_exit.option.1.label": "Non",
   "tui.question.plan_exit.option.1.description": "Rester avec l'agent plan pour continuer à affiner",
 
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto (gratuit pendant la promotion)",
+
   // Session badges
   "tui.session.badge.auto": "Auto",
 } satisfies Partial<Record<Keys, string>>

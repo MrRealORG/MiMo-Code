@@ -387,6 +387,9 @@ export const dict = {
   "tui.question.plan_exit.option.1.label": "いいえ",
   "tui.question.plan_exit.option.1.description": "plan エージェントで計画の改善を続ける",
 
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto（無料プロモーション中）",
+
   // Session badges
   "tui.session.badge.auto": "自動",
 } satisfies Partial<Record<Keys, string>>

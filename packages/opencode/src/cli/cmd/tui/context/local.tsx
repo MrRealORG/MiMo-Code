@@ -3,6 +3,7 @@ import { createSimpleContext } from "./helper"
 import { batch, createEffect, createMemo, createSignal } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { useTheme } from "@tui/context/theme"
+import { useLanguage } from "@tui/context/language"
 import { uniqueBy } from "remeda"
 import path from "path"
 import { Global } from "@/global"
@@ -27,6 +28,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     const sync = useSync()
     const sdk = useSDK()
     const toast = useToast()
+    const lang = useLanguage()
 
     function isModelValid(model: { providerID: string; modelID: string }) {
       const provider = sync.data.provider.find((x) => x.id === model.providerID)
@@ -232,7 +234,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const info = provider?.models[value.modelID]
           return {
             provider: provider?.name ?? value.providerID,
-            model: value.modelID === "mimo-auto" ? "MiMo Auto（MiMo-V2.5 限免中）" : (info?.name ?? value.modelID),
+            model: value.modelID === "mimo-auto" ? lang.t("tui.model.mimo_auto_free_promo") : (info?.name ?? value.modelID),
             reasoning: info?.capabilities?.reasoning ?? false,
           }
         }),

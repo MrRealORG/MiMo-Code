@@ -447,6 +447,9 @@ export const dict = {
   "tui.question.plan_exit.option.1.label": "Нет",
   "tui.question.plan_exit.option.1.description": "Остаться с агентом plan для доработки плана",
 
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto (бесплатно в рамках акции)",
+
   // Session badges
   "tui.session.badge.auto": "Авто",
 } satisfies Partial<Record<Keys, string>>

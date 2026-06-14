@@ -392,6 +392,9 @@ export const dict: Record<string, string> = {
   "tui.question.plan_exit.option.1.label": "No",
   "tui.question.plan_exit.option.1.description": "Stay with plan agent to continue refining the plan",
 
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto (free during promotion)",
+
   // Session badges
   "tui.session.badge.auto": "Auto",
 }

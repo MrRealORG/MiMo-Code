@@ -385,6 +385,9 @@ export const dict = {
   "tui.question.plan_exit.option.1.label": "否",
   "tui.question.plan_exit.option.1.description": "留在 plan 智能体继续完善计划",
 
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto（限免中）",
+
   // Session badges
   "tui.session.badge.auto": "自动",
 } satisfies Partial<Record<Keys, string>>
