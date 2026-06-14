@@ -430,4 +430,43 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Login dialog
+  "tui.dialog.login.title": "Seleccionar proveedor",
+  "tui.dialog.login.xiaomi": "Xiaomi",
+  "tui.dialog.login.xiaomi.desc": "(Recomendado)",
+  "tui.dialog.login.mimo_free": "MiMo Auto (gratis)",
+  "tui.dialog.login.mimo_free.desc": "Canal anónimo gratuito — no requiere inicio de sesión",
+  "tui.dialog.login.mimo_free.success": "MiMo Auto (gratis) listo — modelo predeterminado establecido a mimo/mimo-auto",
+  "tui.dialog.login.mimo_free.unavailable": "Canal MiMo Auto (gratis) no cargado",
+  "tui.dialog.login.import_claude": "Importar desde Claude Code",
+  "tui.dialog.login.import_claude.no_key": "Clave API de Claude Code no encontrada",
+  "tui.dialog.login.import_claude.read_failed": "Error al leer ~/.claude/settings.json",
+  "tui.dialog.login.import_claude.success": "Importado desde Claude Code",
+  "tui.dialog.login.other": "Otro proveedor",
+  "tui.dialog.login.start_failed": "Error al iniciar sesión",
+
+  // Login flow
+  "tui.dialog.login.flow.title": "Inicio de sesión MiMo",
+  "tui.dialog.login.flow.placeholder": "Pegar Code (o esperar callback del navegador)",
+  "tui.dialog.login.flow.busy": "Iniciando sesión...",
+  "tui.dialog.login.flow.manual_hint": "¿El navegador no se abrió? Visita manualmente:",
+  "tui.dialog.login.flow.waiting": "Esperando autorización del navegador...",
+  "tui.dialog.login.flow.invalid_code": "Código no válido, por favor reintenta",
+
+  // CLI provider keys
+  "cli.providers.select": "Seleccionar proveedor",
+  "cli.providers.other": "Otro proveedor",
+  "cli.providers.mimo.recommended_hint": "recomendado",
+  "cli.providers.mimo_free.hint": "Canal anónimo gratuito / mimo-auto",
+  "cli.providers.mimo_free.verifying": "Verificando canal MiMo Auto (gratis)...",
+  "cli.providers.mimo_free.ready": "Canal MiMo Auto (gratis) listo",
+  "cli.providers.mimo_free.failed": "Verificación de MiMo Auto (gratis) fallida",
+  "cli.providers.mimo_free.default_set": "Modelo predeterminado establecido a mimo/mimo-auto (1M de contexto, gratis)",
+  "cli.providers.mimo_free.usage_hint": "No requiere inicio de sesión — simplemente ejecuta mimo. Para modelos premium, elige MiMo con inicio de sesión en navegador.",
+  "cli.providers.mimo_login.decrypt_retry": "Error de descifrado, por favor reintenta ({remaining} intentos restantes)",
+  "cli.providers.mimo_login.decrypt_exhausted": "Error de descifrado, máximo de reintentos alcanzado",
+
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto (gratis durante la promoción)",
 } satisfies Partial<Record<Keys, string>>

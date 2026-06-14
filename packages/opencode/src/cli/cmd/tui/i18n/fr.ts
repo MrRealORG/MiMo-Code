@@ -437,4 +437,43 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Login dialog
+  "tui.dialog.login.title": "Sélectionner un fournisseur",
+  "tui.dialog.login.xiaomi": "Xiaomi",
+  "tui.dialog.login.xiaomi.desc": "(Recommandé)",
+  "tui.dialog.login.mimo_free": "MiMo Auto (gratuit)",
+  "tui.dialog.login.mimo_free.desc": "Canal anonyme gratuit — aucune connexion requise",
+  "tui.dialog.login.mimo_free.success": "MiMo Auto (gratuit) prêt — modèle par défaut défini sur mimo/mimo-auto",
+  "tui.dialog.login.mimo_free.unavailable": "Canal MiMo Auto (gratuit) non chargé",
+  "tui.dialog.login.import_claude": "Importer depuis Claude Code",
+  "tui.dialog.login.import_claude.no_key": "Clé API Claude Code introuvable",
+  "tui.dialog.login.import_claude.read_failed": "Échec de la lecture de ~/.claude/settings.json",
+  "tui.dialog.login.import_claude.success": "Importé depuis Claude Code",
+  "tui.dialog.login.other": "Autre fournisseur",
+  "tui.dialog.login.start_failed": "Échec du démarrage de la connexion",
+
+  // Login flow
+  "tui.dialog.login.flow.title": "Connexion MiMo",
+  "tui.dialog.login.flow.placeholder": "Coller le Code (ou attendre le callback du navigateur)",
+  "tui.dialog.login.flow.busy": "Connexion en cours...",
+  "tui.dialog.login.flow.manual_hint": "Le navigateur ne s'est pas ouvert ? Accédez manuellement :",
+  "tui.dialog.login.flow.waiting": "En attente de l'autorisation du navigateur...",
+  "tui.dialog.login.flow.invalid_code": "Code invalide, veuillez réessayer",
+
+  // CLI provider keys
+  "cli.providers.select": "Sélectionner un fournisseur",
+  "cli.providers.other": "Autre fournisseur",
+  "cli.providers.mimo.recommended_hint": "recommandé",
+  "cli.providers.mimo_free.hint": "Canal anonyme gratuit / mimo-auto",
+  "cli.providers.mimo_free.verifying": "Vérification du canal MiMo Auto (gratuit)...",
+  "cli.providers.mimo_free.ready": "Canal MiMo Auto (gratuit) prêt",
+  "cli.providers.mimo_free.failed": "Échec de la vérification MiMo Auto (gratuit)",
+  "cli.providers.mimo_free.default_set": "Modèle par défaut défini sur mimo/mimo-auto (1M de contexte, gratuit)",
+  "cli.providers.mimo_free.usage_hint": "Aucune connexion requise — lancez simplement mimo. Pour les modèles premium, choisissez MiMo avec connexion navigateur.",
+  "cli.providers.mimo_login.decrypt_retry": "Échec du déchiffrement, veuillez réessayer ({remaining} tentatives restantes)",
+  "cli.providers.mimo_login.decrypt_exhausted": "Échec du déchiffrement, nombre maximal de tentatives atteint",
+
+  // Model display
+  "tui.model.mimo_auto_free_promo": "MiMo Auto (gratuit pendant la promotion)",
 } satisfies Partial<Record<Keys, string>>
