@@ -10,10 +10,10 @@
  */
 
 import { execSync } from "node:child_process"
-import { existsSync, mkdirSync, chmodSync, statSync, writeFileSync, readFileSync } from "node:fs"
+import { existsSync, mkdirSync, chmodSync, statSync, writeFileSync } from "node:fs"
 import { createWriteStream } from "node:fs"
 import { homedir, tmpdir, platform, arch, cpus } from "node:os"
-import { join, basename } from "node:path"
+import { join } from "node:path"
 import { Process } from "@/util"
 import { which } from "@/util/which"
 import { encodeWav } from "./voice"
@@ -177,12 +177,18 @@ export async function transcribe(audio: Int16Array): Promise<string | null> {
       { stdin: "ignore", stdout: "pipe", stderr: "pipe" },
     )
 
+    // Timeout safety — whisper.cpp should not take more than 60s for short clips
+    const timeout = setTimeout(() => {
+      try { proc.kill("SIGTERM") } catch {}
+    }, 60_000)
+
     let stderr = ""
     proc.stderr?.on("data", (d: Buffer) => {
       stderr += d.toString()
     })
 
     const exitCode = await proc.exited
+    clearTimeout(timeout)
     if (exitCode !== 0) return null
 
     // Read output
@@ -239,11 +245,10 @@ async function downloadFile(url: string, dest: string, onProgress: (p: DLProgres
   const http = await import("node:http")
 
   await new Promise<void>((resolve, reject) => {
-    const mod = url.startsWith("https") ? https : http
-
     function tryURL(u: string) {
-      mod.get(u, { timeout: 30_000 }, (res: any) => {
-        if (res.statusCode === 301 || res.statusCode === 302) {
+      const reqMod = u.startsWith("https") ? https : http
+      reqMod.get(u, { timeout: 30_000 }, (res: any) => {
+        if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
           if (res.headers.location) {
             tryURL(res.headers.location)
             return

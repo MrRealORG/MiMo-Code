@@ -1628,6 +1628,13 @@ export function Prompt(props: PromptProps) {
                   }
                   return
                 }
+                // Any other key while PTT active → stop recording (Ctrl released)
+                // This is a fallback for terminals that don't send key-up events
+                if (pttActive && !e.ctrl) {
+                  e.preventDefault()
+                  void pttStop()
+                  return
+                }
                 // Escape → Stop push-to-talk if active
                 if (e.name === "escape" && pttActive) {
                   e.preventDefault()
