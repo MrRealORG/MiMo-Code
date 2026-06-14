@@ -1,6 +1,15 @@
 import { MessageV2 } from "./message-v2"
 
 /**
+ * Special tokens that some local models (e.g. Gemma) leak into assistant text
+ * content instead of treating as stop tokens.  These must be stripped before
+ * classification so they don't cause premature loop termination.
+ * Case-insensitive; covers <eos>, <end_of_turn>, <end>, and bare `eos` tokens
+ * that may appear with or without angle brackets.
+ */
+const SPECIAL_TOKEN_RE = /^\s*(<\/?(?:eos|end_of_turn|end)\s*?>|eos)\s*$/i
+
+/**
  * Outcome of classifying a single assistant step. Pure data — `runLoop` decides
  * what side effect (nudge / retry / error / break) each category triggers.
  *
@@ -80,9 +89,17 @@ export function classifyAssistantStep(input: {
   // 8. stop / length / other → inspect produced content. An "other" finish that
   // still produced usable text is a usable-but-abnormal completion: surface it as
   // `degraded` so runLoop can record it instead of silently treating it as clean.
+  //
+  // Text parts that consist solely of leaked special tokens (e.g. <eos>,
+  // <end_of_turn>) from local models are ignored — see #578.
   if (
     input.parts.some(
-      (part) => part.type === "text" && !part.synthetic && !part.ignored && part.text.trim().length > 0,
+      (part) =>
+        part.type === "text" &&
+        !part.synthetic &&
+        !part.ignored &&
+        part.text.trim().length > 0 &&
+        !SPECIAL_TOKEN_RE.test(part.text),
     )
   )
     return assistant.finish === "other" ? { type: "final", degraded: true } : { type: "final" }

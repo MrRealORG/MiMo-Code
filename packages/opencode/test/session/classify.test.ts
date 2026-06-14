@@ -332,4 +332,54 @@ describe("classifyAssistantStep", () => {
     })
     expect(result).toEqual({ type: "failed", reason: "APIError" })
   })
+
+  describe("leaked special tokens from local models (#578)", () => {
+    const eosVariants = [
+      "<eos>",
+      "<EOS>",
+      "<end_of_turn>",
+      "<End_Of_Turn>",
+      "<end>",
+      "</eos>",
+      "</end_of_turn>",
+      "eos",
+      "  <eos>  ",
+    ]
+
+    for (const token of eosVariants) {
+      test(`stop + text="${token}" => invalid (EOS token ignored)`, () => {
+        expect(
+          classifyAssistantStep({
+            phase: "after-process",
+            lastUser,
+            assistant: assistantInfo("m-2", { finish: "stop" }),
+            parts: [textPart("m-2", token)],
+          }).type,
+        ).toBe("invalid")
+      })
+    }
+
+    test("stop + EOS token + real text => final (real text is not masked)", () => {
+      expect(
+        classifyAssistantStep({
+          phase: "after-process",
+          lastUser,
+          assistant: assistantInfo("m-2", { finish: "stop" }),
+          parts: [textPart("m-2", "<eos>"), textPart("m-2", "Here is the actual answer.")],
+        }),
+      ).toEqual({ type: "final" })
+    })
+
+    test("stop + text containing EOS as substring of real content => final", () => {
+      // "The <eos> tag is used by..." is real content, not a bare token
+      expect(
+        classifyAssistantStep({
+          phase: "after-process",
+          lastUser,
+          assistant: assistantInfo("m-2", { finish: "stop" }),
+          parts: [textPart("m-2", "The <eos> tag is used by Gemma models.")],
+        }),
+      ).toEqual({ type: "final" })
+    })
+  })
 })
