@@ -3,6 +3,8 @@ Base validator with common validation logic for document files.
 """
 
 import re
+import tempfile
+import zipfile
 from pathlib import Path
 
 import lxml.etree
@@ -390,8 +392,6 @@ class BaseSchemaValidator:
         Validate that all r:id attributes in XML files reference existing IDs
         in their corresponding .rels files, and optionally validate relationship types.
         """
-        import lxml.etree
-
         errors = []
 
         # Process each XML file that might contain r:id references
@@ -875,9 +875,6 @@ class BaseSchemaValidator:
         Returns:
             set: Set of error messages from the original file
         """
-        import tempfile
-        import zipfile
-
         # Resolve both paths to handle symlinks (e.g., /var vs /private/var on macOS)
         xml_file = Path(xml_file).resolve()
         unpacked_dir = self.unpacked_dir.resolve()

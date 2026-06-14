@@ -36,11 +36,12 @@ def main():
     unpacked_dir = Path(args.unpacked_dir)
     original_file = Path(args.original)
     file_extension = original_file.suffix.lower()
-    assert unpacked_dir.is_dir(), f"Error: {unpacked_dir} is not a directory"
-    assert original_file.is_file(), f"Error: {original_file} is not a file"
-    assert file_extension in [".docx", ".pptx", ".xlsx"], (
-        f"Error: {original_file} must be a .docx, .pptx, or .xlsx file"
-    )
+    if not unpacked_dir.is_dir():
+        sys.exit(f"Error: {unpacked_dir} is not a directory")
+    if not original_file.is_file():
+        sys.exit(f"Error: {original_file} is not a file")
+    if file_extension not in [".docx", ".pptx", ".xlsx"]:
+        sys.exit(f"Error: {original_file} must be a .docx, .pptx, or .xlsx file")
 
     # Run validations
     match file_extension:

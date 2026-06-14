@@ -1,29 +1,45 @@
 #!/usr/bin/env python3
 """Unpack and format XML contents of Office files (.docx, .pptx, .xlsx)"""
 
+import argparse
 import random
-import sys
-import defusedxml.minidom
 import zipfile
+import defusedxml.minidom
 from pathlib import Path
 
-# Get command line arguments
-assert len(sys.argv) == 3, "Usage: python unpack.py <office_file> <output_dir>"
-input_file, output_dir = sys.argv[1], sys.argv[2]
 
-# Extract and format
-output_path = Path(output_dir)
-output_path.mkdir(parents=True, exist_ok=True)
-zipfile.ZipFile(input_file).extractall(output_path)
+def main():
+    parser = argparse.ArgumentParser(description="Unpack an Office file into a directory")
+    parser.add_argument("office_file", help="Office file (.docx/.pptx/.xlsx)")
+    parser.add_argument("output_dir", help="Output directory")
+    args = parser.parse_args()
+    unpack_document(args.office_file, args.output_dir)
 
-# Pretty print all XML files
-xml_files = list(output_path.rglob("*.xml")) + list(output_path.rglob("*.rels"))
-for xml_file in xml_files:
+
+def unpack_document(input_file, output_dir):
+    """Unpack an Office file into a directory and pretty-print all XML files."""
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(input_file) as zf:
+        zf.extractall(output_path)
+
+    for pattern in ["*.xml", "*.rels"]:
+        for xml_file in output_path.rglob(pattern):
+            pretty_print_xml(xml_file)
+
+    # For .docx files, suggest an RSID for tracked changes
+    if str(input_file).endswith(".docx"):
+        suggested_rsid = "".join(random.choices("0123456789ABCDEF", k=8))
+        print(f"Suggested RSID for edit session: {suggested_rsid}")
+
+
+def pretty_print_xml(xml_file):
+    """Pretty-print a single XML file in place."""
     content = xml_file.read_text(encoding="utf-8")
     dom = defusedxml.minidom.parseString(content)
     xml_file.write_bytes(dom.toprettyxml(indent="  ", encoding="ascii"))
 
-# For .docx files, suggest an RSID for tracked changes
-if input_file.endswith(".docx"):
-    suggested_rsid = "".join(random.choices("0123456789ABCDEF", k=8))
-    print(f"Suggested RSID for edit session: {suggested_rsid}")
+
+if __name__ == "__main__":
+    main()
