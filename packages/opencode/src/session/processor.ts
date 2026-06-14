@@ -26,6 +26,19 @@ import { isRecord } from "@/util/record"
 const DOOM_LOOP_THRESHOLD = 3
 const log = Log.create({ service: "session.processor" })
 
+// Common EOS/end-of-turn tokens that some local models (Gemma, Llama, etc.)
+// leak into assistant text content.  Stripping them prevents the classify
+// logic from treating the token as real text and misrouting the step.
+const EOS_TOKENS = [/<eos>/gi, /<end_of_turn>/gi, /<\/?s>/gi, /<\/?turn>/gi]
+
+function stripEosTokens(text: string): string {
+  let cleaned = text
+  for (const re of EOS_TOKENS) {
+    cleaned = cleaned.replace(re, "")
+  }
+  return cleaned
+}
+
 export type Result = "overflow" | "stop" | "continue"
 
 export type Event = LLM.Event
@@ -545,22 +558,32 @@ export const layer: Layer.Layer<
             ctx.stepPartIds.push(ctx.currentText.id)
             return
 
-          case "text-delta":
+          case "text-delta": {
             if (!ctx.firstTokenAt) ctx.firstTokenAt = Date.now()
             if (!ctx.currentText) return
-            ctx.currentText.text += value.text
+            // Strip common EOS tokens that local models (Gemma, Llama, etc.)
+            // may leak into the text stream as literal content.
+            const delta = stripEosTokens(value.text)
+            if (!delta) return
+            ctx.currentText.text += delta
             if (value.providerMetadata) ctx.currentText.metadata = value.providerMetadata
             yield* session.updatePartDelta({
               sessionID: ctx.currentText.sessionID,
               messageID: ctx.currentText.messageID,
               partID: ctx.currentText.id,
               field: "text",
-              delta: value.text,
+              delta,
             })
             return
+          }
 
-          case "text-end":
+          case "text-end": {
             if (!ctx.currentText) return
+            // Final pass: strip any remaining EOS tokens from the full text
+            const stripped = stripEosTokens(ctx.currentText.text)
+            if (stripped !== ctx.currentText.text) {
+              ctx.currentText.text = stripped
+            }
             // oxlint-disable-next-line no-self-assign -- reactivity trigger
             ctx.currentText.text = ctx.currentText.text
             ctx.currentText.text = (yield* plugin.trigger(

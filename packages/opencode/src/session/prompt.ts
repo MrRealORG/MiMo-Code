@@ -481,6 +481,23 @@ export const layer = Layer.effect(
 
       if (input.agent.name !== "plan" || assistantMessage?.info.agent === "plan") return input.messages
 
+      // Heuristic: skip full plan workflow for simple Q&A messages that don't
+      // involve code changes, file edits, or multi-step tasks.  This avoids
+      // creating a plan file and injecting the heavy plan-mode system prompt
+      // when the user is just asking a question.
+      const userText = userMessage.parts
+        .filter((p) => p.type === "text" && !p.synthetic)
+        .map((p) => p.text)
+        .join(" ")
+        .trim()
+      const isSimpleQA =
+        userText.length > 0 &&
+        userText.length < 200 &&
+        !/[`{}[\]<>]/.test(userText) && // no code blocks / JSON
+        !/\b(fix|bug|error|refactor|implement|add|remove|change|rename|move|create|delete|update|write|edit|modify|build|deploy|test|debug)\b/i.test(userText) &&
+        /\?$/.test(userText) // ends with a question mark
+      if (isSimpleQA) return input.messages
+
       const plan = Session.plan(input.session)
       const exists = yield* fsys.existsSafe(plan)
       if (!exists) yield* fsys.ensureDir(path.dirname(plan)).pipe(Effect.catch(Effect.die))

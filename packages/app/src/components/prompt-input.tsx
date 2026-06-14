@@ -540,6 +540,12 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const [composing, setComposing] = createSignal(false)
   const isImeComposing = (event: KeyboardEvent) => event.isComposing || composing() || event.keyCode === 229
 
+  // Guard: suppress onInput while a paste is being processed so that
+  // execCommand("insertText") does not cascade into multiple prompt.set()
+  // calls (which in turn re-render the editor DOM and can trigger yet more
+  // input events — see #579).
+  let pasting = false
+
   const handleBlur = () => {
     closePopover()
     setComposing(false)
@@ -864,6 +870,10 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   }
 
   const handleInput = () => {
+    // While a paste is in flight, skip processing — the paste handler will
+    // reconcile state once it finishes.  Prevents the cascade described in #579.
+    if (pasting) return
+
     const rawParts = parseFromDOM()
     const images = imageAttachments()
     const cursorPosition = getCursorPosition(editorRef)
@@ -1060,7 +1070,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     return true
   }
 
-  const { addAttachments, removeAttachment, handlePaste } = createPromptAttachments({
+  const { addAttachments, removeAttachment, handlePaste: _handlePaste } = createPromptAttachments({
     editor: () => editorRef,
     isDialogActive: () => !!dialog.active,
     setDraggingType: (type) => setStore("draggingType", type),
@@ -1071,6 +1081,22 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     addPart,
     readClipboardImage: platform.readClipboardImage,
   })
+
+  // Wrap paste handler with the pasting guard so that onInput is suppressed
+  // during execCommand("insertText") which can fire many input events (#579).
+  const handlePaste = async (event: ClipboardEvent) => {
+    pasting = true
+    try {
+      await _handlePaste(event)
+    } finally {
+      // Defer clearing so any trailing input events from execCommand are caught.
+      requestAnimationFrame(() => {
+        pasting = false
+        // Do a single reconcile after paste completes so state stays in sync.
+        handleInput()
+      })
+    }
+  }
 
   const variants = createMemo(() => ["default", ...local.model.variant.list()])
   const accepting = createMemo(() => {

@@ -402,3 +402,28 @@ input:where([type="button"], [type="reset"], [type="submit"]),
     font-size: 16px !important;
   }
 }
+
+/*
+  Ensure IME composition text is always visible in both light and dark themes.
+  Browsers may render composition candidates using the system composition
+  colours, which can clash with light backgrounds (e.g. white-on-white).
+*/
+
+[contenteditable="true"]::selection {
+  background: var(--surface-interactive-weak);
+  color: var(--text-strong);
+}
+
+[contenteditable="true"]::-moz-selection {
+  background: var(--surface-interactive-weak);
+  color: var(--text-strong);
+}
+
+/*
+  Some Chromium-based browsers apply the caret-colour to composition text.
+  Force it to always use the strong text colour for maximum contrast.
+*/
+
+[contenteditable="true"] {
+  caret-color: var(--text-strong);
+}
