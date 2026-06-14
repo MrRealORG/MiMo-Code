@@ -14,8 +14,7 @@ import { homedir, tmpdir, platform, arch, cpus } from "node:os"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
 import { Process } from "@/util"
-import { which } from "@/util/which"
-import { encodeWav } from "./voice"
+import { encodeWav, isAvailable as isRecorderAvailable, resetRecorderCache } from "./voice"
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -62,10 +61,59 @@ function getBinaryURLs(): string[] {
 // ---------------------------------------------------------------------------
 
 export type SetupProgress = {
-  phase: "checking" | "downloading_binary" | "downloading_model" | "done" | "error"
+  phase: "checking" | "installing_recorder" | "downloading_binary" | "downloading_model" | "done" | "error"
   message: string
   percent: number
   speed?: string
+}
+
+// ---------------------------------------------------------------------------
+// Auto-install recorder (SoX) via system package manager
+// ---------------------------------------------------------------------------
+
+async function autoInstallRecorder(onProgress?: (msg: string) => void): Promise<boolean> {
+  const p = platform()
+
+  // Build the install command based on platform
+  let cmd: string[]
+  let label: string
+
+  if (p === "linux") {
+    cmd = ["sudo", "-n", "apt-get", "install", "-y", "sox"]
+    label = "SoX (apt)"
+  } else if (p === "darwin") {
+    cmd = ["brew", "install", "sox"]
+    label = "SoX (brew)"
+  } else if (p === "win32") {
+    cmd = ["choco", "install", "sox", "-y"]
+    label = "SoX (choco)"
+  } else {
+    return false
+  }
+
+  onProgress?.(`Installing ${label}...`)
+
+  try {
+    const proc = Process.spawn(cmd, {
+      stdin: "ignore",
+      stdout: "pipe",
+      stderr: "pipe",
+    })
+
+    await proc.exited
+    if (proc.exitCode !== 0) {
+      onProgress?.(`${label} install exited with code ${proc.exitCode}`)
+      return false
+    }
+
+    // Reset the cached recorder detection so it re-checks
+    resetRecorderCache()
+    return isRecorderAvailable()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    onProgress?.(`${label} install failed: ${msg}`)
+    return false
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -82,19 +130,24 @@ export async function ensureSetup(
   try {
     mkdirSync(VOICE_DIR, { recursive: true })
 
-    // Phase 1: Check recorder (SoX / arecord)
+    // Phase 1: Check recorder (SoX / arecord) — auto-install if missing
     onProgress?.({ phase: "checking", message: "Checking microphone recorder...", percent: 0 })
 
-    const hasRecorder = detectRecorder()
-    if (!hasRecorder) {
-      return {
-        success: false,
-        error:
+    if (!isRecorderAvailable()) {
+      const installed = await autoInstallRecorder((msg) => {
+        onProgress?.({ phase: "installing_recorder", message: msg, percent: 2 })
+      })
+      if (!installed) {
+        const manualCmd =
           platform() === "darwin"
-            ? "Install SoX: brew install sox"
+            ? "brew install sox"
             : platform() === "linux"
-              ? "Install SoX: sudo apt install sox"
-              : "Install SoX: choco install sox",
+              ? "sudo apt install sox"
+              : "choco install sox"
+        return {
+          success: false,
+          error: `No audio recorder found. Auto-install failed. Please run: ${manualCmd}`,
+        }
       }
     }
 
@@ -215,10 +268,6 @@ export async function transcribe(audio: Int16Array): Promise<string | null> {
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-function detectRecorder(): boolean {
-  return !!(which("rec") || which("sox") || which("arecord"))
-}
 
 type DLProgress = { percent: number; speed: string }
 

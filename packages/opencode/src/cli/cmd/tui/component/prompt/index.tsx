@@ -1854,7 +1854,7 @@ export function Prompt(props: PromptProps) {
                   <Switch>
                     <Match when={voiceState() === "installing"}>
                       <text fg={theme.warning} selectable={false}>
-                        {`[ Installing Voice... ${voiceInstallProgress()?.percent ?? 0}% ]`}
+                        {`[ ${voiceInstallProgress()?.message ?? "Installing Voice..."} ${voiceInstallProgress()?.percent ?? 0}% ]`}
                       </text>
                     </Match>
                     <Match when={voiceState() === "idle"}>

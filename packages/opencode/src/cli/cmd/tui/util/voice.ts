@@ -57,6 +57,11 @@ export function isAvailable(): boolean {
   return detectRecorder() !== null
 }
 
+/** Reset the cached recorder detection — call after installing a recorder. */
+export function resetRecorderCache() {
+  cachedRecorder = undefined
+}
+
 export type StreamingHandle = {
   proc: Process.Child
   vad: RealtimeVAD
