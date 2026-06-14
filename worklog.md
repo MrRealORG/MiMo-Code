@@ -151,3 +151,21 @@ Stage Summary:
 - PR: https://github.com/XiaomiMiMo/MiMo-Code/pull/590
 - 6 files changed, 50 insertions, 4 deletions
 - Fixes: multiedit crash, i18n completeness (zht), hardcoded Chinese strings (#565)
+
+---
+Task ID: 5
+Agent: Auto Bug Fix (Cron #204179) + Manual Review Fix
+Task: Address fengjikui review feedback on PR #590
+
+Work Log:
+- Maintainer pointed out mimo-auto label still hardcoded English in local.tsx (i18n key unused)
+- Maintainer noted no regression test for multiedit empty array
+- Rewired local.tsx to call t('tui.model.mimo_auto_free_promo') via useLanguage()
+- Created multiedit.test.ts with regression test for empty edits array
+- Kept all other fixes from #590 (mimo.ts, zht.ts 30 keys, en.ts/zh.ts key)
+- Closed #590, created #597 as replacement
+
+Stage Summary:
+- PR: https://github.com/XiaomiMiMo/MiMo-Code/pull/597 (supersedes #590)
+- 7 files changed, 138 insertions, 4 deletions
+- Key improvement: i18n key now actually used, not just defined
