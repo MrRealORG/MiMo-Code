@@ -313,7 +313,6 @@ function cmd(shell: string, name: string, command: string, cwd: string, env: Nod
       env,
       stdin: "ignore",
       detached: true,
-      windowsHide: true,
     })
   }
 
@@ -323,7 +322,6 @@ function cmd(shell: string, name: string, command: string, cwd: string, env: Nod
     env,
     stdin: "ignore",
     detached: true,
-    windowsHide: process.platform === "win32",
   })
 }
 
