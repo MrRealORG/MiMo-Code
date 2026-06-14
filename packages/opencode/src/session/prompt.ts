@@ -157,6 +157,8 @@ IMPORTANT:
 
 const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
 
+const AUTO_READ_BEFORE_EDIT_PROMPT = `IMPORTANT: Before using the edit or write tool on any file, you MUST first use the read tool to retrieve the latest content of that file. This ensures you are working with the most up-to-date version and prevents overwriting changes made by other processes. Always read → then edit/write. Never skip the read step.`
+
 const PREDICT_SYSTEM = `You predict the single most likely next message a user will send to a coding assistant, based on the conversation so far. Output only that next message as one short, natural first-person request (what the user would type). No preamble, no quotes, no explanation, no markdown. Keep it under 100 characters.`
 
 const PREDICT_NUDGE = `Based on the conversation above, write the user's most likely next message:`
@@ -1712,9 +1714,9 @@ NOTE: At any point in time through this workflow you should feel free to ask the
         // counter — do not add a second one. Local to runLoop so a fresh user
         // turn resets it (no cross-message pollution), same as outputLengthContinuations.
         let invalidContinuations = 0
-        // structured-output 专用 retry：上限来自 lastUser.format.retryCount（默认 2），
-        // 与 invalidContinuations（generic invalid）分离，互不污染。局部于 runLoop，
-        // 新一轮用户 turn 自动归零。
+        // structured-output specific retry: limit comes from lastUser.format.retryCount (default 2),
+        // separate from invalidContinuations (generic invalid) so they don't pollute each other.
+        // Scoped to runLoop; resets automatically on each new user turn.
         let structuredRetries = 0
         const agentMetrics = { tokens_in: 0, tokens_out: 0, files_changed: 0 }
         const publishAgentRequest = (phase: string, taskType: string) =>
@@ -2745,11 +2747,13 @@ NOTE: At any point in time through this workflow you should feel free to ask the
                 yield* bus.publish(TuiEvent.InstructionsLoaded, { files }).pipe(Effect.ignore)
               }
             }
+            const autoRead = (yield* config.get()).experimental?.auto_read_before_edit
             const additions = [
               ...env,
               ...(skills ? [skills] : []),
               ...instructions.content,
               ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
+              ...(autoRead ? [AUTO_READ_BEFORE_EDIT_PROMPT] : []),
             ]
             // Note: `buildLLMRequestPrefix` also returns a `tools` field, but we
             // intentionally don't use it here — the `tools` variable from `resolveTools`

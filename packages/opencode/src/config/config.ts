@@ -383,6 +383,10 @@ const InfoSchema = Schema.Struct({
         description:
           "Max mode (experimental): the 'max' agent runs N parallel reasoning candidates each step, picks the best via a judge call, and executes only the winner.",
       }),
+      auto_read_before_edit: Schema.optional(Schema.Boolean).annotate({
+        description:
+          "When true, the AI will automatically read the latest version of a file before editing or writing it, reducing stale-content bugs. Default: false.",
+      }),
     }),
   ),
   workflow: Schema.optional(
