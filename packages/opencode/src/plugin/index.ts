@@ -403,7 +403,7 @@ export const layer = Layer.effect(
           // the awaiting fiber — the underlying Promise keeps running and may
           // bus.publish events after the actor has been cleaned up. See spec
           // Future work for full discussion. Strict in-process cancellation
-          // (子进程隔离) is out of scope; AbortSignal is the in-process ceiling.
+          // (subprocess isolation) is out of scope; AbortSignal is the in-process ceiling.
           yield* Effect.tryPromise({
             try: () => fn(input as never, o),
             catch: (err) => err,
