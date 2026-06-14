@@ -385,6 +385,19 @@ export const dict = {
   "tui.question.plan_exit.option.1.label": "否",
   "tui.question.plan_exit.option.1.description": "留在 plan 智能体继续完善计划",
 
+  // Question UI generic strings
+  "tui.question.confirm": "确认",
+  "tui.question.select_all_that_apply": "（多选）",
+  "tui.question.type_your_own_answer": "输入自定义回答",
+  "tui.question.review": "检查",
+  "tui.question.not_answered": "（未回答）",
+  "tui.question.hint.tab": "切换",
+  "tui.question.hint.select": "选择",
+  "tui.question.hint.submit": "提交",
+  "tui.question.hint.toggle": "切换选择",
+  "tui.question.hint.confirm": "确认",
+  "tui.question.hint.dismiss": "取消",
+
   // Session badges
   "tui.session.badge.auto": "自动",
 } satisfies Partial<Record<Keys, string>>

@@ -392,6 +392,19 @@ export const dict: Record<string, string> = {
   "tui.question.plan_exit.option.1.label": "No",
   "tui.question.plan_exit.option.1.description": "Stay with plan agent to continue refining the plan",
 
+  // Question UI generic strings
+  "tui.question.confirm": "Confirm",
+  "tui.question.select_all_that_apply": " (select all that apply)",
+  "tui.question.type_your_own_answer": "Type your own answer",
+  "tui.question.review": "Review",
+  "tui.question.not_answered": "(not answered)",
+  "tui.question.hint.tab": "tab",
+  "tui.question.hint.select": "select",
+  "tui.question.hint.submit": "submit",
+  "tui.question.hint.toggle": "toggle",
+  "tui.question.hint.confirm": "confirm",
+  "tui.question.hint.dismiss": "dismiss",
+
   // Session badges
   "tui.session.badge.auto": "Auto",
 }

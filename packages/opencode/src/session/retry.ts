@@ -101,7 +101,13 @@ export function retryable(error: Err) {
     // even when the provider SDK doesn't explicitly mark them as retryable.
     if (!error.data.isRetryable && !(status !== undefined && status >= 500)) return undefined
     if (error.data.responseBody?.includes("FreeUsageLimitError")) return GO_UPSELL_MESSAGE
-    return error.data.message.includes("Overloaded") ? "Provider is overloaded" : error.data.message
+    // Sanitize provider error messages for user display — avoid leaking
+    // internal API details, request IDs, or stack traces.
+    if (error.data.message.includes("Overloaded")) return "Provider is overloaded"
+    // For other retryable API errors, return a generic message with
+    // status code rather than the raw provider message.
+    const statusLabel = status !== undefined ? ` (${status})` : ""
+    return `Provider error${statusLabel}, retrying...`
   }
 
   // Check for rate limit patterns in plain text error messages
@@ -113,18 +119,16 @@ export function retryable(error: Err) {
       lower.includes("rate limit") ||
       lower.includes("too many requests")
     ) {
-      return msg
+      return "Rate limited, retrying..."
     }
   }
 
   const json = iife(() => {
     try {
       if (typeof error.data?.message === "string") {
-        const parsed = JSON.parse(error.data.message)
-        return parsed
+        return JSON.parse(error.data.message)
       }
-
-      return JSON.parse(error.data.message)
+      return undefined
     } catch {
       return undefined
     }
