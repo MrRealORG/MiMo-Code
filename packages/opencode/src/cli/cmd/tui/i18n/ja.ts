@@ -394,10 +394,6 @@ export const dict = {
   "tui.dialog.login.title": "プロバイダーを選択",
   "tui.dialog.login.xiaomi": "Xiaomi",
   "tui.dialog.login.xiaomi.desc": "（おすすめ）",
-  "tui.dialog.login.mimo_free": "MiMo Auto（無料）",
-  "tui.dialog.login.mimo_free.desc": "匿名無料チャンネル — ログイン不要",
-  "tui.dialog.login.mimo_free.success": "MiMo Auto（無料）準備完了 — デフォルトモデルを mimo/mimo-auto に設定",
-  "tui.dialog.login.mimo_free.unavailable": "MiMo Auto（無料）チャンネルが読み込まれていません",
   "tui.dialog.login.import_claude": "Claude Code からインポート",
   "tui.dialog.login.import_claude.no_key": "Claude Code の API キーが見つかりません",
   "tui.dialog.login.import_claude.read_failed": "~/.claude/settings.json の読み取りに失敗",
@@ -412,19 +408,6 @@ export const dict = {
   "tui.dialog.login.flow.manual_hint": "ブラウザが開きませんか？手動でアクセス：",
   "tui.dialog.login.flow.waiting": "ブラウザの認証を待機中...",
   "tui.dialog.login.flow.invalid_code": "Code が無効です。再試行してください",
-
-  // CLI provider keys
-  "cli.providers.select": "プロバイダーを選択",
-  "cli.providers.other": "その他のプロバイダー",
-  "cli.providers.mimo.recommended_hint": "おすすめ",
-  "cli.providers.mimo_free.hint": "匿名無料チャンネル / mimo-auto",
-  "cli.providers.mimo_free.verifying": "MiMo Auto（無料）チャンネルを検証中...",
-  "cli.providers.mimo_free.ready": "MiMo Auto（無料）チャンネル準備完了",
-  "cli.providers.mimo_free.failed": "MiMo Auto（無料）の検証に失敗",
-  "cli.providers.mimo_free.default_set": "デフォルトモデルを mimo/mimo-auto に設定（1M コンテキスト、無料）",
-  "cli.providers.mimo_free.usage_hint": "ログイン不要 — mimo を実行するだけです。有料モデルを使う場合は、MiMo ブラウザログインを選択してください。",
-  "cli.providers.mimo_login.decrypt_retry": "復号に失敗しました。再試行してください（残り {remaining} 回）",
-  "cli.providers.mimo_login.decrypt_exhausted": "復号に失敗しました。最大リトライ回数に達しました",
 
   // Model display
   "tui.model.mimo_auto_free_promo": "MiMo Auto（プロモーション期間中無料）",

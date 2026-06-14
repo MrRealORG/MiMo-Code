@@ -454,10 +454,6 @@ export const dict = {
   "tui.dialog.login.title": "Выбрать провайдера",
   "tui.dialog.login.xiaomi": "Xiaomi",
   "tui.dialog.login.xiaomi.desc": "(Рекомендуется)",
-  "tui.dialog.login.mimo_free": "MiMo Auto (бесплатно)",
-  "tui.dialog.login.mimo_free.desc": "Анонимный бесплатный канал — вход не требуется",
-  "tui.dialog.login.mimo_free.success": "MiMo Auto (бесплатно) готов — модель по умолчанию установлена на mimo/mimo-auto",
-  "tui.dialog.login.mimo_free.unavailable": "Канал MiMo Auto (бесплатно) не загружен",
   "tui.dialog.login.import_claude": "Импорт из Claude Code",
   "tui.dialog.login.import_claude.no_key": "API-ключ Claude Code не найден",
   "tui.dialog.login.import_claude.read_failed": "Не удалось прочитать ~/.claude/settings.json",
@@ -472,19 +468,6 @@ export const dict = {
   "tui.dialog.login.flow.manual_hint": "Браузер не открылся? Перейдите вручную:",
   "tui.dialog.login.flow.waiting": "Ожидание авторизации в браузере...",
   "tui.dialog.login.flow.invalid_code": "Неверный Code, попробуйте снова",
-
-  // CLI provider keys
-  "cli.providers.select": "Выбрать провайдера",
-  "cli.providers.other": "Другой провайдер",
-  "cli.providers.mimo.recommended_hint": "рекомендуется",
-  "cli.providers.mimo_free.hint": "Анонимный бесплатный канал / mimo-auto",
-  "cli.providers.mimo_free.verifying": "Проверка канала MiMo Auto (бесплатно)...",
-  "cli.providers.mimo_free.ready": "Канал MiMo Auto (бесплатно) готов",
-  "cli.providers.mimo_free.failed": "Проверка MiMo Auto (бесплатно) не удалась",
-  "cli.providers.mimo_free.default_set": "Модель по умолчанию установлена на mimo/mimo-auto (1M контекста, бесплатно)",
-  "cli.providers.mimo_free.usage_hint": "Вход не требуется — просто запустите mimo. Для платных моделей выберите MiMo вход через браузер.",
-  "cli.providers.mimo_login.decrypt_retry": "Ошибка расшифровки, попробуйте снова (осталось {remaining} попыток)",
-  "cli.providers.mimo_login.decrypt_exhausted": "Ошибка расшифровки, достигнуто максимальное количество попыток",
 
   // Model display
   "tui.model.mimo_auto_free_promo": "MiMo Auto (бесплатно в период акции)",
