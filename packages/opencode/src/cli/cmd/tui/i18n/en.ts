@@ -382,6 +382,7 @@ export const dict: Record<string, string> = {
   "tui.dialog.login.flow.busy": "Logging in...",
   "tui.dialog.login.flow.manual_hint": "Browser didn't open? Visit manually:",
   "tui.dialog.login.flow.waiting": "Waiting for browser authorization...",
+  "tui.dialog.login.flow.instructions": "Complete authorization in the browser, or paste Code to log in.",
   "tui.dialog.login.flow.invalid_code": "Invalid Code, please retry",
 
   // Question i18n — plan_exit

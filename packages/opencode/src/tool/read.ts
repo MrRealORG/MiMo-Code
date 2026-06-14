@@ -230,7 +230,11 @@ export const ReadTool = Tool.define(
       }
 
       if (isBinaryFile(filepath, sample)) {
-        return yield* Effect.fail(new Error(`Cannot read binary file: ${filepath}`))
+        return yield* Effect.fail(
+          new Error(
+            `Cannot read binary file: ${filepath}\nSupported formats: text files (code, config, markdown, CSV, JSON, YAML, XML, etc.), images, and PDFs. For Office documents (.docx, .xlsx, .pptx), try using a shell command to extract text (e.g., python with python-docx, or pandoc).`,
+          ),
+        )
       }
 
       const file = yield* Effect.promise(() =>

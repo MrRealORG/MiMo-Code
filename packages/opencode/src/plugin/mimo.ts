@@ -99,7 +99,7 @@ export async function MimoAuthPlugin(_input: PluginInput): Promise<Hooks> {
       },
       methods: [
         {
-          label: "浏览器登录",
+          label: "Browser Login",
           type: "oauth" as const,
           authorize: async () => {
             const { publicKey, privateKeyDer } = generateKeyPair()
@@ -159,7 +159,7 @@ export async function MimoAuthPlugin(_input: PluginInput): Promise<Hooks> {
             return {
               url: manualUrl,
               method: "auto" as const,
-              instructions: "在浏览器中完成授权，或粘贴 Code 完成登录。",
+              instructions: "Complete authorization in the browser, or paste Code to log in.",
               callback: async (code?: string) => {
                 if (code) {
                   try {
