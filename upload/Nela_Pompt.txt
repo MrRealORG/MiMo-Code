@@ -1,60 +1,82 @@
-@github-actions github-actions Bot added needs work ready for review and removed needs work labels 2 days ago
+fix: screen/tmux keyboard fix, status bar overflow, docx file reading
+#586
+Open
+MrRealORG
+wants to merge 1 commit into
+XiaomiMiMo:main
+from
+MrRealORG:fix/auto-20260614-random-bugs
++68
+-2
+Lines changed: 68 additions & 2 deletions
+Conversation1 (1)
+Commits1 (1)
+Checks0 (0)
+Files changed3 (3)
+Open
+fix: screen/tmux keyboard fix, status bar overflow, docx file reading#586
+MrRealORG
+wants to merge 1 commit into
+XiaomiMiMo:main
+from
+MrRealORG:fix/auto-20260614-random-bugs
+Conversation
+@MrRealORG
+MrRealORG
+commented
+4 minutes ago
+Fixes #526 #502 #513
+
+I use screen , then in screen when to open mimo, I cannot type ! #526: Detect screen/tmux in isPlainTerminal() so Kitty keyboard protocol is disabled, fixing ! key and other input issues
+响应的完整内容会输出到状态栏中 #502: Truncate busy status messages to 80 chars to prevent response text overflowing into status bar
+无法读取word文档 #513: Add .docx text extraction via system unzip + XML tag stripping so the read tool can extract text from Word documents
+fix: screen/tmux keyboard, status bar overflow, docx reading 
+9ec160d
+@fengjikui
+fengjikui
+commented
+2 minutes ago
+Thanks for looking at these. I think the #526 part is directionally right, but this PR may be easier to review if it is split by issue. A few concrete notes:
+
+I use screen , then in screen when to open mimo, I cannot type ! #526: the screen/tmux detection should probably have a focused regression test for TERM=screen*, STY, TERM=tmux*, TMUX, and the explicit MIMOCODE_TUI_PLAIN=false opt-out.
+响应的完整内容会输出到状态栏中 #502: status truncation is also covered in fix: actor tool stringified ops, model search, custom provider UX, editor cursor bug #570, so one of these PRs will likely become duplicate.
+无法读取word文档 #513: the .docx path is higher-risk than the TUI fixes. execSync(unzip -p "${filepath}" ...) goes through a shell and can break or become unsafe for paths containing quotes. It also only handles .docx, while the issue text mentions PDF too. If this stays, it probably needs either spawn/execFile-style argument passing or a zip/XML parser approach plus a focused fixture test.
+My suggestion: keep the terminal keyboard fix as a small #526-only PR first, with tests, and move .docx reading into a separate PR once the exact file support scope is clear.
+
 Merge info
-Review required
-Code owner review required by reviewers with write access.
+No conflicts with base branch
+Changes can be cleanly merged.
+
+Still in progress?
+@MrRealORG
 
 
-list of pending reviews
-pewdiepie-archdaemon's avatar image
-pewdiepie-archdaemon
-was requested for review as a codeowner
-Some checks haven't completed yet
-14 expected, 3 successful checks
-
-
-pending checks
-actionlintExpected — Waiting for status to be reported
-Required
-actionlint
-actionlintExpected — Waiting for status to be reported
-Required
-dependency-review (PR gate)Expected — Waiting for status to be reported
-Required
-dependency-review (PR gate)
-dependency-review (PR gate)Expected — Waiting for status to be reported
-Required
-gitleaksExpected — Waiting for status to be reported
-Required
-gitleaks
-gitleaksExpected — Waiting for status to be reported
-Required
-hadolint (Dockerfile lint)Expected — Waiting for status to be reported
-Required
-hadolint (Dockerfile lint)
-hadolint (Dockerfile lint)Expected — Waiting for status to be reported
-Required
-JS syntax (node --check)Expected — Waiting for status to be reported
-Required
-JS syntax (node --check)
-JS syntax (node --check)Expected — Waiting for status to be reported
-Required
-Python syntax (compileall)Expected — Waiting for status to be reported
-Required
-Python syntax (compileall)
-Python syntax (compileall)Expected — Waiting for status to be reported
-Required
-zizmor (Actions SAST)Expected — Waiting for status to be reported
-Required
-zizmor (Actions SAST)
-zizmor (Actions SAST)Expected — Waiting for status to be reported
-Required
-successful checks
-ci / PR checks / Check PR description (pull_request_target)
-ci / PR checks / Check PR description (pull_request_target)Successful in 7s
-ci / PR checks / Check PR title (Conventional Commits) (pull_request_target)
-ci / PR checks / Check PR title (Conventional Commits) (pull_request_target)Successful in 3s
-ci / PR checks / Flag unmergeable PRs (pull_request_target)
-ci / PR checks / Flag unmergeable PRs (pull_request_target)Successful in 4s
-Merging is blocked
-Waiting on code owner review from pewdiepie-archdaemon.
+Add a comment
+Comment
  
+Add your comment here...
+Remember, contributions to this repository should follow its contributing guidelines and security policy.
+ ProTip! Add .patch or .diff to the end of URLs for Git’s plaintext views.
+Reviewers
+No reviews
+Still in progress?
+Assignees
+No one assigned
+Labels
+None yet
+Projects
+None yet
+Milestone
+No milestone
+Development
+Successfully merging this pull request may close these issues.
+
+ I use screen , then in screen when to open mimo, I cannot type !
+
+Notifications
+Customize
+You’re receiving notifications because you authored the thread.
+2 participants
+@MrRealORG
+@fengjikui
+Allow edits by maintainers
