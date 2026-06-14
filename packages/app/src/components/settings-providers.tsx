@@ -11,6 +11,7 @@ import { useGlobalSync } from "@/context/global-sync"
 import { DialogConnectProvider } from "./dialog-connect-provider"
 import { DialogSelectProvider } from "./dialog-select-provider"
 import { DialogCustomProvider } from "./dialog-custom-provider"
+import { DialogBrowseOpenRouter } from "./dialog-browse-openrouter"
 import { SettingsList } from "./settings-list"
 
 type ProviderSource = "env" | "api" | "config" | "custom"
@@ -154,18 +155,33 @@ export const SettingsProviders: Component = () => {
                       <span class="text-14-medium text-text-strong truncate">{item.name}</span>
                       <Tag>{type(item)}</Tag>
                     </div>
-                    <Show
-                      when={canDisconnect(item)}
-                      fallback={
-                        <span class="text-14-regular text-text-base opacity-0 group-hover:opacity-100 transition-opacity duration-200 pr-3 cursor-default">
-                          {language.t("settings.providers.connected.environmentDescription")}
-                        </span>
-                      }
-                    >
-                      <Button size="large" variant="ghost" onClick={() => void disconnect(item.id, item.name)}>
-                        {language.t("common.disconnect")}
-                      </Button>
-                    </Show>
+                    <div class="flex items-center gap-2">
+                      <Show when={item.id === "openrouter"}>
+                        <Button
+                          size="large"
+                          variant="secondary"
+                          icon="magnifying-glass"
+                          class="text-13-regular"
+                          onClick={() => {
+                            dialog.show(() => <DialogBrowseOpenRouter />)
+                          }}
+                        >
+                          {language.t("openrouter.browse.button")}
+                        </Button>
+                      </Show>
+                      <Show
+                        when={canDisconnect(item)}
+                        fallback={
+                          <span class="text-14-regular text-text-base opacity-0 group-hover:opacity-100 transition-opacity duration-200 pr-3 cursor-default">
+                            {language.t("settings.providers.connected.environmentDescription")}
+                          </span>
+                        }
+                      >
+                        <Button size="large" variant="ghost" onClick={() => void disconnect(item.id, item.name)}>
+                          {language.t("common.disconnect")}
+                        </Button>
+                      </Show>
+                    </div>
                   </div>
                 )}
               </For>
