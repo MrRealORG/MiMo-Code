@@ -10,6 +10,7 @@ import { ProviderTransform } from "../provider"
 
 import PROMPT_GENERATE from "./generate.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
+import PROMPT_AGENT_MODE from "./prompt/agent-mode.txt"
 import PROMPT_DREAM from "./prompt/dream.txt"
 import PROMPT_DISTILL from "./prompt/distill.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
@@ -189,6 +190,32 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
+          },
+          agent: {
+            name: "agent",
+            color: "#00d4ff",
+            description:
+              "Agent mode. Fully autonomous — generates a plan.md first, asks for approval, then executes. Supports image generation, file deletion with GUI confirmation, and auto-selects the best model.",
+            options: {
+              planFirst: true,
+            },
+            prompt: PROMPT_AGENT_MODE,
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                question: "allow",
+                plan_enter: "allow",
+                plan_exit: "allow",
+                delete: "ask",
+                image_gen: "allow",
+              }),
+              user,
+            ),
+            mode: "primary",
+            native: true,
+            // Auto-select the best model via modelRef "ultra"
+            // Falls back to the provider's default if no "ultra" group is configured
+            modelRef: "ultra",
           },
           general: {
             name: "general",
@@ -429,6 +456,7 @@ export const layer = Layer.effect(
             sortBy(
               [(x) => cfg.default_agent !== undefined && x.name === cfg.default_agent, "desc"],
               [(x) => x.name === "build", "desc"],
+              [(x) => x.name === "agent", "desc"],
               [(x) => x.name === "plan", "desc"],
               [(x) => x.name === "compose", "desc"],
               [(x) => x.name === "max", "desc"],

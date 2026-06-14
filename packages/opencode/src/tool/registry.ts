@@ -29,6 +29,8 @@ import { Log } from "@/util"
 import { LspTool } from "./lsp"
 import * as Truncate from "./truncate"
 import { ApplyPatchTool } from "./apply_patch"
+import { DeleteTool } from "./delete"
+import { ImageGenTool } from "./image-gen"
 import { ChangeDirectoryTool } from "./change-directory"
 import { Glob } from "@mimo-ai/shared/util/glob"
 import path from "path"
@@ -124,6 +126,8 @@ export const layer = Layer.effect(
     const question = yield* QuestionTool
     const lsptool = yield* LspTool
     const plan = yield* PlanExitTool
+    const deletetool = yield* DeleteTool
+    const imagegentool = yield* ImageGenTool
     const webfetch = yield* WebFetchTool
     const websearch = yield* WebSearchTool
     const bash = yield* BashTool
@@ -220,6 +224,8 @@ export const layer = Layer.effect(
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
+          delete: Tool.init(deletetool),
+          image_gen: Tool.init(imagegentool),
           memory: Tool.init(memorytool),
           history: Tool.init(historytool),
           task: Tool.init(tasktool),
@@ -246,6 +252,8 @@ export const layer = Layer.effect(
             tool.changedir,
             ...(Flag.MIMOCODE_EXPERIMENTAL_LSP_TOOL ? [tool.lsp] : []),
             tool.plan,
+            tool.delete,
+            tool.image_gen,
             tool.memory,
             tool.history,
             tool.task,

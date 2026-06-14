@@ -389,6 +389,53 @@ export function PermissionPrompt(props: { request: PermissionRequest }) {
               }
             }
 
+            if (permission === "delete") {
+              const meta = props.request.metadata ?? {}
+              const fileName = typeof meta["fileName"] === "string" ? meta["fileName"] : "Unknown"
+              const filePath = typeof meta["filepath"] === "string" ? meta["filepath"] : ""
+              const fileType = typeof meta["fileType"] === "string" ? meta["fileType"] : "Unknown"
+              const fileSize = typeof meta["fileSize"] === "string" ? meta["fileSize"] : "N/A"
+              const reason = typeof meta["reason"] === "string" ? meta["reason"] : ""
+              const recursive = meta["recursive"] === true
+
+              return {
+                icon: "✕",
+                title: `Delete ${fileType}: ${normalizePath(filePath)}`,
+                body: (
+                  <box flexDirection="column" gap={1} paddingLeft={1}>
+                    <box flexDirection="column" gap={0}>
+                      <text fg={theme.error}>{"  ⚠ DELETION CONFIRMATION REQUIRED"}</text>
+                    </box>
+                    <box flexDirection="column" gap={0}>
+                      <text fg={theme.text}>{"  Name:     "}</text>
+                      <text fg={theme.text}>{fileName}</text>
+                    </box>
+                    <box flexDirection="column" gap={0}>
+                      <text fg={theme.text}>{"  Location: "}</text>
+                      <text fg={theme.text}>{normalizePath(filePath)}</text>
+                    </box>
+                    <box flexDirection="row" gap={1}>
+                      <text fg={theme.textMuted}>{"  Type: "}</text>
+                      <text fg={theme.text}>{fileType}</text>
+                      <text fg={theme.textMuted}>{"  Size: "}</text>
+                      <text fg={theme.text}>{fileSize}</text>
+                    </box>
+                    {recursive && (
+                      <box>
+                        <text fg={theme.warning}>{"  Recursive: Yes (directory + all contents)"}</text>
+                      </box>
+                    )}
+                    {reason && (
+                      <box flexDirection="column" gap={0}>
+                        <text fg={theme.textMuted}>{"  Reason: "}</text>
+                        <text fg={theme.text}>{reason}</text>
+                      </box>
+                    )}
+                  </box>
+                ),
+              }
+            }
+
             if (permission === "doom_loop") {
               return {
                 icon: "⟳",
