@@ -481,6 +481,23 @@ export const layer = Layer.effect(
 
       if (input.agent.name !== "plan" || assistantMessage?.info.agent === "plan") return input.messages
 
+      // Skip plan mode system-reminder for simple Q&A that doesn't need a plan.
+      // Detect: short user message (<=100 chars) that looks like a plain question
+      // (no code blocks, no file paths, no "fix/change/create/update/delete" verbs).
+      const userText = userMessage.parts
+        .filter((p): p is { type: "text"; text: string } => p.type === "text" && !p.synthetic)
+        .map((p) => p.text)
+        .join(" ")
+        .trim()
+      if (userText.length <= 100) {
+        const hasCodeBlock = /```|`[^`]+`/.test(userText)
+        const hasFilePath = /[/\\][\w.-]+\.\w{1,5}/.test(userText)
+        const hasEditVerb = /\b(fix|change|create|update|delete|remove|rename|refactor|implement|add|modify|move|write|edit|build|deploy|install|migrate)\b/i.test(userText)
+        if (!hasCodeBlock && !hasFilePath && !hasEditVerb) {
+          return input.messages
+        }
+      }
+
       const plan = Session.plan(input.session)
       const exists = yield* fsys.existsSafe(plan)
       if (!exists) yield* fsys.ensureDir(path.dirname(plan)).pipe(Effect.catch(Effect.die))

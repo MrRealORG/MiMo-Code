@@ -1,6 +1,6 @@
 import path from "path"
 import fs from "fs/promises"
-import { createWriteStream } from "fs"
+import { createWriteStream, type WriteStream } from "fs"
 import { Global } from "../global"
 import z from "zod"
 import { Glob } from "@mimo-ai/shared/util/glob"
@@ -15,6 +15,11 @@ const levelPriority: Record<Level, number> = {
   ERROR: 3,
 }
 const keep = 10
+
+// Log rotation: rotate when the current log file exceeds this size (100 MB)
+const MAX_LOG_SIZE = 100 * 1024 * 1024
+// Maximum number of rotated parts to keep per log file
+const MAX_ROTATED_PARTS = 3
 
 let level: Level = "INFO"
 
@@ -49,12 +54,59 @@ export interface Options {
 }
 
 let logpath = ""
+let currentStream: WriteStream | null = null
+let currentSize = 0
+let rotatedCount = 0
+
 export function file() {
   return logpath
 }
 let write = (msg: any) => {
   process.stderr.write(msg)
   return msg.length
+}
+
+/**
+ * Rotate the current log file if it has exceeded MAX_LOG_SIZE.
+ * Renames the active file to <logpath>.1, shifts older parts (.2, .3, ...),
+ * and opens a fresh write stream.
+ */
+async function rotateIfNeeded(): Promise<void> {
+  if (currentSize < MAX_LOG_SIZE) return
+  if (!logpath) return
+
+  // Close the current stream
+  const old = currentStream
+  currentStream = null
+  await new Promise<void>((resolve) => {
+    if (!old || old.destroyed) return resolve()
+    old.end(() => resolve())
+  })
+
+  // Shift rotated parts: .3 -> delete, .2 -> .3, .1 -> .2
+  for (let i = MAX_ROTATED_PARTS; i >= 1; i--) {
+    const src = i === 1 ? logpath : `${logpath}.${i - 1}`
+    const dst = `${logpath}.${i}`
+    if (i === MAX_ROTATED_PARTS) {
+      // Remove the oldest rotated file
+      await fs.unlink(dst).catch(() => {})
+    }
+    await fs.rename(src, dst).catch(() => {})
+  }
+
+  // Reset size counter and open fresh stream
+  currentSize = 0
+  rotatedCount++
+  const fresh = createWriteStream(logpath, { flags: "a" })
+  currentStream = fresh
+  write = async (msg: any) => {
+    return new Promise((resolve, reject) => {
+      currentStream?.write(msg, (err) => {
+        if (err) reject(err)
+        else resolve(msg.length)
+      })
+    })
+  }
 }
 
 export async function init(options: Options) {
@@ -78,12 +130,23 @@ export async function init(options: Options) {
   } else {
     await fs.truncate(logpath).catch(() => {})
   }
+  // Initialize size tracking
+  const stat = await fs.stat(logpath).catch(() => null)
+  currentSize = stat?.size ?? 0
+  rotatedCount = 0
+
   const stream = createWriteStream(logpath, { flags: "a" })
+  currentStream = stream
   write = async (msg: any) => {
+    // Check rotation before writing
+    await rotateIfNeeded().catch(() => {})
     return new Promise((resolve, reject) => {
-      stream.write(msg, (err) => {
+      currentStream?.write(msg, (err) => {
         if (err) reject(err)
-        else resolve(msg.length)
+        else {
+          currentSize += (typeof msg === "string" ? msg.length : 0)
+          resolve(msg.length)
+        }
       })
     })
   }

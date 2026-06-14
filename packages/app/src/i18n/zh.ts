@@ -233,6 +233,7 @@ export const dict = {
   "model.tooltip.reasoning.allowed": "支持推理",
   "model.tooltip.reasoning.none": "不支持推理",
   "model.tooltip.context": "上下文上限 {{limit}}",
+  "model.tooltip.context.unknown": "未配置",
 
   "common.search.placeholder": "搜索",
   "common.goBack": "返回",

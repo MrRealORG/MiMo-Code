@@ -1,4 +1,4 @@
-import { createEffect, createMemo, For, Show, type Accessor, type JSX } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Show, onCleanup, type Accessor, type JSX } from "solid-js"
 import {
   DragDropProvider,
   DragDropSensors,
@@ -35,6 +35,21 @@ export const SidebarContent = (props: {
   const expanded = createMemo(() => !!props.mobile || props.opened())
   const placement = () => (props.mobile ? "bottom" : "right")
   let panel: HTMLDivElement | undefined
+
+  // Clock feature: updates every minute
+  const [currentTime, setCurrentTime] = createSignal("")
+  let timer: ReturnType<typeof setInterval> | undefined
+  const updateClock = () => {
+    const now = new Date()
+    setCurrentTime(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }))
+  }
+  createEffect(() => {
+    updateClock()
+    timer = setInterval(updateClock, 30_000) // update every 30 seconds
+    onCleanup(() => {
+      if (timer) clearInterval(timer)
+    })
+  })
 
   createEffect(() => {
     const el = panel
@@ -90,6 +105,11 @@ export const SidebarContent = (props: {
           </DragDropProvider>
         </div>
         <div class="shrink-0 w-full pt-3 pb-6 flex flex-col items-center gap-2">
+          <Show when={currentTime()}>
+            <div class="text-11-regular text-text-weaker select-none" data-component="sidebar-clock">
+              {currentTime()}
+            </div>
+          </Show>
           <TooltipKeybind placement={placement()} title={props.settingsLabel()} keybind={props.settingsKeybind() ?? ""}>
             <IconButton
               icon="settings-gear"

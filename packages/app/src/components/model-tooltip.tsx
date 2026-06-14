@@ -72,7 +72,16 @@ export const ModelTooltip: Component<{ model: ModelInfo; latest?: boolean; free?
       ? language.t("model.tooltip.reasoning.allowed")
       : language.t("model.tooltip.reasoning.none")
   }
-  const context = () => language.t("model.tooltip.context", { limit: props.model.limit.context.toLocaleString() })
+  const FALLBACK_CONTEXT = 128_000
+  // Known built-in providers whose context limits are always explicitly defined
+  const KNOWN_PROVIDERS = new Set(["anthropic", "openai", "google", "xai", "groq", "mimo", "deepseek"])
+  const context = () => {
+    const isFallback = props.model.limit.context === FALLBACK_CONTEXT && !KNOWN_PROVIDERS.has(props.model.provider.name.toLowerCase())
+    if (isFallback) {
+      return language.t("model.tooltip.context", { limit: language.t("model.tooltip.context.unknown") })
+    }
+    return language.t("model.tooltip.context", { limit: props.model.limit.context.toLocaleString() })
+  }
 
   return (
     <div class="flex flex-col gap-1 py-1">

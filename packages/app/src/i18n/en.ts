@@ -213,6 +213,7 @@ export const dict = {
   "model.tooltip.reasoning.allowed": "Allows reasoning",
   "model.tooltip.reasoning.none": "No reasoning",
   "model.tooltip.context": "Context limit {{limit}}",
+  "model.tooltip.context.unknown": "Not configured",
 
   "common.search.placeholder": "Search",
   "common.goBack": "Navigate back",
