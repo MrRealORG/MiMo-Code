@@ -1,7 +1,9 @@
-import { Process } from "@/util"
+import { Log, Process } from "@/util"
 import { which } from "@/util/which"
 import { RealtimeVAD, type VADSegment } from "./vad"
 import z from "zod"
+
+const log = Log.create({ service: "voice" })
 
 type Recorder = {
   cmd: string
@@ -74,10 +76,16 @@ export function startStreaming(opts: {
   if (!recorder) return null
 
   const vad = new RealtimeVAD({ onSegment: opts.onSegment, onActiveChange: opts.onActiveChange })
+
+  // Capture stderr for diagnostics when the recorder process fails
+  let stderrOutput = ""
   const proc = Process.spawn([recorder.cmd, ...recorder.pipeArgs()], {
     stdin: "ignore",
     stdout: "pipe",
-    stderr: "ignore",
+    stderr: "pipe",
+  })
+  proc.stderr?.on("data", (chunk: Buffer) => {
+    stderrOutput += chunk.toString()
   })
 
   const handle: StreamingHandle = { proc, vad, startTime: Date.now(), aborted: false, reading: Promise.resolve() }
@@ -85,7 +93,12 @@ export function startStreaming(opts: {
   handle.reading = (async () => {
     await vad.init()
     const stdout = proc.stdout
-    if (!stdout) return
+    if (!stdout) {
+      const err = new Error(`No stdout from recording process (${recorder.cmd})`)
+      log.error("voice recording failed", { error: err.message })
+      opts.onError?.(err)
+      return
+    }
     const reader = stdout as AsyncIterable<Buffer>
     let leftover: Buffer | null = null
     for await (const chunk of reader) {
@@ -103,8 +116,18 @@ export function startStreaming(opts: {
         vad.push(samples)
       }
     }
+    // After the read loop ends, check if the process exited prematurely
+    // (i.e. not aborted by us via stopStreaming).
+    if (!handle.aborted) {
+      const code = await proc.exited.catch(() => -1)
+      const detail = stderrOutput.trim()
+      const msg = `Recording process exited unexpectedly (code ${code})${detail ? `: ${detail}` : ""}`
+      log.error("voice recording failed", { cmd: recorder.cmd, exitCode: code, stderr: detail })
+      opts.onError?.(new Error(msg))
+    }
   })().catch((err) => {
-    proc.kill("SIGINT")
+    if (!handle.aborted) proc.kill("SIGINT")
+    log.error("voice recording error", { error: err instanceof Error ? err.message : String(err) })
     opts.onError?.(err instanceof Error ? err : new Error(String(err)))
   })
 
