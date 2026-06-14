@@ -338,6 +338,16 @@ export function QuestionPrompt(props: { request: QuestionRequest }) {
                 {multi() ? " (select all that apply)" : ""}
               </text>
             </box>
+            <Show when={question()?.key === "plan_exit" && (question()?.params as any)?.planContent}>
+              <box flexDirection="column" gap={0} marginTop={1} paddingLeft={1}
+                borderStyle="single" borderColor={theme.textMuted} padding={1}>
+                <For each={((question()?.params as any)?.planContent as string ?? "").split("\n")}>
+                  {(line) => (
+                    <text fg={theme.textMuted} textWrap="wrap">{line()}</text>
+                  )}
+                </For>
+              </box>
+            </Show>
             <box>
               <For each={options()}>
                 {(opt, i) => {

@@ -1,5 +1,6 @@
 import z from "zod"
 import path from "path"
+import fs from "fs"
 import { Effect } from "effect"
 import * as Tool from "./tool"
 import { Question } from "../question"
@@ -30,13 +31,20 @@ export const PlanExitTool = Tool.define(
       execute: (_params: {}, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const info = yield* session.get(ctx.sessionID)
-          const plan = path.relative(Instance.worktree, Session.plan(info))
+          const planPath = Session.plan(info)
+          const plan = path.relative(Instance.worktree, planPath)
+
+          let planContent = ""
+          try {
+            planContent = fs.readFileSync(planPath, "utf-8")
+          } catch {}
+
           const answers = yield* question.ask({
             sessionID: ctx.sessionID,
             questions: [
               {
                 key: "plan_exit",
-                params: { plan },
+                params: { plan, planContent },
                 question: `Plan at ${plan} is complete. Would you like to switch to the build agent and start implementing?`,
                 header: "Plan",
                 options: [

@@ -592,6 +592,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       hidden: local.model.variant.list().length === 0,
       slash: {
         name: "variants",
+        aliases: ["variant"],
       },
       onSelect: () => {
         dialog.replace(() => <DialogVariant />)
