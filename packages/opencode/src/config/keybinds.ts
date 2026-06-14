@@ -33,6 +33,7 @@ const KeybindsSchema = Schema.Struct({
   stash_delete: keybind("ctrl+d", "Delete stash entry"),
   model_provider_list: keybind("ctrl+a", "Open provider list from model dialog"),
   model_favorite_toggle: keybind("ctrl+f", "Toggle model favorite status"),
+  model_browse_openrouter: keybind("ctrl+o", "Browse OpenRouter model catalog from model dialog"),
   session_share: keybind("none", "Share current session"),
   session_unshare: keybind("none", "Unshare current session"),
   session_interrupt: keybind("escape", "Interrupt current session"),

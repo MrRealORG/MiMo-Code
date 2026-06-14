@@ -6,6 +6,7 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useDialog, type DialogContext } from "@tui/ui/dialog"
 import { createDialogProviderOptions, DialogProvider } from "./dialog-provider"
 import { DialogVariant } from "./dialog-variant"
+import { DialogBrowseOpenRouter } from "./dialog-browse-openrouter"
 import { useKeybind } from "../context/keybind"
 import { useSDK } from "../context/sdk"
 import { useToast, type ToastContext } from "../ui/toast"
@@ -32,6 +33,10 @@ export function DialogModel(props: { providerID?: string }) {
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()
+
+  const openrouterConnected = createMemo(() =>
+    sync.data.provider.some((x) => x.id === "openrouter"),
+  )
 
   const showExtra = createMemo(() => connected() && !props.providerID)
 
@@ -195,6 +200,15 @@ export function DialogModel(props: { providerID?: string }) {
             const v = option.value as { providerID: string; modelID: string }
             if (v.modelID === ADD_MODEL_SENTINEL) return
             local.model.toggleFavorite(v)
+          },
+        },
+        {
+          keybind: keybind.all.model_browse_openrouter?.[0],
+          title: "Browse OpenRouter",
+          side: "right" as const,
+          disabled: !openrouterConnected(),
+          onTrigger() {
+            dialog.replace(() => <DialogBrowseOpenRouter />)
           },
         },
       ]}
