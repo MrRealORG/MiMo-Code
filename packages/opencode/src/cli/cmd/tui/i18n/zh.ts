@@ -376,6 +376,8 @@ export const dict = {
   "tui.dialog.login.flow.manual_hint": "浏览器未打开？手动访问：",
   "tui.dialog.login.flow.waiting": "等待浏览器授权中...",
   "tui.dialog.login.flow.invalid_code": "Code 无效，请重试",
+  "tui.dialog.login.browser_login.label": "浏览器登录",
+  "tui.dialog.login.browser_login.instructions": "在浏览器中完成授权，或粘贴 Code 完成登录。",
 
   // Question i18n — plan_exit
   "tui.question.plan_exit.question": "{{plan}} 处的计划已完成。是否切换到 build 智能体开始实现？",
