@@ -15,6 +15,7 @@ import PROMPT_DISTILL from "./prompt/distill.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
+import PROMPT_AGENT_MODE from "./prompt/agent-mode.txt"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@/global"
@@ -173,6 +174,29 @@ export const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
+          },
+          agent: {
+            name: "agent",
+            color: "#00d4aa",
+            description:
+              "Agent mode. Fully autonomous agent with plan-first workflow, auto model selection, version tracking, and auto-commit. Creates plan.md, asks for approval, then executes step by step.",
+            options: {},
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                question: "allow",
+                plan_enter: "allow",
+                plan_exit: "allow",
+                delete: "ask",
+                image_gen: "allow",
+                undo: "allow",
+              }),
+              user,
+            ),
+            mode: "primary",
+            native: true,
+            modelRef: "ultra",
+            prompt: PROMPT_AGENT_MODE,
           },
           compose: {
             name: "compose",
@@ -429,6 +453,7 @@ export const layer = Layer.effect(
             sortBy(
               [(x) => cfg.default_agent !== undefined && x.name === cfg.default_agent, "desc"],
               [(x) => x.name === "build", "desc"],
+              [(x) => x.name === "agent", "desc"],
               [(x) => x.name === "plan", "desc"],
               [(x) => x.name === "compose", "desc"],
               [(x) => x.name === "max", "desc"],

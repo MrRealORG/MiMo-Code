@@ -1,4 +1,11 @@
 import { PlanExitTool } from "./plan"
+import { DeleteTool } from "./delete"
+import { ImageGenTool } from "./image-gen"
+import { SnapshotTool } from "./snapshot"
+import { TestRunnerTool } from "./test-runner"
+import { GitOpsTool } from "./git-ops"
+import { RefactorTool } from "./refactor"
+import { EnvCheckTool } from "./env-check"
 import { Session } from "../session"
 import { QuestionTool } from "./question"
 import { BashTool } from "./bash"
@@ -58,6 +65,7 @@ import { SessionCheckpoint } from "@/session/checkpoint"
 import { TaskRegistry } from "@/task/registry"
 import { Auth } from "@/auth"
 import { shellWrap } from "./shell-wrap"
+import { Snapshot } from "../snapshot"
 import * as BashInteractive from "./bash-interactive"
 import { resolveInvocationStyle } from "./invocation-style"
 import { BuiltinWorkflow } from "@/workflow/builtin"
@@ -139,6 +147,13 @@ export const layer = Layer.effect(
     const memorytool = yield* MemoryTool
     const tasktool = yield* TaskTool
     const workflowtool = yield* WorkflowTool
+    const deleteTool = yield* DeleteTool
+    const imageGenTool = yield* ImageGenTool
+    const snapshotTool = yield* SnapshotTool
+    const testRunnerTool = yield* TestRunnerTool
+    const gitOpsTool = yield* GitOpsTool
+    const refactorTool = yield* RefactorTool
+    const envCheckTool = yield* EnvCheckTool
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -204,6 +219,13 @@ export const layer = Layer.effect(
 
         const tool = yield* Effect.all({
           invalid: Tool.init(invalid),
+          delete: Tool.init(deleteTool),
+          image_gen: Tool.init(imageGenTool),
+          snapshot: Tool.init(snapshotTool),
+          test_runner: Tool.init(testRunnerTool),
+          git_ops: Tool.init(gitOpsTool),
+          refactor: Tool.init(refactorTool),
+          env_check: Tool.init(envCheckTool),
           bash: Tool.init(bash),
           read: Tool.init(read),
           glob: Tool.init(globtool),
@@ -230,6 +252,13 @@ export const layer = Layer.effect(
           custom,
           builtin: [
             tool.invalid,
+            tool.delete,
+            tool.image_gen,
+            tool.snapshot,
+            tool.test_runner,
+            tool.git_ops,
+            tool.refactor,
+            tool.env_check,
             ...(questionEnabled ? [tool.question] : []),
             tool.bash,
             tool.read,
@@ -405,6 +434,7 @@ export const defaultLayer = Layer.suspend(() =>
         Memory.defaultLayer,
         History.defaultLayer,
         SessionCheckpoint.defaultLayer,
+        Snapshot.defaultLayer,
         TaskRegistry.defaultLayer,
         Auth.defaultLayer,
       ),
