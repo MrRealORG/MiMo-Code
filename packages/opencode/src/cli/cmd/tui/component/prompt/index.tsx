@@ -959,6 +959,9 @@ export function Prompt(props: PromptProps) {
     },
   ])
 
+  // Guard against double-submission from rapid Enter or paste with trailing newlines
+  let submitting = false
+
   async function submit() {
     setGhost("")
     // IME: double-defer may fire before onContentChange flushes the last
@@ -1437,17 +1440,23 @@ export function Prompt(props: PromptProps) {
                 // This helps terminals that forward Ctrl+V to the app; Windows
                 // Terminal 1.25+ usually handles Ctrl+V before this path.
                 if (keybind.match("input_paste", e)) {
+                  e.preventDefault()
                   const content = await Clipboard.read()
                   if (content?.mime.startsWith("image/")) {
-                    e.preventDefault()
                     await pasteAttachment({
                       filename: "clipboard",
                       mime: content.mime,
                       content: content.data,
                     })
-                    return
+                  } else if (content?.mime === "text/plain") {
+                    // Terminal forwarded Ctrl+V without bracketed paste.
+                    // Insert the clipboard text directly so it isn't lost.
+                    const text = content.data.replace(/\r\n/g, "\n").replace(/\r/g, "\n")
+                    await pastePlainText(text)
                   }
-                  // If no image, let the default paste behavior continue
+                  // If clipboard is empty or unsupported, do nothing —
+                  // bracketed paste (if available) was already prevented.
+                  return
                 }
                 if (keybind.match("input_clear", e) && store.prompt.input !== "") {
                   input.clear()
@@ -1530,7 +1539,18 @@ export function Prompt(props: PromptProps) {
               onSubmit={() => {
                 // IME: double-defer so the last composed character (e.g. Korean
                 // hangul) is flushed to plainText before we read it for submission.
-                setTimeout(() => setTimeout(() => submit(), 0), 0)
+                // Guard against double-submission: rapid Enter presses or paste
+                // content containing trailing newlines can schedule multiple
+                // deferred submits before the first one fires.  See #579.
+                if (submitting) return
+                submitting = true
+                setTimeout(() => setTimeout(() => {
+                  try {
+                    submit()
+                  } finally {
+                    submitting = false
+                  }
+                }, 0), 0)
               }}
               onPaste={async (event: PasteEvent) => {
                 if (props.disabled) {
