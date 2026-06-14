@@ -31,7 +31,7 @@ import * as ProviderTransform from "./transform"
 import { ModelID, ProviderID } from "./schema"
 
 const log = Log.create({ service: "provider" })
-const DEFAULT_CONTEXT_WINDOW = 1_000_000
+const DEFAULT_CONTEXT_WINDOW = 128_000
 // Reserved built-in model tiers: always resolve, falling back to the default
 // model when not configured in `model_groups` (zero-config never errors).
 const BUILTIN_TIERS = new Set(["ultra", "standard", "lite"])
@@ -1217,17 +1217,18 @@ const layer: Layer.Layer<
                 context: (() => {
                   const explicit = model.limit?.context ?? existingModel?.limit?.context
                   if (explicit !== undefined) return explicit
+                  const fallback = cfg.default_context_window ?? DEFAULT_CONTEXT_WINDOW
                   const key = `${providerID}/${modelID}`
                   if (!warnedContextDefaults.has(key)) {
                     warnedContextDefaults.add(key)
                     log.warn("limit.context not configured and not found in models.dev", {
                       providerID,
                       modelID,
-                      defaulting_to: DEFAULT_CONTEXT_WINDOW,
-                      fix: `Set limit.context explicitly in mimocode.json under provider.${providerID}.models.${modelID}`,
+                      defaulting_to: fallback,
+                      fix: `Set limit.context explicitly in mimocode.json under provider.${providerID}.models.${modelID}, or set default_context_window globally`,
                     })
                   }
-                  return DEFAULT_CONTEXT_WINDOW
+                  return fallback
                 })(),
                 input: model.limit?.input ?? existingModel?.limit?.input,
                 output: model.limit?.output ?? existingModel?.limit?.output ?? 0,

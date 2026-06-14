@@ -154,6 +154,10 @@ const InfoSchema = Schema.Struct({
     description:
       "Named model groups (capability tiers, e.g. ultra/standard/lite). Each group has a default model and optional member models. A group name can be used anywhere a provider/model string is accepted.",
   }),
+  default_context_window: Schema.optional(PositiveInt).annotate({
+    description:
+      "Default context window size (in tokens) for models that don't have an explicit limit.context configured and aren't found in the model database. Defaults to 128000.",
+  }),
   default_agent: Schema.optional(Schema.String).annotate({
     description:
       "Default agent to use when none is specified. Must be a primary agent. Falls back to 'build' if not set or if the specified agent is invalid.",

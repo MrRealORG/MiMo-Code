@@ -1793,7 +1793,7 @@ test("closest checks multiple query terms in order", async () => {
   })
 })
 
-test("model limit defaults to DEFAULT_CONTEXT_WINDOW (200K) when not specified (F41)", async () => {
+test("model limit defaults to DEFAULT_CONTEXT_WINDOW (128K) when not specified (F41)", async () => {
   await using tmp = await tmpdir({
     init: async (dir) => {
       await Bun.write(
@@ -1824,8 +1824,44 @@ test("model limit defaults to DEFAULT_CONTEXT_WINDOW (200K) when not specified (
     fn: async () => {
       const providers = await list()
       const model = providers[ProviderID.make("no-limit")].models["model"]
-      expect(model.limit.context).toBe(200_000)
+      expect(model.limit.context).toBe(128_000)
       expect(model.limit.output).toBe(0)
+    },
+  })
+})
+
+test("default_context_window config overrides DEFAULT_CONTEXT_WINDOW", async () => {
+  await using tmp = await tmpdir({
+    init: async (dir) => {
+      await Bun.write(
+        path.join(dir, "mimocode.json"),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          default_context_window: 32000,
+          provider: {
+            "custom": {
+              name: "Custom Provider",
+              npm: "@ai-sdk/openai-compatible",
+              env: [],
+              models: {
+                model: {
+                  name: "Model",
+                  tool_call: true,
+                },
+              },
+              options: { apiKey: "test" },
+            },
+          },
+        }),
+      )
+    },
+  })
+  await Instance.provide({
+    directory: tmp.path,
+    fn: async () => {
+      const providers = await list()
+      const model = providers[ProviderID.make("custom")].models["model"]
+      expect(model.limit.context).toBe(32000)
     },
   })
 })
@@ -2643,6 +2679,6 @@ test("opencode and opencode-go providers are disabled by MimoFreeAuthPlugin", as
   // The replacement free provider should be present.
   expect(providers[ProviderID.make("mimo")]).toBeDefined()
   expect(providers[ProviderID.make("mimo")].models[ModelID.make("mimo-auto")]).toBeDefined()
-  expect(providers[ProviderID.make("mimo")].models[ModelID.make("mimo-auto")].limit.context).toBe(1_000_000)
+  expect(providers[ProviderID.make("mimo")].models[ModelID.make("mimo-auto")].limit.context).toBe(128_000)
   expect(providers[ProviderID.make("mimo")].models[ModelID.make("mimo-auto")].limit.output).toBe(128_000)
 })
