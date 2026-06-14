@@ -65,6 +65,7 @@ export function spawn(cmd: string[], opts: Options = {}): Child {
     env: opts.env === null ? {} : opts.env ? { ...process.env, ...opts.env } : undefined,
     stdio: [opts.stdin ?? "ignore", opts.stdout ?? "ignore", opts.stderr ?? "ignore"],
     windowsHide: process.platform === "win32",
+    detached: process.platform !== "win32", // Detach on Unix to prevent terminal takeover
   })
 
   let closed = false
