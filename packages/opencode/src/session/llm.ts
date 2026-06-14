@@ -470,7 +470,8 @@ const live: Layer.Layer<
           }
         }
 
-        const ruleset = Permission.merge(input.agent.permission ?? [], input.permission ?? [])
+        // Agent permission last — agent config is authoritative for tool access.
+        const ruleset = Permission.merge(input.permission ?? [], input.agent.permission ?? [])
         workflowModel.sessionPreapprovedTools = Object.keys(tools).filter((name) => {
           const match = ruleset.findLast((rule) => Wildcard.match(name, rule.permission))
           return !match || match.action !== "ask"
@@ -715,7 +716,10 @@ export const defaultLayer = Layer.suspend(() =>
 function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
   const disabled = Permission.disabled(
     Object.keys(input.tools),
-    Permission.merge(input.agent.permission, input.permission ?? []),
+    // Agent permission must come last so it takes precedence over session-level
+    // overrides (e.g. ACP clients setting plan_exit: "deny" that would block
+    // the plan agent's plan_exit: "allow").
+    Permission.merge(input.permission ?? [], input.agent.permission),
   )
   return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false && !disabled.has(k))
 }
