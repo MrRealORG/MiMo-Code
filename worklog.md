@@ -75,3 +75,40 @@ Stage Summary:
 - New file: dialog-browse-openrouter.tsx (TUI, 226 lines)
 - Modified: dialog-model.tsx, keybinds.ts
 - 3 files changed, 241 insertions
+---
+Task ID: 5
+Agent: Main
+Task: Fix i18n hardcoded Chinese, custom provider validation, OpenRouter browser enhancements
+
+Work Log:
+- Verified all prior edits across 5 files (mimo.ts, dialog-browse-openrouter.tsx, dialog-custom-provider-form.ts, en.ts, zh.ts)
+- Confirmed mimo.ts lines 102 and 162 now have English strings ("Browser Login", "Complete authorization...")
+- Confirmed dialog-browse-openrouter.tsx has error state with retry button, 15s fetch timeout, model ID display, correct 3-level Show nesting
+- Confirmed i18n keys openrouter.empty.fetchError and openrouter.action.retry exist in both en.ts and zh.ts
+- Removed unused `disabled` variable from dialog-custom-provider-form.ts (was line 73)
+- Verified dialog-custom-provider.tsx caller still passes disabledProviders (type preserved, no breakage)
+- Cherry-picked fix commit to feature/openrouter-integration branch
+- Force-pushed to MrRealORG fork
+- Updated existing PR #573 title and body (gh CLI failed due to Projects deprecation, used GitHub API directly)
+
+Stage Summary:
+- PR: https://github.com/XiaomiMiMo/MiMo-Code/pull/573 (updated, was #573 from task 3)
+- 5 files changed, 43 insertions, 21 deletions
+- Fixes: #565 (i18n Chinese strings), #529 (overly restrictive provider ID check)
+- Enhancements: fetch timeout, error state with retry, model ID display
+---
+Task ID: 6
+Agent: Main
+Task: Round 3 — additional bug fixes and improvements
+
+Work Log:
+- Fixed #561 (actor tool): Added z.preprocess to auto-parse stringified `operation` field in JSON mode. Shell mode had recoverActorArgs but JSON-mode calls bypassed shellWrap entirely. Also added formatValidationError with actionable guidance.
+- Fixed #542 (auto-read): Added `experimental.auto_read_before_edit` config option (boolean, default false). When enabled, injects a system prompt instruction enforcing read-before-edit pattern.
+- Fixed #540 (welcome tip): Added high-priority welcome tip (weight 60) to home screen rotation. i18n in EN/ZH/ZHT.
+- Fixed remaining hardcoded Chinese: local.tsx (mimo-auto label), mimo.ts (browser login + instructions), home.tsx (comment), plugin/index.ts (comment), session/prompt.ts (comment).
+- Left voice.ts Chinese system prompt untouched — it's intentional for bilingual voice input processing.
+
+Stage Summary:
+- PR: https://github.com/XiaomiMiMo/MiMo-Code/pull/577
+- 11 files changed, 61 insertions(+), 23 deletions(-)
+- 4 commits: actor fix, auto-read feature, welcome tip, i18n cleanup
