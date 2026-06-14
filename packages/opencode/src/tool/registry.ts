@@ -6,6 +6,7 @@ import { TestRunnerTool } from "./test-runner"
 import { GitOpsTool } from "./git-ops"
 import { RefactorTool } from "./refactor"
 import { EnvCheckTool } from "./env-check"
+import { CodeReviewTool } from "./code-review"
 import { Session } from "../session"
 import { QuestionTool } from "./question"
 import { BashTool } from "./bash"
@@ -154,6 +155,7 @@ export const layer = Layer.effect(
     const gitOpsTool = yield* GitOpsTool
     const refactorTool = yield* RefactorTool
     const envCheckTool = yield* EnvCheckTool
+    const codeReviewTool = yield* CodeReviewTool
     const agent = yield* Agent.Service
 
     const state = yield* InstanceState.make<State>(
@@ -226,6 +228,7 @@ export const layer = Layer.effect(
           git_ops: Tool.init(gitOpsTool),
           refactor: Tool.init(refactorTool),
           env_check: Tool.init(envCheckTool),
+          code_review: Tool.init(codeReviewTool),
           bash: Tool.init(bash),
           read: Tool.init(read),
           glob: Tool.init(globtool),
@@ -259,6 +262,7 @@ export const layer = Layer.effect(
             tool.git_ops,
             tool.refactor,
             tool.env_check,
+            tool.code_review,
             ...(questionEnabled ? [tool.question] : []),
             tool.bash,
             tool.read,
