@@ -1,0 +1,736 @@
+     1→import path from "path"
+     2→import { Provider } from "@/provider"
+     3→import { Log } from "@/util"
+     4→import { Context, Duration, Effect, Layer, Record, Schedule, Ref } from "effect"
+     5→import * as Stream from "effect/Stream"
+     6→import { streamText, wrapLanguageModel, type ModelMessage, type Tool, tool, jsonSchema } from "ai"
+     7→import { mergeDeep, pipe } from "remeda"
+     8→import { GitLabWorkflowLanguageModel } from "gitlab-ai-provider"
+     9→import { ProviderTransform } from "@/provider"
+    10→import { Config } from "@/config"
+    11→import { Instance } from "@/project/instance"
+    12→import type { Agent } from "@/agent/agent"
+    13→import type { MessageV2 } from "./message-v2"
+    14→import { Plugin } from "@/plugin"
+    15→import { SystemPrompt } from "./system"
+    16→import { Flag } from "@/flag/flag"
+    17→import { Permission } from "@/permission"
+    18→import { PermissionID } from "@/permission/schema"
+    19→import { Bus } from "@/bus"
+    20→import { Wildcard } from "@/util"
+    21→import { SessionID } from "@/session/schema"
+    22→import * as Session from "@/session/session"
+    23→import { migrateProjectMemory } from "./checkpoint-paths"
+    24→import { ProjectID } from "@/project/schema"
+    25→import { Auth } from "@/auth"
+    26→import { Installation } from "@/installation"
+    27→import { InstallationVersion } from "@/installation/version"
+    28→import { EffectBridge } from "@/effect"
+    29→import { Global } from "@/global"
+    30→import * as Option from "effect/Option"
+    31→import * as OtelTracer from "@effect/opentelemetry/Tracer"
+    32→import { ActorRegistry } from "@/actor/registry"
+    33→import { Memory } from "@/memory"
+    34→import { isRetryableTransientError } from "./retry"
+    35→
+    36→const log = Log.create({ service: "llm" })
+    37→export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
+    38→type Result = Awaited<ReturnType<typeof streamText>>
+    39→
+    40→/**
+    41→ * Match transient errors that the PERSISTENT_RETRY layer should retry.
+    42→ *
+    43→ * - HTTP 429 / 5xx / 529 — capacity / overload responses
+    44→ * - ECONNRESET / EPIPE / ETIMEDOUT — network errors typically caused by
+    45→ *   stale keep-alive sockets or upstream proxy timeouts
+    46→ * - "SSE read timed out" — `provider.ts:wrapSSE` chunk-timeout fired
+    47→ *   (configured per-provider via `chunkTimeout` in mimocode.json). This
+    48→ *   is HTTP-byte-level: keep-alive comments still count as activity, so
+    49→ *   the error only fires when the underlying TCP stream is genuinely dead.
+    50→ *
+    51→ * Auth errors (401/403), client errors (400, 404, 422), and user-
+    52→ * initiated aborts are NOT retryable.
+    53→ *
+    54→ * @deprecated Use `isRetryableTransientError` from `./retry` directly.
+    55→ * Kept as a 1-line wrapper to preserve the existing export name.
+    56→ */
+    57→export function isTransientCapacityError(error: unknown): boolean {
+    58→  return isRetryableTransientError(error)
+    59→}
+    60→
+    61→/**
+    62→ * Persistent-retry schedule with exponential backoff.
+    63→ *
+    64→ * Exponential backoff 500ms × 2 (i.e. 0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256s),
+    65→ * each individual delay capped at 5 minutes, total attempts capped at 10.
+    66→ *
+    67→ * Worst-case total = 11 attempts × chunkTimeout + cumulative backoff
+    68→ *                  ≈ 11 × 8min + 9min ≈ 97 min (with DEFAULT_CHUNK_TIMEOUT = 8min).
+    69→ *
+    70→ * Intentionally NOT capped via Schedule.upTo() — retry persistence under
+    71→ * brief upstream outages is the design goal. Bounding per-attempt latency
+    72→ * via chunkTimeout is the primary lever for hang-time control.
+    73→ */
+    74→export const persistentRetrySchedule = Schedule.exponential("500 millis", 2).pipe(
+    75→  Schedule.modifyDelay((_, delay) =>
+    76→    Effect.succeed(Duration.isLessThanOrEqualTo(delay, Duration.minutes(5)) ? delay : Duration.minutes(5)),
+    77→  ),
+    78→  Schedule.both(Schedule.recurs(10)),
+    79→)
+    80→
+    81→/**
+    82→ * Memory-system instructions appended to the main agent's system prompt.
+    83→ *
+    84→ * Teaches the agent its v8.1 ownership of the memory system:
+    85→ * - MEMORY.md (project-scoped): writer is sole curator + agent edits for
+    86→ *   project-level user-stated rules
+    87→ * - checkpoint.md (session-scoped): writer EXCLUSIVE; agent never edits
+    88→ * - tasks/<id>/progress.md: writer-derived splitover from session-level
+    89→ *   progress.md; not LLM-written. Subagents handed a task may read but
+    90→ *   should not write.
+    91→ *
+    92→ * Also documents the Active recall protocol that prevents re-Reading
+    93→ * files already present in the rebuild dump, and the Subagent return
+    94→ * format contract.
+    95→ *
+    96→ * `memoryRoot` is the same absolute root returned by Memory.root(), so these
+    97→ * paths match the files used by checkpoint restore and memory/task detection.
+    98→ */
+    99→function buildMemoryInstructions(sessionID: SessionID, projectID: ProjectID, memoryRoot: string): string {
+   100→  const memoryFile = path.join(memoryRoot, "projects", projectID, "MEMORY.md")
+   101→  const checkpointFile = path.join(memoryRoot, "sessions", sessionID, "checkpoint.md")
+   102→  const sessionMemoryDir = path.join(memoryRoot, "sessions", sessionID)
+   103→  const globalMemoryFile = path.join(memoryRoot, "global", "MEMORY.md")
+   104→  return `# Memory system
+   105→
+   106→You have a persistent file-based memory system. Four file types:
+   107→
+   108→- Project memory at \`${memoryFile}\` — persistent across all sessions in this project. Contains: project context, rules, architecture decisions, durable cross-task knowledge.
+   109→- Session checkpoint at \`${checkpointFile}\` — current session's structured state, written ONLY by the checkpoint-writer subagent. 11 sections covering active intent, next action, directives, task tree, current work, files, learnings, errors, live resources, design decisions, and open notes. Task content lives inside §4 Task tree and §5 Current work.
+   110→- Per-task progress at \`${path.join(sessionMemoryDir, "tasks", "<id>", "progress.md")}\` — writer-derived splitover from session-level progress.md (not LLM-written). When you spawn a subagent on a task, the subagent may be handed this path for reading; you do not maintain it.
+   111→- Global memory at \`${globalMemoryFile}\` — user-level preferences and cross-project feedback that persist across all projects. Auto-injected into rebuild context under the "## Global memory" header when present.
+   112→
+   113→The checkpoint writer is the sole curator of the structured files. You don't maintain them mid-task — the writer extracts everything from the conversation at checkpoint events.
+   114→
+   115→## When to Edit MEMORY.md directly
+   116→
+   117→You may Edit MEMORY.md when:
+   118→- User states a project-level rule that should hold across sessions → ## Rules
+   119→- User states a project-level architectural decision → ## Architecture decisions
+   120→- A clearly durable cross-session fact emerges that you want available immediately, before the next checkpoint → ## Discovered durable knowledge
+   121→
+   122→These are exceptions, not the norm. The writer covers most extraction at checkpoint time.
+   123→
+   124→## Notes scratchpad
+   125→
+   126→You have a single legal scratchpad at \`${path.join(sessionMemoryDir, "notes.md")}\`. Append entries to it when you want to record:
+   127→
+   128→- A quote (from the user, an article, a known engineer) that has lasting value but isn't a task-specific decision
+   129→- An unresolved question — something you noticed but won't answer this turn
+   130→- A cross-project observation — "we did this in project X, similar pattern here"
+   131→- A note for future-self — context that would matter weeks later but doesn't fit any current task
+   132→
+   133→Format each entry as:
+   134→  ## [turn N · YYYY-MM-DDTHH:MM:SSZ]
+   135→  Free-form body. The writer reorganizes structured content at checkpoint time.
+   136→
+   137→This is your ONLY legal scratchpad — don't create \`learning.md\`, \`scratch.md\`, or any other ad-hoc memory file.
+   138→
+   139→## Subagent return format
+   140→
+   141→When you (as a subagent) finish your task, your final assistant message will be delivered to the spawning agent. If the spawn machinery added a "Return format (required)" section to your prompt, follow it exactly:
+   142→
+   143→  **Status**: success | partial | failed | blocked
+   144→  **Summary**: <one-line description>
+   145→
+   146→  <deliverable body>
+   147→
+   148→  **Files touched**: <comma-separated paths or "(none)">
+   149→  **Findings worth promoting**: <bullet list, or "(none)">
+   150→
+   151→If your spawn prompt didn't include this format (e.g., explore/title/summary agents have their own contracts), follow whatever your prompt specifies.
+   152→
+   153→## What NOT to do
+   154→
+   155→- Don't Edit checkpoint.md — that's the writer's domain.
+   156→- Don't create memory files other than notes.md (no learning.md, no scratch.md). Use notes.md for any free-form entry.
+   157→- Don't ask the user about something memory may already record — search first via Grep / Read.
+   158→
+   159→## Active recall protocol
+   160→
+   161→After a checkpoint rebuild, the following dumps may be already in your context (look for the "Summary of previous conversation from checkpoint files:" header followed by these dumps):
+   162→
+   163→- checkpoint.md (full or budget-truncated)
+   164→- MEMORY.md (full or budget-truncated)
+   165→- notes.md (full or budget-truncated)
+   166→- global/MEMORY.md (full or budget-truncated)
+   167→
+   168→If these dumps are visible in your context:
+   169→
+   170→- Do NOT Read them again as whole files. The bytes are already in front of you.
+   171→- For specific past details (a particular turn's content, a specific tool output, an old command), use Grep with a keyword pattern to target the exact item — do not pull a whole file.
+   172→- For files NOT in the rebuild dump (per-task splitover progress.md files for tasks you don't actively need, spillover files, older session checkpoints in other sessions), Read on demand.
+   173→
+   174→If a dump shows "⚠️ Truncated at ~N tokens. Read(<path>, offset=L) for the rest." — that file was budget-cut. Use Read with the offset only when you need the missing tail.
+   175→
+   176→Memory entries name functions, files, flags, paths — those are CLAIMS about a point in time when they were written. Verify before acting on a specific name.
+   177→
+   178→Don't ask the user about something memory may already record.
+   179→`
+   180→}
+   181→
+   182→export type StreamInput = {
+   183→  user: MessageV2.User
+   184→  sessionID: string
+   185→  parentSessionID?: string
+   186→  model: Provider.Model
+   187→  agent: Agent.Info
+   188→  permission?: Permission.Ruleset
+   189→  system: string[]
+   190→  prebuiltSystem?: string[]      // when set, skip buildSystemArray and use this verbatim
+   191→  messages: ModelMessage[]
+   192→  small?: boolean
+   193→  tools: Record<string, Tool>
+   194→  retries?: number
+   195→  toolChoice?: "auto" | "required" | "none"
+   196→  agentID?: string
+   197→}
+   198→
+   199→export type StreamRequest = StreamInput & {
+   200→  abort: AbortSignal
+   201→}
+   202→
+   203→export type Event = Result["fullStream"] extends AsyncIterable<infer T> ? T : never
+   204→
+   205→export interface Interface {
+   206→  readonly stream: (input: StreamInput) => Stream.Stream<Event, unknown>
+   207→  readonly buildSystemArray: (input: {
+   208→    agent: Agent.Info
+   209→    model: Provider.Model
+   210→    system: string[]
+   211→    user: MessageV2.User
+   212→    sessionID: string
+   213→    agentID?: string
+   214→  }) => Effect.Effect<string[]>
+   215→}
+   216→
+   217→export class Service extends Context.Service<Service, Interface>()("@opencode/LLM") {}
+   218→
+   219→const live: Layer.Layer<
+   220→  Service,
+   221→  never,
+   222→  Auth.Service | Config.Service | Provider.Service | Plugin.Service | Permission.Service | ActorRegistry.Service | Memory.Service
+   223→> = Layer.effect(
+   224→  Service,
+   225→  Effect.gen(function* () {
+   226→    const auth = yield* Auth.Service
+   227→    const config = yield* Config.Service
+   228→    const provider = yield* Provider.Service
+   229→    const plugin = yield* Plugin.Service
+   230→    const perm = yield* Permission.Service
+   231→    const actorReg = yield* ActorRegistry.Service
+   232→    const memory = yield* Memory.Service
+   233→
+   234→    const buildSystemArray = Effect.fn("LLM.buildSystemArray")(function* (input: {
+   235→      agent: Agent.Info
+   236→      model: Provider.Model
+   237→      system: string[]
+   238→      user: MessageV2.User
+   239→      sessionID: string
+   240→      agentID?: string
+   241→    }) {
+   242→      const system: string[] = []
+   243→      system.push(
+   244→        [
+   245→          // use agent prompt otherwise provider prompt
+   246→          ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
+   247→          // any custom prompt passed into this call
+   248→          ...input.system,
+   249→          // any custom prompt from last user message
+   250→          ...(input.user.system ? [input.user.system] : []),
+   251→        ]
+   252→          .filter((x) => x)
+   253→          .join("\n"),
+   254→      )
+   255→
+   256→      // v5: memory-instructions section. Teaches the main agent how/where/when
+   257→      // to maintain `MEMORY.md` and `checkpoint.md` directly via Edit. Project
+   258→      // ID is resolved from the ALS-bound Instance with a safe fallback to
+   259→      // `ProjectID.global` (mirrors the pattern in session/checkpoint.ts so the
+   260→      // path the prompt advertises matches the path the writer actually writes).
+   261→      // Skip for system-spawned actors (e.g. checkpoint-writer): they shouldn't
+   262→      // see the user-facing memory instructions.
+   263→      const isSystemActor = input.agentID
+   264→        ? yield* actorReg.isSystemSpawned(SessionID.make(input.sessionID), input.agentID)
+   265→        : false
+   266→      if (!isSystemActor) {
+   267→        const projectID =
+   268→          (yield* Effect.try({
+   269→            try: () => Instance.current?.project?.id as ProjectID | undefined,
+   270→            catch: () => undefined,
+   271→          }).pipe(Effect.orElseSucceed(() => undefined))) ?? ProjectID.global
+   272→        // Bootstrap the memory.md → MEMORY.md migration at session start so a
+   273→        // legacy lowercase file is renamed before the agent's first direct
+   274→        // Edit/Write (which would otherwise miss it on a case-sensitive FS, or
+   275→        // create an uppercase sibling and orphan the legacy content). The two
+   276→        // checkpoint-flow call sites cover the writer/rebuild paths; this covers
+   277→        // the "agent edits MEMORY.md before any checkpoint" path. Idempotent.
+   278→        yield* Effect.promise(() => migrateProjectMemory(projectID)).pipe(Effect.ignore)
+   279→        system.push(buildMemoryInstructions(SessionID.make(input.sessionID), projectID, yield* memory.root()))
+   280→      }
+   281→
+   282→      const header = system[0]
+   283→      yield* plugin.trigger(
+   284→        "experimental.chat.system.transform",
+   285→        { sessionID: input.sessionID, model: input.model },
+   286→        { system },
+   287→      )
+   288→      // rejoin to maintain 2-part structure for caching if header unchanged
+   289→      if (system.length > 2 && system[0] === header) {
+   290→        const rest = system.slice(1)
+   291→        system.length = 0
+   292→        system.push(header, rest.join("\n"))
+   293→      }
+   294→
+   295→      return system
+   296→    })
+   297→
+   298→    const run = Effect.fn("LLM.run")(function* (input: StreamRequest) {
+   299→      const l = log
+   300→        .clone()
+   301→        .tag("providerID", input.model.providerID)
+   302→        .tag("modelID", input.model.id)
+   303→        .tag("session.id", input.sessionID)
+   304→        .tag("small", (input.small ?? false).toString())
+   305→        .tag("agent", input.agent.name)
+   306→        .tag("mode", input.agent.mode)
+   307→      l.info("stream", {
+   308→        modelID: input.model.id,
+   309→        providerID: input.model.providerID,
+   310→      })
+   311→
+   312→      const [language, cfg, item, info] = yield* Effect.all(
+   313→        [
+   314→          provider.getLanguage(input.model),
+   315→          config.get(),
+   316→          provider.getProvider(input.model.providerID),
+   317→          auth.get(input.model.providerID),
+   318→        ],
+   319→        { concurrency: "unbounded" },
+   320→      )
+   321→
+   322→      // TODO: move this to a proper hook
+   323→      const isOpenaiOauth = item.id === "openai" && info?.type === "oauth"
+   324→
+   325→      const system =
+   326→        input.prebuiltSystem ??
+   327→        (yield* buildSystemArray({
+   328→          agent: input.agent,
+   329→          model: input.model,
+   330→          system: input.system,
+   331→          user: input.user,
+   332→          sessionID: input.sessionID,
+   333→          agentID: input.agentID,
+   334→        }))
+   335→
+   336→      const variant =
+   337→        !input.small && input.model.variants && input.user.model.variant
+   338→          ? input.model.variants[input.user.model.variant]
+   339→          : {}
+   340→      const base = input.small
+   341→        ? ProviderTransform.smallOptions(input.model)
+   342→        : ProviderTransform.options({
+   343→            model: input.model,
+   344→            sessionID: input.sessionID,
+   345→            providerOptions: item.options,
+   346→          })
+   347→      const options: Record<string, any> = pipe(
+   348→        base,
+   349→        mergeDeep(input.model.options),
+   350→        mergeDeep(input.agent.options),
+   351→        mergeDeep(variant),
+   352→      )
+   353→      if (isOpenaiOauth) {
+   354→        options.instructions = system.join("\n")
+   355→      }
+   356→
+   357→      const isWorkflow = language instanceof GitLabWorkflowLanguageModel
+   358→      const messages = isOpenaiOauth
+   359→        ? input.messages
+   360→        : isWorkflow
+   361→          ? input.messages
+   362→          : [
+   363→              ...system.map(
+   364→                (x): ModelMessage => ({
+   365→                  role: "system",
+   366→                  content: x,
+   367→                }),
+   368→              ),
+   369→              ...input.messages,
+   370→            ]
+   371→
+   372→      const params = yield* plugin.trigger(
+   373→        "chat.params",
+   374→        {
+   375→          sessionID: input.sessionID,
+   376→          agent: input.agent.name,
+   377→          model: input.model,
+   378→          provider: item,
+   379→          message: input.user,
+   380→        },
+   381→        {
+   382→          temperature: input.model.capabilities.temperature
+   383→            ? (input.agent.temperature ?? ProviderTransform.temperature(input.model))
+   384→            : undefined,
+   385→          topP: input.agent.topP ?? ProviderTransform.topP(input.model),
+   386→          topK: ProviderTransform.topK(input.model),
+   387→          maxOutputTokens: ProviderTransform.maxOutputTokens(input.model),
+   388→          options,
+   389→        },
+   390→      )
+   391→
+   392→      const { headers } = yield* plugin.trigger(
+   393→        "chat.headers",
+   394→        {
+   395→          sessionID: input.sessionID,
+   396→          agent: input.agent.name,
+   397→          model: input.model,
+   398→          provider: item,
+   399→          message: input.user,
+   400→        },
+   401→        {
+   402→          headers: {},
+   403→        },
+   404→      )
+   405→
+   406→      const tools = resolveTools(input)
+   407→
+   408→      // LiteLLM and some Anthropic proxies require the tools parameter to be present
+   409→      // when message history contains tool calls, even if no tools are being used.
+   410→      // Add a dummy tool that is never called to satisfy this validation.
+   411→      // This is enabled for:
+   412→      // 1. Providers with "litellm" in their ID or API ID (auto-detected)
+   413→      // 2. Providers with explicit "litellmProxy: true" option (opt-in for custom gateways)
+   414→      const isLiteLLMProxy =
+   415→        item.options?.["litellmProxy"] === true ||
+   416→        input.model.providerID.toLowerCase().includes("litellm") ||
+   417→        input.model.api.id.toLowerCase().includes("litellm")
+   418→
+   419→      // LiteLLM/Bedrock rejects requests where the message history contains tool
+   420→      // calls but no tools param is present. When there are no active tools (e.g.
+   421→      // during compaction), inject a stub tool to satisfy the validation requirement.
+   422→      // The stub description explicitly tells the model not to call it.
+   423→      if (
+   424→        (isLiteLLMProxy || input.model.providerID.includes("github-copilot")) &&
+   425→        Object.keys(tools).length === 0 &&
+   426→        hasToolCalls(input.messages)
+   427→      ) {
+   428→        tools["_noop"] = tool({
+   429→          description: "Do not call this tool. It exists only for API compatibility and must never be invoked.",
+   430→          inputSchema: jsonSchema({
+   431→            type: "object",
+   432→            properties: {
+   433→              reason: { type: "string", description: "Unused" },
+   434→            },
+   435→          }),
+   436→          execute: async () => ({ output: "", title: "", metadata: {} }),
+   437→        })
+   438→      }
+   439→
+   440→      // Wire up toolExecutor for DWS workflow models so that tool calls
+   441→      // from the workflow service are executed via opencode's tool system
+   442→      // and results sent back over the WebSocket.
+   443→      if (language instanceof GitLabWorkflowLanguageModel) {
+   444→        const workflowModel = language as GitLabWorkflowLanguageModel & {
+   445→          sessionID?: string
+   446→          sessionPreapprovedTools?: string[]
+   447→          approvalHandler?: (approvalTools: { name: string; args: string }[]) => Promise<{ approved: boolean }>
+   448→        }
+   449→        workflowModel.sessionID = input.sessionID
+   450→        workflowModel.systemPrompt = system.join("\n")
+   451→        workflowModel.toolExecutor = async (toolName, argsJson, _requestID) => {
+   452→          const t = tools[toolName]
+   453→          if (!t || !t.execute) {
+   454→            return { result: "", error: `Unknown tool: ${toolName}` }
+   455→          }
+   456→          try {
+   457→            const result = await t.execute!(JSON.parse(argsJson), {
+   458→              toolCallId: _requestID,
+   459→              messages: input.messages,
+   460→              abortSignal: input.abort,
+   461→            })
+   462→            const output = typeof result === "string" ? result : (result?.output ?? JSON.stringify(result))
+   463→            return {
+   464→              result: output,
+   465→              metadata: typeof result === "object" ? result?.metadata : undefined,
+   466→              title: typeof result === "object" ? result?.title : undefined,
+   467→            }
+   468→          } catch (e: any) {
+   469→            return { result: "", error: e.message ?? String(e) }
+   470→          }
+   471→        }
+   472→
+   473→        const ruleset = Permission.merge(input.agent.permission ?? [], input.permission ?? [])
+   474→        workflowModel.sessionPreapprovedTools = Object.keys(tools).filter((name) => {
+   475→          const match = ruleset.findLast((rule) => Wildcard.match(name, rule.permission))
+   476→          return !match || match.action !== "ask"
+   477→        })
+   478→
+   479→        const bridge = yield* EffectBridge.make()
+   480→        const approvedToolsForSession = new Set<string>()
+   481→        workflowModel.approvalHandler = Instance.bind(async (approvalTools) => {
+   482→          const uniqueNames = [...new Set(approvalTools.map((t: { name: string }) => t.name))] as string[]
+   483→          // Auto-approve tools that were already approved in this session
+   484→          // (prevents infinite approval loops for server-side MCP tools)
+   485→          if (uniqueNames.every((name) => approvedToolsForSession.has(name))) {
+   486→            return { approved: true }
+   487→          }
+   488→
+   489→          const id = PermissionID.ascending()
+   490→          let unsub: (() => void) | undefined
+   491→          try {
+   492→            unsub = Bus.subscribe(Permission.Event.Replied, (evt) => {
+   493→              if (evt.properties.requestID === id) void evt.properties.reply
+   494→            })
+   495→            const toolPatterns = approvalTools.map((t: { name: string; args: string }) => {
+   496→              try {
+   497→                const parsed = JSON.parse(t.args) as Record<string, unknown>
+   498→                const title = (parsed?.title ?? parsed?.name ?? "") as string
+   499→                return title ? `${t.name}: ${title}` : t.name
+   500→              } catch {
+   501→                return t.name
+   502→              }
+   503→            })
+   504→            const uniquePatterns = [...new Set(toolPatterns)] as string[]
+   505→            await bridge.promise(
+   506→              perm.ask({
+   507→                id,
+   508→                sessionID: SessionID.make(input.sessionID),
+   509→                permission: "workflow_tool_approval",
+   510→                patterns: uniquePatterns,
+   511→                metadata: { tools: approvalTools },
+   512→                always: uniquePatterns,
+   513→                ruleset: [],
+   514→              }),
+   515→            )
+   516→            for (const name of uniqueNames) approvedToolsForSession.add(name)
+   517→            workflowModel.sessionPreapprovedTools = [...(workflowModel.sessionPreapprovedTools ?? []), ...uniqueNames]
+   518→            return { approved: true }
+   519→          } catch {
+   520→            return { approved: false }
+   521→          } finally {
+   522→            unsub?.()
+   523→          }
+   524→        })
+   525→      }
+   526→
+   527→      const tracer = cfg.experimental?.openTelemetry
+   528→        ? Option.getOrUndefined(yield* Effect.serviceOption(OtelTracer.OtelTracer))
+   529→        : undefined
+   530→      const telemetryTracer = tracer
+   531→        ? new Proxy(tracer, {
+   532→            get(target, prop, receiver) {
+   533→              if (prop !== "startSpan") return Reflect.get(target, prop, receiver)
+   534→              return (...args: Parameters<typeof target.startSpan>) => {
+   535→                const span = target.startSpan(...args)
+   536→                span.setAttribute("session.id", input.sessionID)
+   537→                return span
+   538→              }
+   539→            },
+   540→          })
+   541→        : undefined
+   542→
+   543→      const streamStartTs = Date.now()
+   544→      l.debug("streamText starting", {
+   545→        messageID: input.user.id,
+   546→        msgCount: messages.length,
+   547→        toolCount: Object.keys(tools).length,
+   548→      })
+   549→
+   550→      return streamText({
+   551→        onError(error) {
+   552→          l.debug("streamText error", {
+   553→            messageID: input.user.id,
+   554→            error: error instanceof Error ? error.message : String(error),
+   555→            elapsedMs: Date.now() - streamStartTs,
+   556→          })
+   557→          l.error("stream error", {
+   558→            error,
+   559→          })
+   560→        },
+   561→        async experimental_repairToolCall(failed) {
+   562→          const lower = failed.toolCall.toolName.toLowerCase()
+   563→          if (lower !== failed.toolCall.toolName && tools[lower]) {
+   564→            l.info("repairing tool call", {
+   565→              tool: failed.toolCall.toolName,
+   566→              repaired: lower,
+   567→            })
+   568→            return {
+   569→              ...failed.toolCall,
+   570→              toolName: lower,
+   571→            }
+   572→          }
+   573→          return {
+   574→            ...failed.toolCall,
+   575→            input: JSON.stringify({
+   576→              tool: failed.toolCall.toolName,
+   577→              error: failed.error.message,
+   578→            }),
+   579→            toolName: "invalid",
+   580→          }
+   581→        },
+   582→        temperature: params.temperature,
+   583→        topP: params.topP,
+   584→        topK: params.topK,
+   585→        providerOptions: ProviderTransform.providerOptions(input.model, params.options),
+   586→        activeTools: Object.keys(tools).filter((x) => x !== "invalid"),
+   587→        tools,
+   588→        toolChoice: input.toolChoice,
+   589→        maxOutputTokens: params.maxOutputTokens,
+   590→        abortSignal: input.abort,
+   591→        headers: {
+   592→          ...(input.model.providerID.startsWith("opencode")
+   593→            ? {
+   594→                "x-opencode-project": Instance.project.id,
+   595→                "x-opencode-session": input.sessionID,
+   596→                "x-opencode-request": input.user.id,
+   597→                "x-opencode-client": Flag.MIMOCODE_CLIENT,
+   598→              }
+   599→            : {
+   600→                "x-session-affinity": input.sessionID,
+   601→                ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
+   602→                "User-Agent": `mimocode/${InstallationVersion}`,
+   603→              }),
+   604→          ...input.model.headers,
+   605→          ...headers,
+   606→        },
+   607→        // AI SDK's internal retry loop is SILENT — it emits no events and does
+   608→        // not update session status, so the TUI shows only a dead spinner while
+   609→        // it runs. Its backoff is also UNCAPPED (delay *= 2 each attempt, capped
+   610→        // only by a retry-after header), so the prior default of 10 meant up to
+   611→        // ~34 min (2+4+…+1024s) of invisible retrying before the error surfaced.
+   612→        // We keep this layer short (absorb a couple of quick blips) and let the
+   613→        // VISIBLE processor-level SessionRetry.policy own long-haul resilience —
+   614→        // it publishes `type: "retry"` so the `[retrying attempt #N]` banner
+   615→        // shows, and its per-attempt delay is capped at 30s.
+   616→        maxRetries: input.retries ?? 2,
+   617→        messages,
+   618→        model: wrapLanguageModel({
+   619→          model: language,
+   620→          middleware: [
+   621→            {
+   622→              specificationVersion: "v3" as const,
+   623→              async transformParams(args) {
+   624→                if (args.type === "stream") {
+   625→                  // @ts-expect-error
+   626→                  args.params.prompt = ProviderTransform.message(args.params.prompt, input.model, options)
+   627→                }
+   628→                return args.params
+   629→              },
+   630→            },
+   631→          ],
+   632→        }),
+   633→        experimental_telemetry: {
+   634→          isEnabled: cfg.experimental?.openTelemetry,
+   635→          functionId: "session.llm",
+   636→          tracer: telemetryTracer,
+   637→          metadata: {
+   638→            userId: cfg.username ?? "unknown",
+   639→            sessionId: input.sessionID,
+   640→          },
+   641→        },
+   642→      })
+   643→    })
+   644→
+   645→    const stream: Interface["stream"] = (input) =>
+   646→      Stream.scoped(
+   647→        Stream.unwrap(
+   648→          Effect.gen(function* () {
+   649→            const ctrl = yield* Effect.acquireRelease(
+   650→              Effect.sync(() => new AbortController()),
+   651→              (ctrl) => Effect.sync(() => ctrl.abort()),
+   652→            )
+   653→            const attemptRef = yield* Ref.make(0)
+   654→
+   655→            const publishRetryEvent = (error: unknown, nextAttempt: number) =>
+   656→              Effect.gen(function* () {
+   657→                log.debug("retry attempt", {
+   658→                  sessionID: input.sessionID,
+   659→                  messageID: input.user.id,
+   660→                  attempt: nextAttempt,
+   661→                  reason: error instanceof Error ? error.message : String(error),
+   662→                })
+   663→                if (nextAttempt > 10) return
+   664→                const delayMs = Math.min(500 * 2 ** (nextAttempt - 1), 300_000)
+   665→                yield* Effect.promise(() =>
+   666→                  Bus.publish(Session.Event.RetryAttempt, {
+   667→                    sessionID: SessionID.make(input.sessionID),
+   668→                    messageID: input.user.id,
+   669→                    attempt: nextAttempt,
+   670→                    maxAttempts: 10,
+   671→                    reason: error instanceof Error ? error.message : String(error),
+   672→                    nextDelayMs: delayMs,
+   673→                  })
+   674→                )
+   675→              })
+   676→
+   677→            const streamWithTelemetry = run({ ...input, abort: ctrl.signal }).pipe(
+   678→              Effect.tapError((error) => {
+   679→                if (!isTransientCapacityError(error)) return Effect.void
+   680→                return Ref.updateAndGet(attemptRef, (n) => n + 1).pipe(
+   681→                  Effect.flatMap((nextAttempt) => publishRetryEvent(error, nextAttempt))
+   682→                )
+   683→              })
+   684→            )
+   685→
+   686→            const result = yield* streamWithTelemetry.pipe(
+   687→              Effect.retry({
+   688→                while: isTransientCapacityError,
+   689→                schedule: persistentRetrySchedule,
+   690→              }),
+   691→            )
+   692→
+   693→            return Stream.fromAsyncIterable(result.fullStream, (e) => (e instanceof Error ? e : new Error(String(e))))
+   694→          }),
+   695→        ),
+   696→      )
+   697→
+   698→    return Service.of({ stream, buildSystemArray })
+   699→  }),
+   700→)
+   701→
+   702→export const layer = live.pipe(Layer.provide(Permission.defaultLayer))
+   703→
+   704→export const defaultLayer = Layer.suspend(() =>
+   705→  layer.pipe(
+   706→    Layer.provide(Auth.defaultLayer),
+   707→    Layer.provide(Config.defaultLayer),
+   708→    Layer.provide(Provider.defaultLayer),
+   709→    Layer.provide(Plugin.defaultLayer),
+   710→    Layer.provide(ActorRegistry.defaultLayer),
+   711→    Layer.provide(Memory.defaultLayer),
+   712→  ),
+   713→)
+   714→
+   715→function resolveTools(input: Pick<StreamInput, "tools" | "agent" | "permission" | "user">) {
+   716→  const disabled = Permission.disabled(
+   717→    Object.keys(input.tools),
+   718→    Permission.merge(input.agent.permission, input.permission ?? []),
+   719→  )
+   720→  return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false && !disabled.has(k))
+   721→}
+   722→
+   723→// Check if messages contain any tool-call content
+   724→// Used to determine if a dummy tool should be added for LiteLLM proxy compatibility
+   725→export function hasToolCalls(messages: ModelMessage[]): boolean {
+   726→  for (const msg of messages) {
+   727→    if (!Array.isArray(msg.content)) continue
+   728→    for (const part of msg.content) {
+   729→      if (part.type === "tool-call" || part.type === "tool-result") return true
+   730→    }
+   731→  }
+   732→  return false
+   733→}
+   734→
+   735→export * as LLM from "./llm"
+   736→

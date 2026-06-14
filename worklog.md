@@ -112,3 +112,22 @@ Stage Summary:
 - PR: https://github.com/XiaomiMiMo/MiMo-Code/pull/577
 - 11 files changed, 61 insertions(+), 23 deletions(-)
 - 4 commits: actor fix, auto-read feature, welcome tip, i18n cleanup
+---
+Task ID: 1
+Agent: main
+Task: Fix open issues on XiaomiMiMo/MiMo-Code — batch of 5 bug fixes
+
+Work Log:
+- Pulled latest upstream/main and created branch fix/round4-bug-fixes-0614
+- Listed 30 open issues, identified 5 actionable bugs
+- Fixed #534: Changed DEFAULT_CONTEXT_WINDOW from 1,000,000 to 128,000 in provider.ts
+- Fixed #531: Added simple Q&A heuristic in prompt.ts to skip plan file creation for short questions
+- Fixed #518: Added ::selection and caret-color CSS rules for contenteditable elements in base.css
+- Fixed #579: Added pasting guard flag in prompt-input.tsx to suppress onInput during paste processing
+- Fixed #578: Added EOS token stripping in processor.ts for local models (Gemma, Llama)
+- Pushed to MrRealORG fork and created PR #582
+
+Stage Summary:
+- PR #582: https://github.com/XiaomiMiMo/MiMo-Code/pull/582
+- 5 files changed, 97 insertions, 6 deletions
+- Total PRs from MrRealORG: #562, #570, #573, #576, #582

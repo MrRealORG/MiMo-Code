@@ -1,0 +1,252 @@
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-22-  /request entity too large/i, // HTTP 413
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-23-  /context length is only \d+ tokens/i, // vLLM
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-24-  /input length.*exceeds.*context length/i, // vLLM
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-25-  /prompt too long; exceeded (?:max )?context length/i, // Ollama explicit overflow error
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-26-  /too large for model with \d+ maximum context length/i, // Mistral
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts:27:  /model_context_window_exceeded/i, // z.ai non-standard finish_reason surfaced as error text
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-28-]
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-29-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-30-function isOpenAiErrorRetryable(e: APICallError) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-31-  const status = e.statusCode
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/error.ts-32-  if (!status) return e.isRetryable
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-735-      providerMetadata.openai.serviceTier = response.service_tier
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-736-    }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-737-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-738-    return {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-739-      content,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts:740:      finishReason: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-741-        unified: mapOpenAIResponseFinishReason({
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts:742:          finishReason: response.incomplete_details?.reason,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-743-          hasFunctionCall,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-744-        }),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-745-        raw: response.incomplete_details?.reason,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-746-      },
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-747-      usage: {
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-794-    })
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-795-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-796-    // oxlint-disable-next-line no-this-alias -- needed for closure scope inside generator
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-797-    const self = this
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-798-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts:799:    let finishReason: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-800-      unified: ReturnType<typeof mapOpenAIResponseFinishReason>
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-801-      raw: string | undefined
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-802-    } = {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-803-      unified: "other",
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-804-      raw: undefined,
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-865-              controller.enqueue({ type: "raw", rawValue: chunk.rawValue })
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-866-            }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-867-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-868-            // handle failed chunk parsing / validation:
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-869-            if (!chunk.success) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts:870:              finishReason = {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-871-                unified: "error",
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-872-                raw: undefined,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-873-              }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-874-              controller.enqueue({ type: "error", error: chunk.error })
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-875-              return
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1257-                    },
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1258-                  },
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1259-                })
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1260-              }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1261-            } else if (isResponseFinishedChunk(value)) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts:1262:              finishReason = {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1263-                unified: mapOpenAIResponseFinishReason({
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts:1264:                  finishReason: value.response.incomplete_details?.reason,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1265-                  hasFunctionCall,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1266-                }),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1267-                raw: value.response.incomplete_details?.reason ?? undefined,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1268-              }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1269-              usage.inputTokens = value.response.usage.input_tokens
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1319-              providerMetadata.openai.serviceTier = serviceTier
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1320-            }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1321-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1322-            controller.enqueue({
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1323-              type: "finish",
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts:1324:              finishReason,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1325-              usage: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1326-                inputTokens: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1327-                  total: usage.inputTokens,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1328-                  noCache:
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/openai-responses-language-model.ts-1329-                    usage.inputTokens != null && usage.cachedInputTokens != null
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-19-  yield* Bus.Service.use((svc) =>
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-20-    Effect.all([
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-21-      svc.subscribeCallback(ModelCall, (e) => {
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-22-        const p = e.properties
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-23-        return send("model_call", p.sessionID, {
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts:24:          finish_reason: p.finish_reason,
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-25-          ttft_ms: p.ttft_ms,
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-26-          latency_ms: p.latency_ms,
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-27-          cached_read_tokens: p.cached_read_tokens,
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-28-          model_id: p.model_id,
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/subscriber.ts-29-          provider: p.provider,
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-3-
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-4-export const ModelCall = BusEvent.define(
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-5-  "metrics.model_call",
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-6-  z.object({
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-7-    sessionID: z.string(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts:8:    finish_reason: z.string(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-9-    ttft_ms: z.number().optional(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-10-    latency_ms: z.number(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-11-    cached_read_tokens: z.number(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-12-    model_id: z.string(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/metrics/event.ts-13-    provider: z.string(),
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-1-import type { LanguageModelV3FinishReason } from "@ai-sdk/provider"
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-2-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-3-export function mapOpenAIResponseFinishReason({
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts:4:  finishReason,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-5-  hasFunctionCall,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-6-}: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts:7:  finishReason: string | null | undefined
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-8-  // flag that checks if there have been client-side tool calls (not executed by openai)
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-9-  hasFunctionCall: boolean
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-10-}): LanguageModelV3FinishReason["unified"] {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts:11:  switch (finishReason) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-12-    case undefined:
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-13-    case null:
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-14-      return hasFunctionCall ? "tool-calls" : "stop"
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-15-    case "max_output_tokens":
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/responses/map-openai-responses-finish-reason.ts-16-      return "length"
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-23-  reasoning: string
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-24-  reasoningMetadata?: Record<string, any>
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-25-  text: string
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-26-  textMetadata?: Record<string, any>
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-27-  toolCalls: SessionProcessor.ProposedToolCall[]
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts:28:  finishReason: string
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-29-  usage?: any
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-30-  providerMetadata?: Record<string, any>
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-31-}
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-32-
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-33-/**
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-108-    const candidate: Candidate = {
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-109-      index,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-110-      reasoning: "",
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-111-      text: "",
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-112-      toolCalls: [],
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts:113:      finishReason: "stop",
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-114-    }
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-115-
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-116-    const schemaOnly = toSchemaOnlyTools(input.tools)
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-117-    const stream = input.llm.stream({
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-118-      user: input.user,
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-145-            input: (event.input as Record<string, any>) ?? {},
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-146-            providerMetadata: event.providerMetadata,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-147-          })
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-148-          break
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-149-        case "finish-step":
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts:150:          candidate.finishReason = event.finishReason ?? candidate.finishReason
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-151-          candidate.usage = event.usage
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-152-          candidate.providerMetadata = event.providerMetadata
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-153-          break
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-154-        // The AI SDK surfaces a transient stream failure (ECONNRESET etc.) as
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-155-        // an `error` PART that ends the stream normally — it does NOT throw, and
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-381-      reasoning: winner.reasoning,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-382-      reasoningMetadata: winner.reasoningMetadata,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-383-      text: winner.text,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-384-      textMetadata: winner.textMetadata,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-385-      toolCalls: winner.toolCalls,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts:386:      finishReason: winner.finishReason,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-387-      usage: winner.usage,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-388-      providerMetadata: winner.providerMetadata,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-389-      tools: input.tools as any,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-390-      messages: input.messages,
+/home/z/my-project/MiMo-Code/packages/opencode/src/session/max-mode.ts-391-      selection: { winner: pick, total: survivors.length },
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-271-        completionTokenDetails?.rejected_prediction_tokens
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-272-    }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-273-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-274-    return {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-275-      content,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:276:      finishReason: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:277:        unified: mapOpenAICompatibleFinishReason(choice.finish_reason),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:278:        raw: choice.finish_reason ?? undefined,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-279-      },
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-280-      usage: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-281-        inputTokens: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-282-          total: responseBody.usage?.prompt_tokens ?? undefined,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-283-          noCache: undefined,
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-336-        arguments: string
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-337-      }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-338-      hasFinished: boolean
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-339-    }> = []
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-340-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:341:    let finishReason: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-342-      unified: ReturnType<typeof mapOpenAICompatibleFinishReason>
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-343-      raw: string | undefined
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-344-    } = {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-345-      unified: "other",
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-346-      raw: undefined,
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-390-              controller.enqueue({ type: "raw", rawValue: chunk.rawValue })
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-391-            }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-392-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-393-            // handle failed chunk parsing / validation:
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-394-            if (!chunk.success) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:395:              finishReason = {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-396-                unified: "error",
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-397-                raw: undefined,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-398-              }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-399-              controller.enqueue({ type: "error", error: chunk.error })
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-400-              return
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-403-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-404-            metadataExtractor?.processChunk(chunk.rawValue)
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-405-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-406-            // handle error chunks:
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-407-            if ("error" in value) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:408:              finishReason = {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-409-                unified: "error",
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-410-                raw: undefined,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-411-              }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-412-              controller.enqueue({ type: "error", error: value.error.message })
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-413-              return
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-450-              }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-451-            }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-452-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-453-            const choice = value.choices[0]
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-454-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:455:            if (choice?.finish_reason != null) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:456:              finishReason = {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:457:                unified: mapOpenAICompatibleFinishReason(choice.finish_reason),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:458:                raw: choice.finish_reason ?? undefined,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-459-              }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-460-            }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-461-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-462-            if (choice?.delta == null) {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-463-              return
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-688-                usage.completionTokensDetails.rejectedPredictionTokens
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-689-            }
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-690-
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-691-            controller.enqueue({
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-692-              type: "finish",
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:693:              finishReason,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-694-              usage: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-695-                inputTokens: {
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-696-                  total: usage.promptTokens,
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-697-                  noCache:
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-698-                    usage.promptTokens != undefined && usage.promptTokensDetails.cachedTokens != undefined
+--
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-767-              }),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-768-            }),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-769-          )
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-770-          .nullish(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-771-      }),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts:772:      finish_reason: z.string().nullish(),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-773-    }),
+/home/z/my-project/MiMo-Code/packages/opencode/src/provider/sdk/copilot/chat/openai-compatible-chat-language-model.ts-774-  ),
+
+[Showing results with pagination = limit: 250]
