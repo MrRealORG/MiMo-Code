@@ -277,6 +277,33 @@
   }
 }
 
+[data-slot="reasoning-part-header"] {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 6px 0;
+    user-select: none;
+    margin-top: 16px;
+
+    [data-slot="reasoning-part-label"] {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-weak);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    [data-slot="collapsible-arrow-icon"] {
+      color: var(--text-weak);
+    }
+  }
+
+  [data-slot="reasoning-part-content"] {
+    overflow: hidden;
+  }
+}
+
 [data-component="reasoning-part"] {
   width: 100%;
   color: var(--text-base);

@@ -428,4 +428,93 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Session toast messages
+  "tui.session.share.copied": "Share URL copied to clipboard!",
+  "tui.session.share.copy_failed": "Failed to copy URL to clipboard",
+  "tui.session.share.failed": "Failed to share session",
+  "tui.session.share.connect_to_summarize": "Connect a provider to summarize this session",
+  "tui.session.share.unshared": "Session unshared successfully",
+  "tui.session.share.unshare_failed": "Failed to unshare session",
+  "tui.session.copy.no_assistant": "No assistant messages found",
+  "tui.session.copy.no_text_parts": "No text parts found in last assistant message",
+  "tui.session.copy.no_text_content": "No text content found in last assistant message",
+  "tui.session.copy.copied": "Message copied to clipboard!",
+  "tui.session.copy.failed": "Failed to copy to clipboard",
+  "tui.session.transcript.copied": "Session transcript copied to clipboard!",
+  "tui.session.transcript.failed": "Failed to copy session transcript",
+  "tui.session.export.failed": "Failed to export session",
+  "tui.session.judge.error_stopped": "Judge: error (stopped)",
+  "tui.session.judge.met": "Judge: met",
+  "tui.session.judge.impossible": "Judge: impossible",
+  "tui.session.error.output_length": "Output length limit reached",
+  "tui.session.error.unknown": "Unknown error",
+  "tui.session.click_to_collapse": "Click to collapse",
+  "tui.session.click_to_expand": "Click to expand",
+
+  // Provider dialog
+  "tui.dialog.provider.go_description": "Low cost subscription for everyone",
+  "tui.dialog.provider.api_key": "API key",
+  "tui.dialog.provider.select_auth_method": "Select auth method",
+  "tui.dialog.provider.custom_provider": "+ Custom provider",
+  "tui.dialog.provider.connect_title": "Connect a provider",
+  "tui.dialog.provider.id": "Provider id",
+  "tui.dialog.provider.id_placeholder": "e.g. mimorouter",
+  "tui.dialog.provider.display_name": "Display name",
+  "tui.dialog.provider.display_name_placeholder": "e.g. MiMo Router",
+  "tui.dialog.provider.first_model_id": "First model id",
+  "tui.dialog.provider.first_model_id_placeholder": "e.g. claude-sonnet-4-6",
+  "tui.dialog.provider.first_model_name": "First model name",
+  "tui.dialog.provider.first_model_name_placeholder": "e.g. Claude Sonnet 4.6",
+  "tui.dialog.provider.auth_code_placeholder": "Authorization code",
+  "tui.dialog.provider.copied": "Copied to clipboard",
+
+  // Model dialog
+  "tui.dialog.model.popular_providers": "Popular providers",
+  "tui.dialog.model.select_model": "Select model",
+  "tui.dialog.model.connect_provider": "Connect provider",
+  "tui.dialog.model.view_all": "View all providers",
+  "tui.dialog.model.id": "Model id",
+  "tui.dialog.model.gateway_model_id": "gateway model id",
+  "tui.dialog.model.display_name": "Display name",
+  "tui.dialog.model.display_name_placeholder": "shown in model picker",
+
+  // Workspace dialog
+  "tui.dialog.workspace.create_failed": "Failed to create workspace session",
+  "tui.dialog.workspace.restore_failed": "Failed to restore session",
+  "tui.dialog.workspace.restored": "Session restored into the new workspace",
+  "tui.dialog.workspace.load_adaptors_failed": "Failed to load workspace adaptors",
+  "tui.dialog.workspace.creating": "Creating ... workspace...",
+  "tui.dialog.workspace.creating_note": "This can take a while for remote environments",
+  "tui.dialog.workspace.loading": "Loading workspaces...",
+  "tui.dialog.workspace.fetching_adaptors": "Fetching available workspace adaptors",
+
+  // Session delete dialog
+  "tui.dialog.session.delete_workspace": "Delete workspace",
+  "tui.dialog.session.restore_workspace": "Restore to new workspace",
+
+  // Worktree dialog
+  "tui.dialog.worktree.loading": "Loading worktrees...",
+  "tui.dialog.worktree.create": "+ Create new worktree",
+  "tui.dialog.worktree.create_failed": "Failed to create worktree",
+
+  // Workflows dialog
+  "tui.dialog.workflows.no_runs": "(no workflow runs)",
+  "tui.dialog.workflows.resume": "Resume workflow",
+
+  // Console org dialog
+  "tui.dialog.console_org.loading": "Loading orgs...",
+  "tui.dialog.console_org.no_orgs": "No orgs found",
+  "tui.dialog.console_org.switch_title": "Switch org",
+
+  // Variant dialog
+  "tui.dialog.variant.default": "Default",
+  "tui.dialog.variant.select_variant": "Select variant",
+
+  // Agent dialog
+  "tui.dialog.agent.select_agent": "Select agent",
+
+  // Prompt component
+  "tui.prompt.connect_provider": "Connect a provider to send prompts",
+  "tui.prompt.send_failed": "Failed to send message",
 }
