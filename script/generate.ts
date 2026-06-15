@@ -4,6 +4,7 @@ import { $ } from "bun"
 
 await $`bun ./packages/sdk/js/script/build.ts`
 
-await $`bun dev generate > ../sdk/openapi.json`.cwd("packages/opencode")
+const output = await $`bun dev generate`.cwd("packages/opencode").text()
+await Bun.write("packages/sdk/openapi.json", output)
 
 await $`./script/format.ts`

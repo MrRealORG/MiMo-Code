@@ -16,10 +16,11 @@ const pkgjsons = await Array.fromAsync(
 ).then((arr) => arr.filter((x) => !x.includes("node_modules") && !x.includes("dist")))
 
 for (const file of pkgjsons) {
-  let pkg = await Bun.file(file).text()
-  pkg = pkg.replaceAll(/"version": "[^"]+"/g, `"version": "${Script.version}"`)
+  const raw = await Bun.file(file).text()
+  const pkg = JSON.parse(raw)
+  pkg.version = Script.version
   console.log("updated:", file)
-  await Bun.file(file).write(pkg)
+  await Bun.write(file, JSON.stringify(pkg, null, 2) + "\n")
 }
 
 await $`bun install`

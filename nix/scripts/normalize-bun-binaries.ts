@@ -97,7 +97,10 @@ async function linkBinary(binRoot: string, name: string, packageDir: string, tar
   }
   seen.add(normalizedName)
   const destination = join(binRoot, normalizedName)
-  const relativeTarget = relative(binRoot, resolved) || "."
+  const relativeTarget = relative(binRoot, resolved)
+  if (!relativeTarget) {
+    return
+  }
   await rm(destination, { force: true })
   await symlink(relativeTarget, destination)
   rewritten++

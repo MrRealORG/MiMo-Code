@@ -295,7 +295,9 @@ async function main() {
   }
 
   if (applied.length > 0) {
-    console.log("\nSkipping final smoke check")
+    if (!(await smoke(prs, applied))) {
+      throw new Error("Smoke check failed after merging PRs")
+    }
   }
 
   console.log("\nChecking if beta branch has changes...")
