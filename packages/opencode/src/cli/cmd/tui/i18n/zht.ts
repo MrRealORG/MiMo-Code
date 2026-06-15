@@ -397,4 +397,12 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "等待瀏覽器授權中...",
   "tui.dialog.login.flow.invalid_code": "Code 無效，請重試",
   "tui.dialog.login.flow.copied": "已複製",
+
+  // Plugin install UI
+  "tui.plugin.install.title": "安裝外掛",
+  "tui.plugin.install.busy": "正在安裝外掛...",
+  "tui.plugin.install.name_required": "請輸入外掛套件名稱",
+  "tui.plugin.install.check_npm": "請檢查 npm 註冊表/認證設定後重試。",
+  "tui.plugin.install.no_tui_target": "該套件沒有可在此應用程式中載入的 TUI 目標。",
+  "tui.plugin.install.load_failed": "外掛已安裝，但執行時期載入失敗。請查看日誌；重啟 TUI 後重試。",
 } satisfies Partial<Record<Keys, string>>

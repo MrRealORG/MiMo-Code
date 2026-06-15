@@ -428,4 +428,12 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Plugin install UI
+  "tui.plugin.install.title": "Install plugin",
+  "tui.plugin.install.busy": "Installing plugin...",
+  "tui.plugin.install.name_required": "Plugin package name is required",
+  "tui.plugin.install.check_npm": "Check npm registry/auth settings and try again.",
+  "tui.plugin.install.no_tui_target": "Package has no TUI target to load in this app.",
+  "tui.plugin.install.load_failed": "Installed plugin, but runtime load failed. See console/logs; restart TUI to retry.",
 }

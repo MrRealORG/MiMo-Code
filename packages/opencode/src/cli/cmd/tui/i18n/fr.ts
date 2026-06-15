@@ -477,4 +477,12 @@ export const dict = {
   "trust.dangerous.advice_root": "Sauf raison très spécifique, NE faites PAS confiance à la racine du système de fichiers.",
   "trust.dangerous.option.yes": "Je comprends les risques, faire confiance pour cette session",
   "trust.dangerous.option.no": "Quitter (recommandé)",
+
+  // Plugin install UI
+  "tui.plugin.install.title": "Installer un plugin",
+  "tui.plugin.install.busy": "Installation du plugin...",
+  "tui.plugin.install.name_required": "Le nom du paquet du plugin est requis",
+  "tui.plugin.install.check_npm": "Vérifiez les paramètres du registre/authentification npm et réessayez.",
+  "tui.plugin.install.no_tui_target": "Le paquet n'a pas de cible TUI à charger dans cette application.",
+  "tui.plugin.install.load_failed": "Plugin installé, mais le chargement en runtime a échoué. Consultez les logs ; redémarrez le TUI pour réessayer.",
 } satisfies Partial<Record<Keys, string>>

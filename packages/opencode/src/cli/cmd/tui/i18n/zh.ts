@@ -421,4 +421,12 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+
+  // Plugin install UI
+  "tui.plugin.install.title": "安装插件",
+  "tui.plugin.install.busy": "正在安装插件...",
+  "tui.plugin.install.name_required": "请输入插件包名",
+  "tui.plugin.install.check_npm": "请检查 npm 注册表/认证设置后重试。",
+  "tui.plugin.install.no_tui_target": "该包没有可在此应用中加载的 TUI 目标。",
+  "tui.plugin.install.load_failed": "插件已安装，但运行时加载失败。请查看日志；重启 TUI 后重试。",
 } satisfies Partial<Record<Keys, string>>

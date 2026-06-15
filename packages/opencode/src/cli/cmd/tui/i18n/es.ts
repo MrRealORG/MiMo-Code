@@ -470,4 +470,12 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "Esperando autorización del navegador...",
   "tui.dialog.login.flow.invalid_code": "Código inválido, intenta de nuevo",
   "tui.dialog.login.flow.copied": "Copiado",
+
+  // Plugin install UI
+  "tui.plugin.install.title": "Instalar plugin",
+  "tui.plugin.install.busy": "Instalando plugin...",
+  "tui.plugin.install.name_required": "Se requiere el nombre del paquete del plugin",
+  "tui.plugin.install.check_npm": "Verifica la configuración del registro/autenticación de npm e inténtalo de nuevo.",
+  "tui.plugin.install.no_tui_target": "El paquete no tiene un objetivo TUI para cargar en esta aplicación.",
+  "tui.plugin.install.load_failed": "Plugin instalado, pero la carga en runtime falló. Ver consola/logs; reinicia TUI para reintentar.",
 } satisfies Partial<Record<Keys, string>>

@@ -489,4 +489,12 @@ export const dict = {
   "trust.dangerous.advice_root": "Если нет весомой причины, НЕ доверяйте корню файловой системы.",
   "trust.dangerous.option.yes": "Я понимаю риски, доверять только в этой сессии",
   "trust.dangerous.option.no": "Выйти (рекомендуется)",
+
+  // Plugin install UI
+  "tui.plugin.install.title": "Установить плагин",
+  "tui.plugin.install.busy": "Установка плагина...",
+  "tui.plugin.install.name_required": "Требуется имя пакета плагина",
+  "tui.plugin.install.check_npm": "Проверьте настройки реестра/аутентификации npm и попробуйте снова.",
+  "tui.plugin.install.no_tui_target": "Пакет не имеет TUI-цели для загрузки в этом приложении.",
+  "tui.plugin.install.load_failed": "Плагин установлен, но загрузка не удалась. См. логи; перезапустите TUI для повторной попытки.",
 } satisfies Partial<Record<Keys, string>>

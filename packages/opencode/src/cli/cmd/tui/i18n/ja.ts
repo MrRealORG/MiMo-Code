@@ -429,4 +429,12 @@ export const dict = {
   "trust.dangerous.advice_root": "明確な理由がない限り、ファイルシステムのルートを信頼しないでください。",
   "trust.dangerous.option.yes": "リスクを理解した上で、今回のみ信頼する",
   "trust.dangerous.option.no": "終了（推奨）",
+
+  // Plugin install UI
+  "tui.plugin.install.title": "プラグインをインストール",
+  "tui.plugin.install.busy": "プラグインをインストール中...",
+  "tui.plugin.install.name_required": "プラグインパッケージ名が必要です",
+  "tui.plugin.install.check_npm": "npmレジストリ/認証設定を確認して再試行してください。",
+  "tui.plugin.install.no_tui_target": "このアプリで読み込めるTUIターゲットがありません。",
+  "tui.plugin.install.load_failed": "インストールされましたが、ランタイムの読み込みに失敗しました。ログを確認し、TUIを再起動してください。",
 } satisfies Partial<Record<Keys, string>>
