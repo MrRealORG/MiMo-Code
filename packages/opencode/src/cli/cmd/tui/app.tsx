@@ -388,7 +388,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
           if (result.data?.id) {
             route.navigate({ type: "session", sessionID: result.data.id })
           } else {
-            toast.show({ message: "Failed to fork session", variant: "error" })
+            toast.show({ message: t("tui.app.fork_failed"), variant: "error" })
           }
         })
       } else {
@@ -408,7 +408,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       if (result.data?.id) {
         route.navigate({ type: "session", sessionID: result.data.id })
       } else {
-        toast.show({ message: "Failed to fork session", variant: "error" })
+        toast.show({ message: t("tui.app.fork_failed"), variant: "error" })
       }
     })
   })
@@ -939,7 +939,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       route.navigate({ type: "home" })
       toast.show({
         variant: "info",
-        message: "The current session was deleted",
+        message: t("tui.app.session_deleted"),
       })
     }
   })
