@@ -387,4 +387,21 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自动",
+
+  // Dialog: session rename
+  "tui.dialog.session_rename.title": "重命名会话",
+
+  // Dialog: agent
+  "tui.dialog.agent.title": "选择智能体",
+  "tui.dialog.agent.native": "原生",
+
+  // Dialog: variant
+  "tui.dialog.variant.title": "选择变体",
+  "tui.dialog.variant.default": "默认",
+
+  // Dialog: theme
+  "tui.dialog.theme.title": "主题",
+
+  // Dialog: tag (autocomplete)
+  "tui.dialog.tag.title": "自动补全",
 } satisfies Partial<Record<Keys, string>>

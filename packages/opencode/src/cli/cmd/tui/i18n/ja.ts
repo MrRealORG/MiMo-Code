@@ -389,4 +389,21 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+
+  // Dialog: session rename
+  "tui.dialog.session_rename.title": "セッション名の変更",
+
+  // Dialog: agent
+  "tui.dialog.agent.title": "エージェントを選択",
+  "tui.dialog.agent.native": "ネイティブ",
+
+  // Dialog: variant
+  "tui.dialog.variant.title": "バリアントを選択",
+  "tui.dialog.variant.default": "デフォルト",
+
+  // Dialog: theme
+  "tui.dialog.theme.title": "テーマ",
+
+  // Dialog: tag (autocomplete)
+  "tui.dialog.tag.title": "オートコンプリート",
 } satisfies Partial<Record<Keys, string>>

@@ -9,6 +9,13 @@ import { EOL } from "os"
 import { AppRuntime } from "@/effect/app-runtime"
 import { Effect } from "effect"
 
+const SOURCE_LABELS: Record<string, string> = {
+  api: "token-plan",
+  env: "apikey",
+  config: "config",
+  custom: "custom",
+}
+
 export const ModelsCommand = cmd({
   command: "models [provider]",
   describe: "list all available models",
@@ -42,14 +49,16 @@ export const ModelsCommand = cmd({
             const svc = yield* Provider.Service
             const providers = yield* svc.list()
 
-            const print = (providerID: ProviderID, verbose?: boolean) => {
+            const print = (providerID: ProviderID, providerSource?: string, verbose?: boolean) => {
               const provider = providers[providerID]
+              const sourceLabel = providerSource ? SOURCE_LABELS[providerSource] ?? providerSource : undefined
               const sorted = Object.entries(provider.models).sort(([a], [b]) => a.localeCompare(b))
-              for (const [modelID, model] of sorted) {
-                process.stdout.write(`${providerID}/${modelID}`)
+              for (const [modelID] of sorted) {
+                const suffix = sourceLabel ? ` [${sourceLabel}]` : ""
+                process.stdout.write(`${providerID}/${modelID}${suffix}`)
                 process.stdout.write(EOL)
                 if (verbose) {
-                  process.stdout.write(JSON.stringify(model, null, 2))
+                  process.stdout.write(JSON.stringify(provider, null, 2))
                   process.stdout.write(EOL)
                 }
               }
@@ -63,7 +72,7 @@ export const ModelsCommand = cmd({
                 return
               }
 
-              yield* Effect.sync(() => print(providerID, args.verbose))
+              yield* Effect.sync(() => print(providerID, provider.source, args.verbose))
               return
             }
 
@@ -77,7 +86,8 @@ export const ModelsCommand = cmd({
 
             yield* Effect.sync(() => {
               for (const providerID of ids) {
-                print(ProviderID.make(providerID), args.verbose)
+                const provider = providers[providerID as ProviderID]
+                print(ProviderID.make(providerID), provider.source, args.verbose)
               }
             })
           }),

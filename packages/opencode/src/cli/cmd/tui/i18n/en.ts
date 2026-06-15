@@ -394,4 +394,21 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Dialog: session rename
+  "tui.dialog.session_rename.title": "Rename Session",
+
+  // Dialog: agent
+  "tui.dialog.agent.title": "Select agent",
+  "tui.dialog.agent.native": "native",
+
+  // Dialog: variant
+  "tui.dialog.variant.title": "Select variant",
+  "tui.dialog.variant.default": "Default",
+
+  // Dialog: theme
+  "tui.dialog.theme.title": "Themes",
+
+  // Dialog: tag (autocomplete)
+  "tui.dialog.tag.title": "Autocomplete",
 }

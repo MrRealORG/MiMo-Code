@@ -437,4 +437,21 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Dialog: session rename
+  "tui.dialog.session_rename.title": "Renommer la session",
+
+  // Dialog: agent
+  "tui.dialog.agent.title": "Sélectionner un agent",
+  "tui.dialog.agent.native": "natif",
+
+  // Dialog: variant
+  "tui.dialog.variant.title": "Sélectionner une variante",
+  "tui.dialog.variant.default": "Par défaut",
+
+  // Dialog: theme
+  "tui.dialog.theme.title": "Thèmes",
+
+  // Dialog: tag (autocomplete)
+  "tui.dialog.tag.title": "Autocomplétion",
 } satisfies Partial<Record<Keys, string>>
