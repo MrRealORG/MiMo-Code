@@ -357,4 +357,14 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+
+  // Prompt
+  "tui.prompt.connect_provider": "請先連線一個 Provider 以發送訊息",
+  "tui.session.create_failed": "建立工作階段失敗，請查看控制台取得詳細資訊。",
+
+  // MCP dialog
+  "tui.mcp.loading": "⋯ 載入中",
+  "tui.mcp.enabled": "✓ 已啟用",
+  "tui.mcp.disabled": "○ 未啟用",
+  "tui.mcp.failed": "失敗",
 } satisfies Partial<Record<Keys, string>>

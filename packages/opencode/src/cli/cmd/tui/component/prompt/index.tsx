@@ -4,6 +4,9 @@ import "opentui-spinner/solid"
 import path from "path"
 import { fileURLToPath } from "url"
 import { Filesystem } from "@/util"
+import * as Log from "@/util/log"
+
+const log = Log.Default.clone().tag("service", "tui-prompt")
 import { useLocal } from "@tui/context/local"
 import { tint, useTheme } from "@tui/context/theme"
 import { EmptyBorder, SplitBorder } from "@tui/component/border"
@@ -348,7 +351,7 @@ export function Prompt(props: PromptProps) {
   function promptModelWarning() {
     toast.show({
       variant: "warning",
-      message: "Connect a provider to send prompts",
+      message: t("tui.prompt.connect_provider"),
       duration: 3000,
     })
     if (sync.data.provider.length === 0) {
@@ -1017,10 +1020,10 @@ export function Prompt(props: PromptProps) {
       const res = await sdk.client.session.create({ workspace: props.workspaceID })
 
       if (res.error) {
-        console.log("Creating a session failed:", res.error)
+        log.error("Creating a session failed", { error: JSON.stringify(res.error) })
 
         toast.show({
-          message: "Creating a session failed. Open console for more details.",
+          message: t("tui.session.create_failed"),
           variant: "error",
         })
 

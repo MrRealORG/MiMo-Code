@@ -394,4 +394,14 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Prompt
+  "tui.prompt.connect_provider": "Connect a provider to send prompts",
+  "tui.session.create_failed": "Creating a session failed. Open console for more details.",
+
+  // MCP dialog
+  "tui.mcp.loading": "⋯ Loading",
+  "tui.mcp.enabled": "✓ Enabled",
+  "tui.mcp.disabled": "○ Disabled",
+  "tui.mcp.failed": "Failed",
 }

@@ -6,6 +6,9 @@ import { createSignal, type Setter } from "solid-js"
 import { createStore, unwrap } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import path from "path"
+import * as Log from "@/util/log"
+
+const log = Log.Default.clone().tag("service", "tui-kv")
 
 export const { use: useKV, provider: KVProvider } = createSimpleContext({
   name: "KV",
@@ -34,7 +37,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         setStore(x)
       })
       .catch((error) => {
-        console.error("Failed to read KV state", { filePath, error })
+        log.error("Failed to read KV state", { filePath, error: String(error) })
       })
       .finally(() => {
         setReady(true)
@@ -67,7 +70,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         write = write
           .then(() => Flock.withLock(lock, () => writeSnapshot(snapshot)))
           .catch((error) => {
-            console.error("Failed to write KV state", { filePath, error })
+            log.error("Failed to write KV state", { filePath, error: String(error) })
           })
       },
     }
