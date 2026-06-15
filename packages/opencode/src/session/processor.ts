@@ -280,12 +280,14 @@ export const layer: Layer.Layer<
       const failToolCall = Effect.fn("SessionProcessor.failToolCall")(function* (toolCallID: string, error: unknown) {
         const match = yield* readToolCall(toolCallID)
         if (!match || match.part.state.status !== "running") return false
+        const runningMeta = (match.part.state as { metadata?: Record<string, unknown> }).metadata
         yield* session.updatePart({
           ...match.part,
           state: {
             status: "error",
             input: match.part.state.input,
             error: errorMessage(error),
+            metadata: runningMeta,
             time: { start: match.part.state.time.start, end: Date.now() },
           },
         })

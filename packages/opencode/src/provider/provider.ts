@@ -31,7 +31,7 @@ import * as ProviderTransform from "./transform"
 import { ModelID, ProviderID } from "./schema"
 
 const log = Log.create({ service: "provider" })
-const DEFAULT_CONTEXT_WINDOW = 1_000_000
+const DEFAULT_CONTEXT_WINDOW = 128_000
 // Reserved built-in model tiers: always resolve, falling back to the default
 // model when not configured in `model_groups` (zero-config never errors).
 const BUILTIN_TIERS = new Set(["ultra", "standard", "lite"])
@@ -1220,17 +1220,21 @@ const layer: Layer.Layer<
                   const key = `${providerID}/${modelID}`
                   if (!warnedContextDefaults.has(key)) {
                     warnedContextDefaults.add(key)
-                    log.warn("limit.context not configured and not found in models.dev", {
+                    log.warn("limit.context not configured and not found in models.dev — using conservative default", {
                       providerID,
                       modelID,
                       defaulting_to: DEFAULT_CONTEXT_WINDOW,
-                      fix: `Set limit.context explicitly in mimocode.json under provider.${providerID}.models.${modelID}`,
+                      fix: `Set limit.context explicitly in mimocode.json under provider.${providerID}.models.${modelID} to match your model's actual context window`,
                     })
                   }
                   return DEFAULT_CONTEXT_WINDOW
                 })(),
+                output: (() => {
+                  const explicit = model.limit?.output ?? existingModel?.limit?.output
+                  if (explicit !== undefined) return explicit
+                  return Math.round(DEFAULT_CONTEXT_WINDOW * 0.25)
+                })(),
                 input: model.limit?.input ?? existingModel?.limit?.input,
-                output: model.limit?.output ?? existingModel?.limit?.output ?? 0,
               },
               headers: mergeDeep(existingModel?.headers ?? {}, model.headers ?? {}),
               family: model.family ?? existingModel?.family ?? "",
