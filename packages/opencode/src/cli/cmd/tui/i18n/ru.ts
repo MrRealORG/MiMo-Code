@@ -474,6 +474,26 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Авто",
 
+
+  // Session share / unshare / copy / export / summarize
+  "tui.session.share.copied": "Ссылка для обмена скопирована в буфер обмена!",
+  "tui.session.share.copy_failed": "Не удалось скопировать ссылку в буфер обмена",
+  "tui.session.unshare.success": "Доступ к сеансу закрыт",
+  "tui.session.no_assistant": "Сообщения помощника не найдены",
+  "tui.session.no_text_parts": "В последнем сообщении помощника не найдены текстовые части",
+  "tui.session.no_text_content": "В последнем сообщении помощника не найдено текстовое содержимое",
+  "tui.session.message.copied": "Сообщение скопировано в буфер обмена!",
+  "tui.session.message.copy_failed": "Не удалось скопировать в буфер обмена",
+  "tui.session.transcript.copied": "Транскрипция сеанса скопирована в буфер обмена!",
+  "tui.session.transcript.copy_failed": "Не удалось скопировать транскрипцию сеанса",
+  "tui.session.export.success": "Сеанс экспортирован в {filename}",
+  "tui.session.export.failed": "Не удалось экспортировать сеанс",
+  "tui.session.summarize.connect": "Подключите провайдера для сводки этого сеанса",
+  "tui.session.not_found": "Сеанс не найден: {id}",
+  "tui.dialog.variant.title": "Выберите вариант",
+  "tui.dialog.variant.default": "По умолчанию",
+  "tui.dialog.provider.connect_title": "Подключить провайдера",
+  "tui.dialog.provider.copied": "Скопировано в буфер обмена",
   // Workspace trust
   "trust.title": "Доступ к рабочему пространству:",
   "trust.safety_check": "Проверка безопасности: это проект, который вы создали или которому доверяете? (Ваш собственный код, известный open source проект или работа вашей команды). Если нет, сначала проверьте содержимое этой папки.",

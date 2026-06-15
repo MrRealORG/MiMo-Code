@@ -448,6 +448,26 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
+
+  // Session share / unshare / copy / export / summarize
+  "tui.session.share.copied": "¡URL compartida copiada al portapapeles!",
+  "tui.session.share.copy_failed": "Error al copiar la URL al portapapeles",
+  "tui.session.unshare.success": "Sesión dejada de compartir correctamente",
+  "tui.session.no_assistant": "No se encontraron mensajes del asistente",
+  "tui.session.no_text_parts": "No se encontraron partes de texto en el último mensaje del asistente",
+  "tui.session.no_text_content": "No se encontró contenido de texto en el último mensaje del asistente",
+  "tui.session.message.copied": "¡Mensaje copiado al portapapeles!",
+  "tui.session.message.copy_failed": "Error al copiar al portapapeles",
+  "tui.session.transcript.copied": "¡Transcripción de la sesión copiada al portapapeles!",
+  "tui.session.transcript.copy_failed": "Error al copiar la transcripción de la sesión",
+  "tui.session.export.success": "Sesión exportada a {filename}",
+  "tui.session.export.failed": "Error al exportar la sesión",
+  "tui.session.summarize.connect": "Conecta un proveedor para resumir esta sesión",
+  "tui.session.not_found": "Sesión no encontrada: {id}",
+  "tui.dialog.variant.title": "Seleccionar variante",
+  "tui.dialog.variant.default": "Predeterminado",
+  "tui.dialog.provider.connect_title": "Conectar proveedor",
+  "tui.dialog.provider.copied": "Copiado al portapapeles",
   // Workspace trust
   "trust.title": "Accediendo al espacio de trabajo:",
   "trust.safety_check": "Verificación rápida: ¿Es este un proyecto que creaste o en el que confías? (Tu propio código, un proyecto open source conocido o trabajo de tu equipo). Si no, tómate un momento para revisar el contenido de esta carpeta.",

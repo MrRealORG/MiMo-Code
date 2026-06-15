@@ -1,5 +1,6 @@
 import { Global } from "@/global"
 import { Filesystem } from "@/util"
+import * as Log from "@/util/log"
 import { Flock } from "@mimo-ai/shared/util/flock"
 import { rename, rm } from "fs/promises"
 import { createSignal, type Setter } from "solid-js"
@@ -34,7 +35,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         setStore(x)
       })
       .catch((error) => {
-        console.error("Failed to read KV state", { filePath, error })
+        Log.Default.error("Failed to read KV state", { filePath, error })
       })
       .finally(() => {
         setReady(true)
@@ -67,7 +68,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         write = write
           .then(() => Flock.withLock(lock, () => writeSnapshot(snapshot)))
           .catch((error) => {
-            console.error("Failed to write KV state", { filePath, error })
+            Log.Default.error("Failed to write KV state", { filePath, error })
           })
       },
       delete(key: string) {
@@ -77,7 +78,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         write = write
           .then(() => Flock.withLock(lock, () => writeSnapshot(snapshot)))
           .catch((error) => {
-            console.error("Failed to write KV state", { filePath, error })
+            Log.Default.error("Failed to write KV state", { filePath, error })
           })
       },
     }

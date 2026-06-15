@@ -462,6 +462,26 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
+
+  // Session share / unshare / copy / export / summarize
+  "tui.session.share.copied": "URL de partage copiée dans le presse-papiers !",
+  "tui.session.share.copy_failed": "Impossible de copier l'URL dans le presse-papiers",
+  "tui.session.unshare.success": "Session dépubliée avec succès",
+  "tui.session.no_assistant": "Aucun message de l'assistant trouvé",
+  "tui.session.no_text_parts": "Aucune partie texte trouvée dans le dernier message de l'assistant",
+  "tui.session.no_text_content": "Aucun contenu texte trouvé dans le dernier message de l'assistant",
+  "tui.session.message.copied": "Message copié dans le presse-papiers !",
+  "tui.session.message.copy_failed": "Impossible de copier dans le presse-papiers",
+  "tui.session.transcript.copied": "Transcription de la session copiée dans le presse-papiers !",
+  "tui.session.transcript.copy_failed": "Impossible de copier la transcription de la session",
+  "tui.session.export.success": "Session exportée vers {filename}",
+  "tui.session.export.failed": "Impossible d'exporter la session",
+  "tui.session.summarize.connect": "Connectez un fournisseur pour résumer cette session",
+  "tui.session.not_found": "Session introuvable : {id}",
+  "tui.dialog.variant.title": "Sélectionner une variante",
+  "tui.dialog.variant.default": "Par défaut",
+  "tui.dialog.provider.connect_title": "Connecter un fournisseur",
+  "tui.dialog.provider.copied": "Copié dans le presse-papiers",
   // Workspace trust
   "trust.title": "Accès à l'espace de travail :",
   "trust.safety_check": "Vérification rapide : est-ce un projet que vous avez créé ou auquel vous faites confiance ? (Votre propre code, un projet open source reconnu ou un travail de votre équipe). Sinon, prenez un moment pour examiner le contenu de ce dossier.",

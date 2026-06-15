@@ -414,6 +414,26 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
+
+  // Session share / unshare / copy / export / summarize
+  "tui.session.share.copied": "共有URLをクリップボードにコピーしました！",
+  "tui.session.share.copy_failed": "URLのクリップボードへのコピーに失敗しました",
+  "tui.session.unshare.success": "セッションの共有を解除しました",
+  "tui.session.no_assistant": "アシスタントメッセージが見つかりません",
+  "tui.session.no_text_parts": "最後のアシスタントメッセージにテキスト部分が見つかりません",
+  "tui.session.no_text_content": "最後のアシスタントメッセージにテキスト内容が見つかりません",
+  "tui.session.message.copied": "メッセージをクリップボードにコピーしました！",
+  "tui.session.message.copy_failed": "クリップボードへのコピーに失敗しました",
+  "tui.session.transcript.copied": "セッション記録をクリップボードにコピーしました！",
+  "tui.session.transcript.copy_failed": "セッション記録のコピーに失敗しました",
+  "tui.session.export.success": "セッションを {filename} にエクスポートしました",
+  "tui.session.export.failed": "セッションのエクスポートに失敗しました",
+  "tui.session.summarize.connect": "プロバイダに接続してこのセッションを要約してください",
+  "tui.session.not_found": "セッションが見つかりません：{id}",
+  "tui.dialog.variant.title": "バリアントを選択",
+  "tui.dialog.variant.default": "デフォルト",
+  "tui.dialog.provider.connect_title": "プロバイダに接続",
+  "tui.dialog.provider.copied": "クリップボードにコピーしました",
   // Workspace trust
   "trust.title": "ワークスペースにアクセス中：",
   "trust.safety_check": "安全確認：これはあなたが作成した、または信頼しているプロジェクトですか？（自分のコード、有名なオープンソースプロジェクト、チームの作業など）。そうでない場合は、まずこのフォルダの内容を確認してください。",

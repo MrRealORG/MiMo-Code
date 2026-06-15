@@ -413,6 +413,26 @@ export const dict: Record<string, string> = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
+
+  // Session share / unshare / copy / export / summarize
+  "tui.session.share.copied": "Share URL copied to clipboard!",
+  "tui.session.share.copy_failed": "Failed to copy URL to clipboard",
+  "tui.session.unshare.success": "Session unshared successfully",
+  "tui.session.no_assistant": "No assistant messages found",
+  "tui.session.no_text_parts": "No text parts found in last assistant message",
+  "tui.session.no_text_content": "No text content found in last assistant message",
+  "tui.session.message.copied": "Message copied to clipboard!",
+  "tui.session.message.copy_failed": "Failed to copy to clipboard",
+  "tui.session.transcript.copied": "Session transcript copied to clipboard!",
+  "tui.session.transcript.copy_failed": "Failed to copy session transcript",
+  "tui.session.export.success": "Session exported to {filename}",
+  "tui.session.export.failed": "Failed to export session",
+  "tui.session.summarize.connect": "Connect a provider to summarize this session",
+  "tui.session.not_found": "Session not found: {id}",
+  "tui.dialog.variant.title": "Select variant",
+  "tui.dialog.variant.default": "Default",
+  "tui.dialog.provider.connect_title": "Connect a provider",
+  "tui.dialog.provider.copied": "Copied to clipboard",
   // Workspace trust
   "trust.title": "Accessing workspace:",
   "trust.safety_check": "Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first.",

@@ -67,6 +67,7 @@ import { TuiConfigProvider, useTuiConfig } from "./context/tui-config"
 import { TuiConfig } from "@/cli/cmd/tui/config/tui"
 import { createTuiApi, TuiPluginRuntime, type RouteMap } from "./plugin"
 import { FormatError, FormatUnknownError } from "@/cli/error"
+import * as Log from "@/util/log"
 import { isPlainTerminal } from "./util/terminal"
 
 import type { EventSource } from "./context/sdk"
@@ -99,7 +100,7 @@ function rendererConfig(_config: TuiConfig.Info, plainTerminal: boolean): CliRen
       keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
       onCopySelection: (text) => {
         Clipboard.copy(text).catch((error) => {
-          console.error(`Failed to copy console selection to clipboard: ${error}`)
+          Log.Default.error("Failed to copy console selection to clipboard", { error: String(error) })
         })
       },
     },
@@ -272,7 +273,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     config: tuiConfig,
   })
     .catch((error) => {
-      console.error("Failed to load TUI plugins", error)
+      Log.Default.error("Failed to load TUI plugins", { error })
     })
     .finally(() => {
       setReady(true)

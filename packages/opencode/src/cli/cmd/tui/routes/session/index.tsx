@@ -201,7 +201,7 @@ export function Session() {
     const result = await sdk.client.session.get({ sessionID: route.sessionID }, { throwOnError: true })
     if (!result.data) {
       toast.show({
-        message: `Session not found: ${route.sessionID}`,
+        message: t("tui.session.not_found", { id: route.sessionID }),
         variant: "error",
       })
       navigate({ type: "home" })
@@ -398,8 +398,8 @@ export function Session() {
       onSelect: async (dialog) => {
         const copy = (url: string) =>
           Clipboard.copy(url)
-            .then(() => toast.show({ message: "Share URL copied to clipboard!", variant: "success" }))
-            .catch(() => toast.show({ message: "Failed to copy URL to clipboard", variant: "error" }))
+            .then(() => toast.show({ message: t("tui.session.share.copied"), variant: "success" }))
+            .catch(() => toast.show({ message: t("tui.session.share.copy_failed"), variant: "error" }))
         const url = session()?.share?.url
         if (url) {
           await copy(url)
@@ -497,7 +497,7 @@ export function Session() {
         if (!selectedModel) {
           toast.show({
             variant: "warning",
-            message: "Connect a provider to summarize this session",
+            message: t("tui.session.summarize.connect"),
             duration: 3000,
           })
           return
@@ -524,7 +524,7 @@ export function Session() {
           .unshare({
             sessionID: route.sessionID,
           })
-          .then(() => toast.show({ message: "Session unshared successfully", variant: "success" }))
+          .then(() => toast.show({ message: t("tui.session.unshare.success"), variant: "success" }))
           .catch((error) => {
             toast.show({
               message: error instanceof Error ? error.message : "Failed to unshare session",
@@ -834,7 +834,7 @@ export function Session() {
           (msg) => msg.role === "assistant" && (!revertID || msg.id < revertID),
         )
         if (!lastAssistantMessage) {
-          toast.show({ message: "No assistant messages found", variant: "error" })
+          toast.show({ message: t("tui.session.no_assistant"), variant: "error" })
           dialog.clear()
           return
         }
@@ -842,7 +842,7 @@ export function Session() {
         const parts = sync.data.part[lastAssistantMessage.id] ?? []
         const textParts = parts.filter((part) => part.type === "text")
         if (textParts.length === 0) {
-          toast.show({ message: "No text parts found in last assistant message", variant: "error" })
+          toast.show({ message: t("tui.session.no_text_parts"), variant: "error" })
           dialog.clear()
           return
         }
@@ -853,7 +853,7 @@ export function Session() {
           .trim()
         if (!text) {
           toast.show({
-            message: "No text content found in last assistant message",
+            message: t("tui.session.no_text_content"),
             variant: "error",
           })
           dialog.clear()
@@ -861,8 +861,8 @@ export function Session() {
         }
 
         Clipboard.copy(text)
-          .then(() => toast.show({ message: "Message copied to clipboard!", variant: "success" }))
-          .catch(() => toast.show({ message: "Failed to copy to clipboard", variant: "error" }))
+          .then(() => toast.show({ message: t("tui.session.message.copied"), variant: "success" }))
+          .catch(() => toast.show({ message: t("tui.session.message.copy_failed"), variant: "error" }))
         dialog.clear()
       },
     },
@@ -889,9 +889,9 @@ export function Session() {
             },
           )
           await Clipboard.copy(transcript)
-          toast.show({ message: "Session transcript copied to clipboard!", variant: "success" })
+          toast.show({ message: t("tui.session.transcript.copied"), variant: "success" })
         } catch {
-          toast.show({ message: "Failed to copy session transcript", variant: "error" })
+          toast.show({ message: t("tui.session.transcript.copy_failed"), variant: "error" })
         }
         dialog.clear()
       },
@@ -950,10 +950,10 @@ export function Session() {
               await Filesystem.write(filepath, result)
             }
 
-            toast.show({ message: `Session exported to ${filename}`, variant: "success" })
+            toast.show({ message: t("tui.session.export.success", { filename }), variant: "success" })
           }
         } catch {
-          toast.show({ message: "Failed to export session", variant: "error" })
+          toast.show({ message: t("tui.session.export.failed"), variant: "error" })
         }
         dialog.clear()
       },
@@ -1371,7 +1371,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
     if (!text) return
     Clipboard.copy(text)
       .then(() => toast.show({ message: t("tui.toast.copied_to_clipboard"), variant: "success" }))
-      .catch(() => toast.show({ message: "Failed to copy to clipboard", variant: "error" }))
+      .catch(() => toast.show({ message: t("tui.session.message.copy_failed"), variant: "error" }))
   }
 
   // Goal judge verdict for this specific turn, if the stop-condition judge

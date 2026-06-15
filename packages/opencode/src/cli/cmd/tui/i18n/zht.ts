@@ -375,6 +375,26 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
+
+  // Session share / unshare / copy / export / summarize
+  "tui.session.share.copied": "分享連結已複製到剪貼簿！",
+  "tui.session.share.copy_failed": "複製連結到剪貼簿失敗",
+  "tui.session.unshare.success": "已成功取消分享",
+  "tui.session.no_assistant": "未找到助手訊息",
+  "tui.session.no_text_parts": "最後一條助手訊息中未找到文字部分",
+  "tui.session.no_text_content": "最後一條助手訊息中未找到文字內容",
+  "tui.session.message.copied": "訊息已複製到剪貼簿！",
+  "tui.session.message.copy_failed": "複製到剪貼簿失敗",
+  "tui.session.transcript.copied": "會話記錄已複製到剪貼簿！",
+  "tui.session.transcript.copy_failed": "複製會話記錄失敗",
+  "tui.session.export.success": "會話已匯出到 {filename}",
+  "tui.session.export.failed": "匯出會話失敗",
+  "tui.session.summarize.connect": "連接服務商以總結此會話",
+  "tui.session.not_found": "未找到會話：{id}",
+  "tui.dialog.variant.title": "選擇變體",
+  "tui.dialog.variant.default": "預設",
+  "tui.dialog.provider.connect_title": "連接服務商",
+  "tui.dialog.provider.copied": "已複製到剪貼簿",
   // Workspace trust
   "trust.title": "存取工作區：",
   "trust.safety_check": "安全確認：這是你自己建立或信任的專案嗎？（如你自己的程式碼、知名開源專案或團隊內部專案）。如果不是，請先檢查此目錄下的內容。",

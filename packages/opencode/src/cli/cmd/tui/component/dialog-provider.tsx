@@ -14,6 +14,7 @@ import { useKeyboard } from "@opentui/solid"
 import * as Clipboard from "@tui/util/clipboard"
 import { useToast, type ToastContext } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
+import { useLanguage } from "@tui/context/language"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
@@ -159,7 +160,7 @@ export function createDialogProviderOptions() {
 
 export function DialogProvider() {
   const options = createDialogProviderOptions()
-  return <DialogSelect title="Connect a provider" options={options()} />
+  return <DialogSelect title={t("tui.dialog.provider.connect_title")} options={options()} />
 }
 
 export async function runCustomProviderWizard(opts: {
@@ -253,13 +254,14 @@ function AutoMethod(props: AutoMethodProps) {
   const sdk = useSDK()
   const dialog = useDialog()
   const sync = useSync()
+  const t = useLanguage().t
   const toast = useToast()
 
   useKeyboard((evt) => {
     if (evt.name === "c" && !evt.ctrl && !evt.meta) {
       const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
       Clipboard.copy(code)
-        .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
+        .then(() => toast.show({ message: t("tui.dialog.provider.copied"), variant: "info" }))
         .catch(toast.error)
     }
   })
