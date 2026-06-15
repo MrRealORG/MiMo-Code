@@ -474,7 +474,34 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Авто",
 
-  // Workspace trust
+
+  // Model, Workspace Unavailable, Skill, Plugin Route
+  "tui.model.free": "Бесплатно",
+  "tui.model.favorites": "Избранные",
+  "tui.model.recent": "Недавние",
+  "tui.model.favorite_label": "(Избранное)",
+  "tui.model.add_model": "+ Добавить модель",
+  "tui.model.popular_providers": "Популярные провайдеры",
+  "tui.model.select_model": "Выберите модель",
+  "tui.model.connect_provider": "Подключить провайдер",
+  "tui.model.view_all_providers": "Все провайдеры",
+  "tui.model.favorite": "В избранное",
+  "tui.model.wizard.model_id": "ID модели",
+  "tui.model.wizard.model_id_placeholder": "ID модели шлюза",
+  "tui.model.wizard.display_name": "Отображаемое имя",
+  "tui.model.wizard.display_name_placeholder": "отображается в выборе моделей",
+  "tui.workspace_unavailable.title": "Рабочее пространство недоступно",
+  "tui.workspace_unavailable.description": "Эта сессия привязана к рабочему пространству, которое больше недоступно.",
+  "tui.workspace_unavailable.restore_prompt": "Хотите восстановить эту сессию в новом рабочем пространстве?",
+  "tui.workspace_unavailable.cancel": "отмена",
+  "tui.workspace_unavailable.restore": "восстановить",
+  "tui.skill.title": "Навыки",
+  "tui.skill.category": "Навыки",
+  "tui.skill.search_placeholder": "Поиск навыков...",
+  "tui.plugin_route.unknown": "Неизвестный маршрут плагина: {{id}}",
+  "tui.plugin_route.go_home": "На главную",
+
+    // Workspace trust
   "trust.title": "Доступ к рабочему пространству:",
   "trust.safety_check": "Проверка безопасности: это проект, который вы создали или которому доверяете? (Ваш собственный код, известный open source проект или работа вашей команды). Если нет, сначала проверьте содержимое этой папки.",
   "trust.capabilities": "MiMo Code сможет читать, редактировать и выполнять файлы здесь.",

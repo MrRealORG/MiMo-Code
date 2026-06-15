@@ -414,7 +414,34 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
-  // Workspace trust
+
+  // Model, Workspace Unavailable, Skill, Plugin Route
+  "tui.model.free": "無料",
+  "tui.model.favorites": "お気に入り",
+  "tui.model.recent": "最近",
+  "tui.model.favorite_label": "（お気に入り）",
+  "tui.model.add_model": "+ モデルを追加",
+  "tui.model.popular_providers": "人気プロバイダー",
+  "tui.model.select_model": "モデルを選択",
+  "tui.model.connect_provider": "プロバイダーに接続",
+  "tui.model.view_all_providers": "すべてのプロバイダーを表示",
+  "tui.model.favorite": "お気に入り",
+  "tui.model.wizard.model_id": "モデル ID",
+  "tui.model.wizard.model_id_placeholder": "ゲートウェイモデル ID",
+  "tui.model.wizard.display_name": "表示名",
+  "tui.model.wizard.display_name_placeholder": "モデルピッカーに表示",
+  "tui.workspace_unavailable.title": "ワークスペースが利用不可",
+  "tui.workspace_unavailable.description": "このセッションは利用できなくなったワークスペースに接続されています。",
+  "tui.workspace_unavailable.restore_prompt": "このセッションを新しいワークスペースに復元しますか？",
+  "tui.workspace_unavailable.cancel": "キャンセル",
+  "tui.workspace_unavailable.restore": "復元",
+  "tui.skill.title": "スキル",
+  "tui.skill.category": "スキル",
+  "tui.skill.search_placeholder": "スキルを検索...",
+  "tui.plugin_route.unknown": "不明なプラグインルート: {{id}}",
+  "tui.plugin_route.go_home": "ホームに戻る",
+
+    // Workspace trust
   "trust.title": "ワークスペースにアクセス中：",
   "trust.safety_check": "安全確認：これはあなたが作成した、または信頼しているプロジェクトですか？（自分のコード、有名なオープンソースプロジェクト、チームの作業など）。そうでない場合は、まずこのフォルダの内容を確認してください。",
   "trust.capabilities": "MiMo Code はここでファイルの読み取り、編集、実行が可能になります。",

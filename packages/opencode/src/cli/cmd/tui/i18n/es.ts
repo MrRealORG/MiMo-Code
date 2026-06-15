@@ -448,7 +448,34 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
-  // Workspace trust
+
+  // Model, Workspace Unavailable, Skill, Plugin Route
+  "tui.model.free": "Gratis",
+  "tui.model.favorites": "Favoritos",
+  "tui.model.recent": "Recientes",
+  "tui.model.favorite_label": "(Favorito)",
+  "tui.model.add_model": "+ Agregar modelo",
+  "tui.model.popular_providers": "Proveedores populares",
+  "tui.model.select_model": "Seleccionar modelo",
+  "tui.model.connect_provider": "Conectar proveedor",
+  "tui.model.view_all_providers": "Ver todos los proveedores",
+  "tui.model.favorite": "Favorito",
+  "tui.model.wizard.model_id": "ID del modelo",
+  "tui.model.wizard.model_id_placeholder": "ID del modelo de gateway",
+  "tui.model.wizard.display_name": "Nombre para mostrar",
+  "tui.model.wizard.display_name_placeholder": "se muestra en el selector",
+  "tui.workspace_unavailable.title": "Espacio de trabajo no disponible",
+  "tui.workspace_unavailable.description": "Esta sesión está vinculada a un espacio de trabajo que ya no está disponible.",
+  "tui.workspace_unavailable.restore_prompt": "¿Le gustaría restaurar esta sesión en un nuevo espacio de trabajo?",
+  "tui.workspace_unavailable.cancel": "cancelar",
+  "tui.workspace_unavailable.restore": "restaurar",
+  "tui.skill.title": "Habilidades",
+  "tui.skill.category": "Habilidades",
+  "tui.skill.search_placeholder": "Buscar habilidades...",
+  "tui.plugin_route.unknown": "Ruta de plugin desconocida: {{id}}",
+  "tui.plugin_route.go_home": "Ir al inicio",
+
+    // Workspace trust
   "trust.title": "Accediendo al espacio de trabajo:",
   "trust.safety_check": "Verificación rápida: ¿Es este un proyecto que creaste o en el que confías? (Tu propio código, un proyecto open source conocido o trabajo de tu equipo). Si no, tómate un momento para revisar el contenido de esta carpeta.",
   "trust.capabilities": "MiMo Code podrá leer, editar y ejecutar archivos aquí.",

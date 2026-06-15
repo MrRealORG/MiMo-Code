@@ -406,7 +406,34 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自动",
 
-  // Workspace trust
+
+  // Model, Workspace Unavailable, Skill, Plugin Route
+  "tui.model.free": "免费",
+  "tui.model.favorites": "收藏",
+  "tui.model.recent": "最近",
+  "tui.model.favorite_label": "（收藏）",
+  "tui.model.add_model": "+ 添加模型",
+  "tui.model.popular_providers": "热门提供商",
+  "tui.model.select_model": "选择模型",
+  "tui.model.connect_provider": "连接提供商",
+  "tui.model.view_all_providers": "查看所有提供商",
+  "tui.model.favorite": "收藏",
+  "tui.model.wizard.model_id": "模型 ID",
+  "tui.model.wizard.model_id_placeholder": "网关模型 ID",
+  "tui.model.wizard.display_name": "显示名称",
+  "tui.model.wizard.display_name_placeholder": "在模型选择器中显示",
+  "tui.workspace_unavailable.title": "工作区不可用",
+  "tui.workspace_unavailable.description": "此会话关联的工作区已不可用。",
+  "tui.workspace_unavailable.restore_prompt": "是否要将此会话恢复到新的工作区？",
+  "tui.workspace_unavailable.cancel": "取消",
+  "tui.workspace_unavailable.restore": "恢复",
+  "tui.skill.title": "技能",
+  "tui.skill.category": "技能",
+  "tui.skill.search_placeholder": "搜索技能...",
+  "tui.plugin_route.unknown": "未知插件路由: {{id}}",
+  "tui.plugin_route.go_home": "返回首页",
+
+    // Workspace trust
   "trust.title": "访问工作区：",
   "trust.safety_check": "安全确认：这是你自己创建或信任的项目吗？（如你自己的代码、知名开源项目或团队内部项目）。如果不是，请先检查此目录下的内容。",
   "trust.capabilities": "MiMo Code 将能够读取、编辑和执行此目录中的文件。",

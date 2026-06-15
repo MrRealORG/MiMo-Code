@@ -413,7 +413,34 @@ export const dict: Record<string, string> = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
-  // Workspace trust
+
+  // Model, Workspace Unavailable, Skill, Plugin Route
+  "tui.model.free": "Free",
+  "tui.model.favorites": "Favorites",
+  "tui.model.recent": "Recent",
+  "tui.model.favorite_label": "(Favorite)",
+  "tui.model.add_model": "+ Add model",
+  "tui.model.popular_providers": "Popular providers",
+  "tui.model.select_model": "Select model",
+  "tui.model.connect_provider": "Connect provider",
+  "tui.model.view_all_providers": "View all providers",
+  "tui.model.favorite": "Favorite",
+  "tui.model.wizard.model_id": "Model id",
+  "tui.model.wizard.model_id_placeholder": "gateway model id",
+  "tui.model.wizard.display_name": "Display name",
+  "tui.model.wizard.display_name_placeholder": "shown in model picker",
+  "tui.workspace_unavailable.title": "Workspace Unavailable",
+  "tui.workspace_unavailable.description": "This session is attached to a workspace that is no longer available.",
+  "tui.workspace_unavailable.restore_prompt": "Would you like to restore this session into a new workspace?",
+  "tui.workspace_unavailable.cancel": "cancel",
+  "tui.workspace_unavailable.restore": "restore",
+  "tui.skill.title": "Skills",
+  "tui.skill.category": "Skills",
+  "tui.skill.search_placeholder": "Search skills...",
+  "tui.plugin_route.unknown": "Unknown plugin route: {{id}}",
+  "tui.plugin_route.go_home": "go home",
+
+    // Workspace trust
   "trust.title": "Accessing workspace:",
   "trust.safety_check": "Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first.",
   "trust.capabilities": "MiMo Code will be able to read, edit, and execute files here.",
