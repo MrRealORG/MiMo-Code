@@ -175,6 +175,8 @@ export function Session() {
   }
   onCleanup(() => {
     if (scrollHideTimer) clearTimeout(scrollHideTimer)
+    unsubPartUpdated()
+    unsubSessionStatus()
   })
   const [diffWrapMode] = kv.signal<"word" | "none">("diff_wrap_mode", "word")
   const [_animationsEnabled, _setAnimationsEnabled] = kv.signal("animations_enabled", true)
@@ -224,7 +226,7 @@ export function Session() {
   })
 
   let lastSwitch: string | undefined = undefined
-  event.on("message.part.updated", (evt) => {
+  const unsubPartUpdated = event.on("message.part.updated", (evt) => {
     const part = evt.properties.part
     if (part.type !== "tool") return
     if (part.sessionID !== route.sessionID) return
@@ -254,7 +256,7 @@ export function Session() {
   const dialog = useDialog()
   const renderer = useRenderer()
 
-  event.on("session.status", (evt) => {
+  const unsubSessionStatus = event.on("session.status", (evt) => {
     if (evt.properties.sessionID !== route.sessionID) return
     if (evt.properties.status.type !== "retry") return
     if (evt.properties.status.message !== SessionRetry.GO_UPSELL_MESSAGE) return
