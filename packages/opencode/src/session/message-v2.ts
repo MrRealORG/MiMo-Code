@@ -613,7 +613,7 @@ function providerMeta(metadata: Record<string, any> | undefined) {
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean },
+  options?: { stripMedia?: boolean; stripReasoning?: boolean },
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
@@ -822,7 +822,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               ...(differentModel ? {} : { callProviderMetadata: providerMeta(part.metadata) }),
             })
         }
-        if (part.type === "reasoning") {
+        if (part.type === "reasoning" && !options?.stripReasoning) {
           assistantMessage.parts.push({
             type: "reasoning",
             text: part.text,
@@ -872,7 +872,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 export function toModelMessages(
   input: WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean },
+  options?: { stripMedia?: boolean; stripReasoning?: boolean },
 ): Promise<ModelMessage[]> {
   return Effect.runPromise(toModelMessagesEffect(input, model, options).pipe(Effect.provide(EffectLogger.layer)))
 }

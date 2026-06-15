@@ -158,7 +158,7 @@ export const layer = Layer.effect(
 
       // Convert the conversation to native model messages so the judge sees the
       // real tool calls/results/images — same context the working agent had.
-      const conversation = yield* MessageV2.toModelMessagesEffect(input.msgs, resolved)
+      const conversation = yield* MessageV2.toModelMessagesEffect(input.msgs, resolved, { stripReasoning: true })
 
       // Diagnostic: dump the FULL message array sent to the judge. Long strings
       // (e.g. base64 image data) are clipped with a length marker so the log

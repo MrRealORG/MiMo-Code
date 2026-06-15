@@ -125,7 +125,7 @@ export const layer: Layer.Layer<
       messages: MessageV2.WithParts[]
       model: Provider.Model
     }) {
-      const msgs = yield* MessageV2.toModelMessagesEffect(input.messages, input.model)
+      const msgs = yield* MessageV2.toModelMessagesEffect(input.messages, input.model, { stripReasoning: true })
       return Token.estimate(JSON.stringify(msgs))
     })
 
@@ -309,7 +309,7 @@ export const layer: Layer.Layer<
       const prompt = compacting.prompt ?? [defaultPrompt, ...compacting.context].join("\n\n")
       const msgs = structuredClone(selected.head)
       yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
-      const modelMessages = yield* MessageV2.toModelMessagesEffect(msgs, model, { stripMedia: true })
+      const modelMessages = yield* MessageV2.toModelMessagesEffect(msgs, model, { stripMedia: true, stripReasoning: true })
       const ctx = yield* InstanceState.context
       const msg: MessageV2.Assistant = {
         id: MessageID.ascending(),
