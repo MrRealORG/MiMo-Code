@@ -160,10 +160,18 @@ export const layer = Layer.effect(
               Permission.fromConfig({
                 question: "allow",
                 plan_exit: "allow",
+                bash: "deny",
+                apply_patch: "deny",
+                multiedit: "deny",
                 external_directory: {
                   [path.join(Global.Path.data, "plans", "*")]: "allow",
                 },
                 edit: {
+                  "*": "deny",
+                  [path.join(".mimocode", "plans", "*.md")]: "allow",
+                  [path.relative(Instance.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]: "allow",
+                },
+                write: {
                   "*": "deny",
                   [path.join(".mimocode", "plans", "*.md")]: "allow",
                   [path.relative(Instance.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]: "allow",

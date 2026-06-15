@@ -33,6 +33,7 @@ export type FileDiff = z.infer<typeof FileDiff>
 const log = Log.create({ service: "snapshot" })
 const prune = "7.days"
 const limit = 2 * 1024 * 1024
+const GIT_TIMEOUT = Duration.seconds(30)
 const core = ["-c", "core.longpaths=true", "-c", "core.symlinks=true"]
 const cfg = ["-c", "core.autocrlf=false", ...core]
 const quote = [...cfg, "-c", "core.quotepath=false"]
@@ -92,11 +93,26 @@ export const layer: Layer.Layer<
         const enc = new TextEncoder()
         const feed = (list: string[]) => Stream.make(enc.encode(list.join("\0") + "\0"))
 
+        // Remove a stale index.lock left behind by a killed or crashed git
+        // process so subsequent operations do not hang forever.
+        const removeLockFile = Effect.fnUntraced(function* (dir: string) {
+          const lockPath = path.join(dir, "index.lock")
+          const hasLock = yield* fs.exists(lockPath)
+          if (!hasLock) return
+          log.warn("removing stale git index.lock", { path: lockPath })
+          yield* fs.remove(lockPath).pipe(Effect.catch(() => Effect.void))
+        })
+
         const git = Effect.fnUntraced(
           function* (
             cmd: string[],
             opts?: { cwd?: string; env?: Record<string, string>; stdin?: ChildProcess.CommandInput },
           ) {
+            // Clean stale index.lock before running any git command that
+            // may need to update the index (add / rm / commit).
+            if (cmd.some((c) => ["add", "rm", "commit"].includes(c))) {
+              yield* removeLockFile(state.gitdir)
+            }
             const proc = ChildProcess.make("git", cmd, {
               cwd: opts?.cwd,
               env: opts?.env,
@@ -112,13 +128,24 @@ export const layer: Layer.Layer<
             return { code, text, stderr } satisfies GitResult
           },
           Effect.scoped,
-          Effect.catch((err) =>
-            Effect.succeed({
+          Effect.timeout(GIT_TIMEOUT),
+          Effect.catch((err) => {
+            // TimeoutError (from Effect.timeout) or any other error —
+            // clean up the lock file if present so subsequent runs
+            // are not blocked.
+            const msg = err instanceof Error ? err.message : String(err)
+            if (msg.includes("Timeout")) {
+              log.error("git command timed out", {
+                cmd: cmd.join(" "),
+                timeout: GIT_TIMEOUT.toString(),
+              })
+            }
+            return Effect.sync(() => ({
               code: ChildProcessSpawner.ExitCode(1),
               text: "",
-              stderr: err instanceof Error ? err.message : String(err),
-            }),
-          ),
+              stderr: msg,
+            }))
+          }),
         )
 
         const ignore = Effect.fnUntraced(function* (files: string[]) {

@@ -357,19 +357,27 @@ const EDIT_TOOLS = ["edit", "write", "apply_patch", "multiedit"]
 export function disabled(tools: string[], ruleset: Ruleset): Set<string> {
   const result = new Set<string>()
   for (const tool of tools) {
-    // Match rules by the tool's own name, AND — for EDIT_TOOLS — also by
-    // the "edit" group alias. findLast returns the last-merged matching
-    // rule, so a tool-specific rule placed after a group rule wins
-    // naturally. This preserves the convenience of `edit: "deny"` covering
-    // all edit-family tools while letting an explicit `write: "allow"` or
-    // `write: "deny"` take precedence when present.
-    const rule = ruleset.findLast(
-      (r) =>
-        Wildcard.match(tool, r.permission) ||
-        (EDIT_TOOLS.includes(tool) && Wildcard.match("edit", r.permission)),
-    )
-    if (!rule) continue
-    if (rule.pattern === "*" && rule.action === "deny") result.add(tool)
+    // Check the final effective rule for this tool — it determines
+    // runtime behaviour.  If the final rule is a blanket deny with
+    // no path-specific allow winning afterwards, hide the tool from
+    // the LLM.  A path-specific allow (e.g. "plans/*.md") means the
+    // tool may still be usable at runtime for those paths, so keep it
+    // visible but let the runtime permission check do the gating.
+    const matches = (r: Rule) =>
+      Wildcard.match(tool, r.permission) ||
+      (EDIT_TOOLS.includes(tool) && Wildcard.match("edit", r.permission))
+
+    const last = ruleset.findLast(matches)
+    if (!last) continue
+
+    // A tool-specific rule (e.g. explicit `write: "deny"`) is always
+    // authoritative for that tool name — use it directly.
+    const toolSpecific = ruleset.findLast((r) => Wildcard.match(tool, r.permission))
+    const finalRule = toolSpecific ?? last
+
+    if (finalRule.pattern === "*" && finalRule.action === "deny") {
+      result.add(tool)
+    }
   }
   return result
 }
