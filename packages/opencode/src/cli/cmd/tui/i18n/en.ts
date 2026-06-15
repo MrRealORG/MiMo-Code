@@ -428,4 +428,27 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Worktree dialog
+  "tui.dialog.worktree.title": "Worktrees",
+  "tui.dialog.worktree.loading": "Loading worktrees...",
+  "tui.dialog.worktree.create": "+ Create new worktree",
+  "tui.dialog.worktree.switching": "Switching to worktree...",
+  "tui.dialog.worktree.switched": "Switched to",
+  "tui.dialog.worktree.creating": "Creating worktree...",
+  "tui.dialog.worktree.create_failed": "Failed to create worktree",
+
+  // Agent dialog
+  "tui.dialog.agent.title": "Select agent",
+  "tui.dialog.agent.native": "native",
+
+  // MCP dialog
+  "tui.dialog.mcp.title": "MCPs",
+  "tui.dialog.mcp.loading": "... Loading",
+  "tui.dialog.mcp.enabled": "Enabled",
+  "tui.dialog.mcp.disabled": "Disabled",
+  "tui.dialog.mcp.failed": "failed",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "Rename Session",
 }

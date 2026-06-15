@@ -489,4 +489,27 @@ export const dict = {
   "trust.dangerous.advice_root": "Если нет весомой причины, НЕ доверяйте корню файловой системы.",
   "trust.dangerous.option.yes": "Я понимаю риски, доверять только в этой сессии",
   "trust.dangerous.option.no": "Выйти (рекомендуется)",
+
+  // Worktree dialog
+  "tui.dialog.worktree.title": "Рабочие деревья",
+  "tui.dialog.worktree.loading": "Загрузка рабочих деревьев...",
+  "tui.dialog.worktree.create": "+ Создать новое рабочее дерево",
+  "tui.dialog.worktree.switching": "Переключение на рабочее дерево...",
+  "tui.dialog.worktree.switched": "Переключено на",
+  "tui.dialog.worktree.creating": "Создание рабочего дерева...",
+  "tui.dialog.worktree.create_failed": "Не удалось создать рабочее дерево",
+
+  // Agent dialog
+  "tui.dialog.agent.title": "Выбрать агента",
+  "tui.dialog.agent.native": "встроенный",
+
+  // MCP dialog
+  "tui.dialog.mcp.title": "MCP",
+  "tui.dialog.mcp.loading": "... Загрузка",
+  "tui.dialog.mcp.enabled": "Включено",
+  "tui.dialog.mcp.disabled": "Отключено",
+  "tui.dialog.mcp.failed": "ошибка",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "Переименовать сессию",
 } satisfies Partial<Record<Keys, string>>

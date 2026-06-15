@@ -397,4 +397,27 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "等待瀏覽器授權中...",
   "tui.dialog.login.flow.invalid_code": "Code 無效，請重試",
   "tui.dialog.login.flow.copied": "已複製",
+
+  // Worktree dialog
+  "tui.dialog.worktree.title": "Worktrees",
+  "tui.dialog.worktree.loading": "正在載入 worktree...",
+  "tui.dialog.worktree.create": "+ 建立新 worktree",
+  "tui.dialog.worktree.switching": "正在切換 worktree...",
+  "tui.dialog.worktree.switched": "已切換到",
+  "tui.dialog.worktree.creating": "正在建立 worktree...",
+  "tui.dialog.worktree.create_failed": "建立 worktree 失敗",
+
+  // Agent dialog
+  "tui.dialog.agent.title": "選擇代理",
+  "tui.dialog.agent.native": "內建",
+
+  // MCP dialog
+  "tui.dialog.mcp.title": "MCP",
+  "tui.dialog.mcp.loading": "... 載入中",
+  "tui.dialog.mcp.enabled": "已啟用",
+  "tui.dialog.mcp.disabled": "已停用",
+  "tui.dialog.mcp.failed": "失敗",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "重新命名工作階段",
 } satisfies Partial<Record<Keys, string>>

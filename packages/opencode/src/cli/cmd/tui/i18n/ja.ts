@@ -429,4 +429,27 @@ export const dict = {
   "trust.dangerous.advice_root": "明確な理由がない限り、ファイルシステムのルートを信頼しないでください。",
   "trust.dangerous.option.yes": "リスクを理解した上で、今回のみ信頼する",
   "trust.dangerous.option.no": "終了（推奨）",
+
+  // Worktree dialog
+  "tui.dialog.worktree.title": "ワークツリー",
+  "tui.dialog.worktree.loading": "ワークツリーを読み込み中...",
+  "tui.dialog.worktree.create": "+ 新しいワークツリーを作成",
+  "tui.dialog.worktree.switching": "ワークツリーを切り替え中...",
+  "tui.dialog.worktree.switched": "切り替えました：",
+  "tui.dialog.worktree.creating": "ワークツリーを作成中...",
+  "tui.dialog.worktree.create_failed": "ワークツリーの作成に失敗しました",
+
+  // Agent dialog
+  "tui.dialog.agent.title": "エージェントを選択",
+  "tui.dialog.agent.native": "ネイティブ",
+
+  // MCP dialog
+  "tui.dialog.mcp.title": "MCP",
+  "tui.dialog.mcp.loading": "... 読み込み中",
+  "tui.dialog.mcp.enabled": "有効",
+  "tui.dialog.mcp.disabled": "無効",
+  "tui.dialog.mcp.failed": "失敗",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "セッション名の変更",
 } satisfies Partial<Record<Keys, string>>

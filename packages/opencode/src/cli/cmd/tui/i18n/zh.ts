@@ -421,4 +421,27 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+
+  // Worktree dialog
+  "tui.dialog.worktree.title": "Worktrees",
+  "tui.dialog.worktree.loading": "正在加载 worktree...",
+  "tui.dialog.worktree.create": "+ 创建新 worktree",
+  "tui.dialog.worktree.switching": "正在切换 worktree...",
+  "tui.dialog.worktree.switched": "已切换到",
+  "tui.dialog.worktree.creating": "正在创建 worktree...",
+  "tui.dialog.worktree.create_failed": "创建 worktree 失败",
+
+  // Agent dialog
+  "tui.dialog.agent.title": "选择代理",
+  "tui.dialog.agent.native": "内置",
+
+  // MCP dialog
+  "tui.dialog.mcp.title": "MCP",
+  "tui.dialog.mcp.loading": "... 加载中",
+  "tui.dialog.mcp.enabled": "已启用",
+  "tui.dialog.mcp.disabled": "已禁用",
+  "tui.dialog.mcp.failed": "失败",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "重命名会话",
 } satisfies Partial<Record<Keys, string>>

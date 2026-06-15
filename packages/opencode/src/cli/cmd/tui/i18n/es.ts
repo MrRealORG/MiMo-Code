@@ -470,4 +470,27 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "Esperando autorización del navegador...",
   "tui.dialog.login.flow.invalid_code": "Código inválido, intenta de nuevo",
   "tui.dialog.login.flow.copied": "Copiado",
+
+  // Worktree dialog
+  "tui.dialog.worktree.title": "Árboles de trabajo",
+  "tui.dialog.worktree.loading": "Cargando árboles de trabajo...",
+  "tui.dialog.worktree.create": "+ Crear nuevo árbol de trabajo",
+  "tui.dialog.worktree.switching": "Cambiando de árbol de trabajo...",
+  "tui.dialog.worktree.switched": "Cambiado a",
+  "tui.dialog.worktree.creating": "Creando árbol de trabajo...",
+  "tui.dialog.worktree.create_failed": "Error al crear el árbol de trabajo",
+
+  // Agent dialog
+  "tui.dialog.agent.title": "Seleccionar agente",
+  "tui.dialog.agent.native": "nativo",
+
+  // MCP dialog
+  "tui.dialog.mcp.title": "MCP",
+  "tui.dialog.mcp.loading": "... Cargando",
+  "tui.dialog.mcp.enabled": "Habilitado",
+  "tui.dialog.mcp.disabled": "Deshabilitado",
+  "tui.dialog.mcp.failed": "fallido",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "Renombrar sesión",
 } satisfies Partial<Record<Keys, string>>

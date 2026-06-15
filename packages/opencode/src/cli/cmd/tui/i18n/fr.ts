@@ -477,4 +477,27 @@ export const dict = {
   "trust.dangerous.advice_root": "Sauf raison très spécifique, NE faites PAS confiance à la racine du système de fichiers.",
   "trust.dangerous.option.yes": "Je comprends les risques, faire confiance pour cette session",
   "trust.dangerous.option.no": "Quitter (recommandé)",
+
+  // Worktree dialog
+  "tui.dialog.worktree.title": "Arborescences de travail",
+  "tui.dialog.worktree.loading": "Chargement des arborescences...",
+  "tui.dialog.worktree.create": "+ Créer une nouvelle arborescence",
+  "tui.dialog.worktree.switching": "Changement d'arborescence...",
+  "tui.dialog.worktree.switched": "Basculé vers",
+  "tui.dialog.worktree.creating": "Création de l'arborescence...",
+  "tui.dialog.worktree.create_failed": "Échec de la création de l'arborescence",
+
+  // Agent dialog
+  "tui.dialog.agent.title": "Sélectionner un agent",
+  "tui.dialog.agent.native": "natif",
+
+  // MCP dialog
+  "tui.dialog.mcp.title": "MCP",
+  "tui.dialog.mcp.loading": "... Chargement",
+  "tui.dialog.mcp.enabled": "Activé",
+  "tui.dialog.mcp.disabled": "Désactivé",
+  "tui.dialog.mcp.failed": "échoué",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "Renommer la session",
 } satisfies Partial<Record<Keys, string>>
