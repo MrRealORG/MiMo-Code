@@ -389,4 +389,31 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+
+  // Session list dialog
+  "tui.session_list.title": "セッション",
+  "tui.session_list.today": "今日",
+  "tui.session_list.confirm_delete": "{key} をもう一度押して確認",
+  "tui.session_list.keybind.delete": "削除",
+  "tui.session_list.keybind.rename": "名前変更",
+  "tui.session_list.keybind.new_workspace": "新しいワークスペース",
+  "tui.session_list.error.delete_failed": "セッションの削除に失敗しました",
+
+  // Status dialog
+  "tui.status.title": "ステータス",
+  "tui.status.no_mcp": "MCPサーバーなし",
+  "tui.status.mcp_servers": "{count} MCPサーバー",
+  "tui.status.mcp.connected": "接続済み",
+  "tui.status.mcp.pending": "承認待ち",
+  "tui.status.mcp.disabled": "設定で無効化されています",
+  "tui.status.mcp.needs_auth": "認証が必要です（実行: opencode mcp auth {name}）",
+  "tui.status.lsp_servers": "{count} LSPサーバー",
+  "tui.status.no_formatters": "フォーマッターなし",
+  "tui.status.formatters": "{count} フォーマッター",
+  "tui.status.no_plugins": "プラグインなし",
+  "tui.status.plugins": "{count} プラグイン",
+
+  // MCP dialog
+  "tui.mcp.error.refresh": "MCPステータスの更新に失敗: データが返されませんでした",
+  "tui.mcp.error.toggle": "MCPの切り替えに失敗しました",
 } satisfies Partial<Record<Keys, string>>

@@ -3,10 +3,12 @@ import { Effect, Layer, Record, Result, Schema, Context } from "effect"
 import { zod } from "@/util/effect-zod"
 import { Global } from "../global"
 import { AppFileSystem } from "@mimo-ai/shared/filesystem"
+import { Log } from "../util"
 
 export const OAUTH_DUMMY_KEY = "mimocode-oauth-dummy-key"
 
 const file = path.join(Global.Path.data, "auth.json")
+const log = Log.create({ service: "auth" })
 
 const fail = (message: string) => (cause: unknown) => new AuthError({ message, cause })
 
@@ -59,7 +61,11 @@ export const layer = Layer.effect(
       if (process.env.MIMOCODE_AUTH_CONTENT) {
         try {
           return JSON.parse(process.env.MIMOCODE_AUTH_CONTENT)
-        } catch (err) {}
+        } catch (err) {
+          log.warn("MIMOCODE_AUTH_CONTENT parse failed, falling back to file", {
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
       }
 
       const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>

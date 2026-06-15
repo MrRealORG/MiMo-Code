@@ -437,4 +437,31 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Session list dialog
+  "tui.session_list.title": "Sessions",
+  "tui.session_list.today": "Aujourd'hui",
+  "tui.session_list.confirm_delete": "Appuyez à nouveau sur {key} pour confirmer",
+  "tui.session_list.keybind.delete": "supprimer",
+  "tui.session_list.keybind.rename": "renommer",
+  "tui.session_list.keybind.new_workspace": "nouvel espace de travail",
+  "tui.session_list.error.delete_failed": "Échec de la suppression de la session",
+
+  // Status dialog
+  "tui.status.title": "Statut",
+  "tui.status.no_mcp": "Aucun serveur MCP",
+  "tui.status.mcp_servers": "{count} serveurs MCP",
+  "tui.status.mcp.connected": "Connecté",
+  "tui.status.mcp.pending": "En attente d'approbation",
+  "tui.status.mcp.disabled": "Désactivé dans la configuration",
+  "tui.status.mcp.needs_auth": "Authentification requise (exécuter : opencode mcp auth {name})",
+  "tui.status.lsp_servers": "{count} serveurs LSP",
+  "tui.status.no_formatters": "Aucun formateur",
+  "tui.status.formatters": "{count} formateurs",
+  "tui.status.no_plugins": "Aucun plugin",
+  "tui.status.plugins": "{count} plugins",
+
+  // MCP dialog
+  "tui.mcp.error.refresh": "Échec de l'actualisation du statut MCP : aucune donnée renvoyée",
+  "tui.mcp.error.toggle": "Échec de la bascule MCP",
 } satisfies Partial<Record<Keys, string>>

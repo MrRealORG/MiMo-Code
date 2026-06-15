@@ -387,4 +387,31 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自动",
+
+  // Session list dialog
+  "tui.session_list.title": "会话列表",
+  "tui.session_list.today": "今天",
+  "tui.session_list.confirm_delete": "再次按 {key} 确认删除",
+  "tui.session_list.keybind.delete": "删除",
+  "tui.session_list.keybind.rename": "重命名",
+  "tui.session_list.keybind.new_workspace": "新建工作区",
+  "tui.session_list.error.delete_failed": "删除会话失败",
+
+  // Status dialog
+  "tui.status.title": "状态",
+  "tui.status.no_mcp": "无 MCP 服务器",
+  "tui.status.mcp_servers": "{count} 个 MCP 服务器",
+  "tui.status.mcp.connected": "已连接",
+  "tui.status.mcp.pending": "等待审批",
+  "tui.status.mcp.disabled": "已在配置中禁用",
+  "tui.status.mcp.needs_auth": "需要认证（运行: opencode mcp auth {name}）",
+  "tui.status.lsp_servers": "{count} 个 LSP 服务器",
+  "tui.status.no_formatters": "无格式化工具",
+  "tui.status.formatters": "{count} 个格式化工具",
+  "tui.status.no_plugins": "无插件",
+  "tui.status.plugins": "{count} 个插件",
+
+  // MCP dialog
+  "tui.mcp.error.refresh": "刷新 MCP 状态失败：未返回数据",
+  "tui.mcp.error.toggle": "切换 MCP 失败",
 } satisfies Partial<Record<Keys, string>>

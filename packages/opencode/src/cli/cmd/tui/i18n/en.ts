@@ -394,4 +394,31 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Session list dialog
+  "tui.session_list.title": "Sessions",
+  "tui.session_list.today": "Today",
+  "tui.session_list.confirm_delete": "Press {key} again to confirm",
+  "tui.session_list.keybind.delete": "delete",
+  "tui.session_list.keybind.rename": "rename",
+  "tui.session_list.keybind.new_workspace": "new workspace",
+  "tui.session_list.error.delete_failed": "Failed to delete session",
+
+  // Status dialog
+  "tui.status.title": "Status",
+  "tui.status.no_mcp": "No MCP Servers",
+  "tui.status.mcp_servers": "{count} MCP Servers",
+  "tui.status.mcp.connected": "Connected",
+  "tui.status.mcp.pending": "Pending approval",
+  "tui.status.mcp.disabled": "Disabled in configuration",
+  "tui.status.mcp.needs_auth": "Needs authentication (run: opencode mcp auth {name})",
+  "tui.status.lsp_servers": "{count} LSP Servers",
+  "tui.status.no_formatters": "No Formatters",
+  "tui.status.formatters": "{count} Formatters",
+  "tui.status.no_plugins": "No Plugins",
+  "tui.status.plugins": "{count} Plugins",
+
+  // MCP dialog
+  "tui.mcp.error.refresh": "Failed to refresh MCP status: no data returned",
+  "tui.mcp.error.toggle": "Failed to toggle MCP",
 }

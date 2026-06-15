@@ -449,4 +449,31 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Авто",
+
+  // Session list dialog
+  "tui.session_list.title": "Сессии",
+  "tui.session_list.today": "Сегодня",
+  "tui.session_list.confirm_delete": "Нажмите {key} ещё раз для подтверждения",
+  "tui.session_list.keybind.delete": "удалить",
+  "tui.session_list.keybind.rename": "переименовать",
+  "tui.session_list.keybind.new_workspace": "новое рабочее пространство",
+  "tui.session_list.error.delete_failed": "Не удалось удалить сессию",
+
+  // Status dialog
+  "tui.status.title": "Статус",
+  "tui.status.no_mcp": "Нет MCP-серверов",
+  "tui.status.mcp_servers": "{count} MCP-серверов",
+  "tui.status.mcp.connected": "Подключено",
+  "tui.status.mcp.pending": "Ожидает подтверждения",
+  "tui.status.mcp.disabled": "Отключено в настройках",
+  "tui.status.mcp.needs_auth": "Требуется аутентификация (выполните: opencode mcp auth {name})",
+  "tui.status.lsp_servers": "{count} LSP-серверов",
+  "tui.status.no_formatters": "Нет форматтеров",
+  "tui.status.formatters": "{count} форматтеров",
+  "tui.status.no_plugins": "Нет плагинов",
+  "tui.status.plugins": "{count} плагинов",
+
+  // MCP dialog
+  "tui.mcp.error.refresh": "Не удалось обновить статус MCP: данные не получены",
+  "tui.mcp.error.toggle": "Не удалось переключить MCP",
 } satisfies Partial<Record<Keys, string>>
