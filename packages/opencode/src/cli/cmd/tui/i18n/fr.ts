@@ -437,4 +437,45 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Provider dialog
+  "tui.provider.connect_title": "Se connecter à un fournisseur",
+  "tui.provider.category.popular": "Populaires",
+  "tui.provider.category.other": "Autres",
+  "tui.provider.desc.recommended": "(Recommandé)",
+  "tui.provider.desc.api_key": "(Clé API)",
+  "tui.provider.desc.chatgpt": "(ChatGPT Plus/Pro ou clé API)",
+  "tui.provider.desc.low_cost": "Abonnement peu coûteux pour tous",
+  "tui.provider.custom": "+ Fournisseur personnalisé",
+  "tui.provider.auth.select_title": "Sélectionner la méthode d'authentification",
+  "tui.provider.auth.api_key_label": "Clé API",
+  "tui.provider.auth.waiting": "En attente d'autorisation...",
+  "tui.provider.auth.copy_hint": "copier",
+  "tui.provider.auth.copied": "Copié dans le presse-papiers",
+  "tui.provider.auth.code_placeholder": "Code d'autorisation",
+  "tui.provider.auth.invalid_code": "Code invalide",
+  "tui.provider.auth.api_key_placeholder": "Clé API",
+  "tui.provider.wizard.provider_id": "ID du fournisseur",
+  "tui.provider.wizard.display_name": "Nom d'affichage",
+  "tui.provider.wizard.base_url": "URL de base",
+  "tui.provider.wizard.api_key": "Clé API",
+  "tui.provider.wizard.first_model_id": "ID du premier modèle",
+  "tui.provider.wizard.first_model_name": "Nom du premier modèle",
+
+  // Workspace dialog
+  "tui.workspace.create_title": "Nouvel espace de travail",
+  "tui.workspace.creating_title": "Création d'espace de travail",
+  "tui.workspace.creating": "Création de l'espace {type}...",
+  "tui.workspace.creating_hint": "Cela peut prendre du temps pour les environnements distants",
+  "tui.workspace.loading": "Chargement des espaces de travail...",
+  "tui.workspace.fetching": "Récupération des adaptateurs disponibles",
+  "tui.workspace.error.create_failed": "Échec de la création de l'espace de travail",
+  "tui.workspace.error.session_failed": "Échec de la création de la session",
+  "tui.workspace.error.restore_failed": "Échec de la restauration de la session : {error}",
+  "tui.workspace.error.adaptors_failed": "Échec du chargement des adaptateurs",
+  "tui.workspace.error.create_with_reason": "Échec de la création : {error}",
+  "tui.workspace.restored": "Session restaurée dans le nouvel espace",
+
+  // Autocomplete
+  "tui.autocomplete.no_matches": "Aucun élément correspondant",
 } satisfies Partial<Record<Keys, string>>

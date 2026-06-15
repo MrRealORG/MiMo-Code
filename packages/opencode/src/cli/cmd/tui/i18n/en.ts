@@ -394,4 +394,45 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Provider dialog
+  "tui.provider.connect_title": "Connect a provider",
+  "tui.provider.category.popular": "Popular",
+  "tui.provider.category.other": "Other",
+  "tui.provider.desc.recommended": "(Recommended)",
+  "tui.provider.desc.api_key": "(API key)",
+  "tui.provider.desc.chatgpt": "(ChatGPT Plus/Pro or API key)",
+  "tui.provider.desc.low_cost": "Low cost subscription for everyone",
+  "tui.provider.custom": "+ Custom provider",
+  "tui.provider.auth.select_title": "Select auth method",
+  "tui.provider.auth.api_key_label": "API key",
+  "tui.provider.auth.waiting": "Waiting for authorization...",
+  "tui.provider.auth.copy_hint": "copy",
+  "tui.provider.auth.copied": "Copied to clipboard",
+  "tui.provider.auth.code_placeholder": "Authorization code",
+  "tui.provider.auth.invalid_code": "Invalid code",
+  "tui.provider.auth.api_key_placeholder": "API key",
+  "tui.provider.wizard.provider_id": "Provider id",
+  "tui.provider.wizard.display_name": "Display name",
+  "tui.provider.wizard.base_url": "Base URL",
+  "tui.provider.wizard.api_key": "API key",
+  "tui.provider.wizard.first_model_id": "First model id",
+  "tui.provider.wizard.first_model_name": "First model name",
+
+  // Workspace dialog
+  "tui.workspace.create_title": "New Workspace",
+  "tui.workspace.creating_title": "Creating Workspace",
+  "tui.workspace.creating": "Creating {type} workspace...",
+  "tui.workspace.creating_hint": "This can take a while for remote environments",
+  "tui.workspace.loading": "Loading workspaces...",
+  "tui.workspace.fetching": "Fetching available workspace adaptors",
+  "tui.workspace.error.create_failed": "Creating workspace failed",
+  "tui.workspace.error.session_failed": "Failed to create workspace session",
+  "tui.workspace.error.restore_failed": "Failed to restore session: {error}",
+  "tui.workspace.error.adaptors_failed": "Failed to load workspace adaptors",
+  "tui.workspace.error.create_with_reason": "Failed to create workspace: {error}",
+  "tui.workspace.restored": "Session restored into the new workspace",
+
+  // Autocomplete
+  "tui.autocomplete.no_matches": "No matching items",
 }

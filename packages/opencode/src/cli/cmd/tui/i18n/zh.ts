@@ -387,4 +387,45 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自动",
+
+  // Provider dialog
+  "tui.provider.connect_title": "连接提供商",
+  "tui.provider.category.popular": "热门",
+  "tui.provider.category.other": "其他",
+  "tui.provider.desc.recommended": "（推荐）",
+  "tui.provider.desc.api_key": "（API 密钥）",
+  "tui.provider.desc.chatgpt": "（ChatGPT Plus/Pro 或 API 密钥）",
+  "tui.provider.desc.low_cost": "人人可用的低成本订阅",
+  "tui.provider.custom": "+ 自定义提供商",
+  "tui.provider.auth.select_title": "选择认证方式",
+  "tui.provider.auth.api_key_label": "API 密钥",
+  "tui.provider.auth.waiting": "等待授权...",
+  "tui.provider.auth.copy_hint": "复制",
+  "tui.provider.auth.copied": "已复制到剪贴板",
+  "tui.provider.auth.code_placeholder": "授权码",
+  "tui.provider.auth.invalid_code": "无效的授权码",
+  "tui.provider.auth.api_key_placeholder": "API 密钥",
+  "tui.provider.wizard.provider_id": "提供商 ID",
+  "tui.provider.wizard.display_name": "显示名称",
+  "tui.provider.wizard.base_url": "基础 URL",
+  "tui.provider.wizard.api_key": "API 密钥",
+  "tui.provider.wizard.first_model_id": "第一个模型 ID",
+  "tui.provider.wizard.first_model_name": "第一个模型名称",
+
+  // Workspace dialog
+  "tui.workspace.create_title": "新建工作区",
+  "tui.workspace.creating_title": "创建工作区中",
+  "tui.workspace.creating": "正在创建 {type} 工作区...",
+  "tui.workspace.creating_hint": "远程环境可能需要一些时间",
+  "tui.workspace.loading": "加载工作区...",
+  "tui.workspace.fetching": "获取可用工作区适配器",
+  "tui.workspace.error.create_failed": "创建工作区失败",
+  "tui.workspace.error.session_failed": "创建工作区会话失败",
+  "tui.workspace.error.restore_failed": "恢复会话失败：{error}",
+  "tui.workspace.error.adaptors_failed": "加载工作区适配器失败",
+  "tui.workspace.error.create_with_reason": "创建工作区失败：{error}",
+  "tui.workspace.restored": "会话已恢复到新工作区",
+
+  // Autocomplete
+  "tui.autocomplete.no_matches": "无匹配项",
 } satisfies Partial<Record<Keys, string>>

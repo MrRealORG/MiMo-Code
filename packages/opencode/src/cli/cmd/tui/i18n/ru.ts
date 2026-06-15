@@ -449,4 +449,45 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Авто",
+
+  // Provider dialog
+  "tui.provider.connect_title": "Подключить провайдера",
+  "tui.provider.category.popular": "Популярные",
+  "tui.provider.category.other": "Другие",
+  "tui.provider.desc.recommended": "(Рекомендуется)",
+  "tui.provider.desc.api_key": "(Ключ API)",
+  "tui.provider.desc.chatgpt": "(ChatGPT Plus/Pro или ключ API)",
+  "tui.provider.desc.low_cost": "Низкая стоимость подписки для всех",
+  "tui.provider.custom": "+ Пользовательский провайдер",
+  "tui.provider.auth.select_title": "Выберите метод аутентификации",
+  "tui.provider.auth.api_key_label": "Ключ API",
+  "tui.provider.auth.waiting": "Ожидание авторизации...",
+  "tui.provider.auth.copy_hint": "копировать",
+  "tui.provider.auth.copied": "Скопировано в буфер обмена",
+  "tui.provider.auth.code_placeholder": "Код авторизации",
+  "tui.provider.auth.invalid_code": "Неверный код",
+  "tui.provider.auth.api_key_placeholder": "Ключ API",
+  "tui.provider.wizard.provider_id": "ID провайдера",
+  "tui.provider.wizard.display_name": "Отображаемое имя",
+  "tui.provider.wizard.base_url": "Базовый URL",
+  "tui.provider.wizard.api_key": "Ключ API",
+  "tui.provider.wizard.first_model_id": "ID первой модели",
+  "tui.provider.wizard.first_model_name": "Имя первой модели",
+
+  // Workspace dialog
+  "tui.workspace.create_title": "Новое рабочее пространство",
+  "tui.workspace.creating_title": "Создание рабочего пространства",
+  "tui.workspace.creating": "Создание рабочего пространства {type}...",
+  "tui.workspace.creating_hint": "Для удалённых сред это может занять некоторое время",
+  "tui.workspace.loading": "Загрузка рабочих пространств...",
+  "tui.workspace.fetching": "Получение доступных адаптеров",
+  "tui.workspace.error.create_failed": "Не удалось создать рабочее пространство",
+  "tui.workspace.error.session_failed": "Не удалось создать сессию рабочего пространства",
+  "tui.workspace.error.restore_failed": "Не удалось восстановить сессию: {error}",
+  "tui.workspace.error.adaptors_failed": "Не удалось загрузить адаптеры",
+  "tui.workspace.error.create_with_reason": "Не удалось создать рабочее пространство: {error}",
+  "tui.workspace.restored": "Сессия восстановлена в новом рабочем пространстве",
+
+  // Autocomplete
+  "tui.autocomplete.no_matches": "Нет подходящих элементов",
 } satisfies Partial<Record<Keys, string>>

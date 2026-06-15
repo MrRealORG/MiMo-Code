@@ -389,4 +389,45 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+
+  // Provider dialog
+  "tui.provider.connect_title": "プロバイダーに接続",
+  "tui.provider.category.popular": "人気",
+  "tui.provider.category.other": "その他",
+  "tui.provider.desc.recommended": "（推奨）",
+  "tui.provider.desc.api_key": "（API キー）",
+  "tui.provider.desc.chatgpt": "（ChatGPT Plus/Pro または API キー）",
+  "tui.provider.desc.low_cost": "誰でも使える低価格サブスクリプション",
+  "tui.provider.custom": "+ カスタムプロバイダー",
+  "tui.provider.auth.select_title": "認証方法を選択",
+  "tui.provider.auth.api_key_label": "API キー",
+  "tui.provider.auth.waiting": "認証を待機中...",
+  "tui.provider.auth.copy_hint": "コピー",
+  "tui.provider.auth.copied": "クリップボードにコピーしました",
+  "tui.provider.auth.code_placeholder": "認証コード",
+  "tui.provider.auth.invalid_code": "無効なコード",
+  "tui.provider.auth.api_key_placeholder": "API キー",
+  "tui.provider.wizard.provider_id": "プロバイダー ID",
+  "tui.provider.wizard.display_name": "表示名",
+  "tui.provider.wizard.base_url": "ベース URL",
+  "tui.provider.wizard.api_key": "API キー",
+  "tui.provider.wizard.first_model_id": "最初のモデル ID",
+  "tui.provider.wizard.first_model_name": "最初のモデル名",
+
+  // Workspace dialog
+  "tui.workspace.create_title": "新しいワークスペース",
+  "tui.workspace.creating_title": "ワークスペース作成中",
+  "tui.workspace.creating": "{type} ワークスペースを作成中...",
+  "tui.workspace.creating_hint": "リモート環境では時間がかかる場合があります",
+  "tui.workspace.loading": "ワークスペースを読み込み中...",
+  "tui.workspace.fetching": "利用可能なワークスペースアダプターを取得中",
+  "tui.workspace.error.create_failed": "ワークスペースの作成に失敗しました",
+  "tui.workspace.error.session_failed": "ワークスペースセッションの作成に失敗しました",
+  "tui.workspace.error.restore_failed": "セッションの復元に失敗しました：{error}",
+  "tui.workspace.error.adaptors_failed": "ワークスペースアダプターの読み込みに失敗しました",
+  "tui.workspace.error.create_with_reason": "ワークスペースの作成に失敗しました：{error}",
+  "tui.workspace.restored": "セッションが新しいワークスペースに復元されました",
+
+  // Autocomplete
+  "tui.autocomplete.no_matches": "一致する項目がありません",
 } satisfies Partial<Record<Keys, string>>
