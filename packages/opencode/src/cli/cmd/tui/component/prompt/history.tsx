@@ -1,6 +1,6 @@
 import path from "path"
 import { Global } from "@/global"
-import { Filesystem } from "@/util"
+import { Filesystem, Log } from "@/util"
 import { onMount } from "solid-js"
 import { createStore, produce, unwrap } from "solid-js/store"
 import { createSimpleContext } from "../../context/helper"
@@ -31,6 +31,7 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
   name: "PromptHistory",
   init: () => {
     const historyPath = path.join(Global.Path.state, "prompt-history.jsonl")
+    const log = Log.create({ service: "prompt-history" })
     onMount(async () => {
       const text = await Filesystem.readText(historyPath).catch(() => "")
       const lines = text
@@ -51,7 +52,9 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
       // Rewrite file with only valid entries to self-heal corruption
       if (lines.length > 0) {
         const content = lines.map((line) => JSON.stringify(line)).join("\n") + "\n"
-        writeFile(historyPath, content).catch(() => {})
+        writeFile(historyPath, content).catch((error) => {
+          log.error("Failed to rewrite history file during self-heal", { path: historyPath, error })
+        })
       }
     })
 
@@ -97,11 +100,15 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
 
         if (trimmed) {
           const content = store.history.map((line) => JSON.stringify(line)).join("\n") + "\n"
-          writeFile(historyPath, content).catch(() => {})
+          writeFile(historyPath, content).catch((error) => {
+            log.error("Failed to trim history file", { path: historyPath, error })
+          })
           return
         }
 
-        appendFile(historyPath, JSON.stringify(entry) + "\n").catch(() => {})
+        appendFile(historyPath, JSON.stringify(entry) + "\n").catch((error) => {
+          log.error("Failed to append to history file", { path: historyPath, error })
+        })
       },
     }
   },
