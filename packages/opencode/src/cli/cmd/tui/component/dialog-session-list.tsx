@@ -114,14 +114,22 @@ export function DialogSessionList() {
   const options = createMemo(() => {
     const today = new Date().toDateString()
     const isAutoSession = (x: { title: string }) => x.title === "Auto Dream" || x.title === "Auto Distill"
-    return sessions()
-      .filter((x) => x.parentID === undefined)
+    const list = sessions()
+    return list
       .toSorted((a, b) => {
-        const updatedDay = new Date(b.time.updated).setHours(0, 0, 0, 0) - new Date(a.time.updated).setHours(0, 0, 0, 0)
+        // Parent before its children
+        if (a.id === b.parentID) return -1
+        if (b.id === a.parentID) return 1
+        // Both subagents of same parent — sort by created time
+        if (a.parentID && a.parentID === b.parentID) return b.time.created - a.time.created
+        // Otherwise sort by updated date (most recent first), then created
+        const updatedDay =
+          new Date(b.time.updated).setHours(0, 0, 0, 0) - new Date(a.time.updated).setHours(0, 0, 0, 0)
         if (updatedDay !== 0) return updatedDay
         return b.time.created - a.time.created
       })
       .map((x) => {
+        const isSubagent = x.parentID !== undefined
         const workspace = x.workspaceID ? project.workspace.get(x.workspaceID) : undefined
 
         let workspaceStatus: WorkspaceStatus | null = null
@@ -167,7 +175,9 @@ export function DialogSessionList() {
             ? `Press ${keybind.print("session_delete")} again to confirm`
             : isAutoSession(x)
               ? `[${t("tui.session.badge.auto")}] ${x.title}`
-              : x.title,
+              : isSubagent
+                ? `└─ ${x.title}`
+                : x.title,
           bg: isDeleting ? theme.error : undefined,
           value: x.id,
           category,
