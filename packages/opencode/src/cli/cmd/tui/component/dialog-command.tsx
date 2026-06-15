@@ -46,6 +46,7 @@ function init() {
   const root = getOwner()
   const [registrations, setRegistrations] = createSignal<Accessor<CommandOption[]>[]>([])
   const [suspendCount, setSuspendCount] = createSignal(0)
+  const [suppressedKeybinds, setSuppressedKeybinds] = createSignal<Set<string>>(new Set())
   const dialog = useDialog()
   const keybind = useKeybind()
   const lang = useLanguage()
@@ -94,9 +95,11 @@ function init() {
     if (evt.defaultPrevented) return
     const textInputFocused = isEditBufferRenderable(renderer.currentFocusedRenderable)
     const textEditingKey = textInputFocused && isTextEditingKey(evt)
+    const suppressed = suppressedKeybinds()
     for (const option of entries()) {
       if (!isEnabled(option)) continue
       if (textEditingKey && !option.keybind?.startsWith("input_")) continue
+      if (option.keybind && suppressed.has(option.keybind)) continue
       if (option.keybind && keybind.match(option.keybind, evt)) {
         evt.preventDefault()
         option.onSelect?.(dialog)
@@ -133,6 +136,14 @@ function init() {
     },
     keybinds(enabled: boolean) {
       setSuspendCount((count) => count + (enabled ? -1 : 1))
+    },
+    suppress(keybindName: string, active: boolean) {
+      setSuppressedKeybinds((set) => {
+        const next = new Set(set)
+        if (active) next.add(keybindName)
+        else next.delete(keybindName)
+        return next
+      })
     },
     suspended,
     show() {

@@ -428,16 +428,21 @@ export function Prompt(props: PromptProps) {
       },
     ),
   )
-  // While a ghost suggestion is showing, suspend global command keybinds so Tab
-  // reaches the textarea's onKeyDown (where we accept it) instead of being
-  // consumed by the agent-cycle keybind. Global keyboard handlers run before
-  // renderable handlers, so without this the suggestion can never be accepted.
-  // The cleanup resumes keybinds on any dismissal (typing, accept, submit,
-  // session change, status leaving idle).
+  // While a ghost suggestion is showing, selectively suppress only the
+  // agent-cycle keybinds so Tab reaches the textarea's onKeyDown (where we
+  // accept it) instead of being consumed by the agent-cycle keybind.  Global
+  // keyboard handlers run before renderable handlers, so without this the
+  // suggestion can never be accepted.  We only suppress agent_cycle /
+  // agent_cycle_reverse so that all other shortcuts (Ctrl+R, Ctrl+T, Ctrl+P,
+  // leader combos, etc.) remain functional while the ghost is visible.
   createEffect(() => {
     if (!ghost()) return
-    command.keybinds(false)
-    onCleanup(() => command.keybinds(true))
+    command.suppress("agent_cycle", true)
+    command.suppress("agent_cycle_reverse", true)
+    onCleanup(() => {
+      command.suppress("agent_cycle", false)
+      command.suppress("agent_cycle_reverse", false)
+    })
   })
 
   const usage = createMemo(() => {

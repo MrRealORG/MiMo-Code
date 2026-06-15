@@ -58,8 +58,15 @@ export const layer = Layer.effect(
     const all = Effect.fn("Auth.all")(function* () {
       if (process.env.MIMOCODE_AUTH_CONTENT) {
         try {
-          return JSON.parse(process.env.MIMOCODE_AUTH_CONTENT)
-        } catch (err) {}
+          const raw = JSON.parse(process.env.MIMOCODE_AUTH_CONTENT)
+          if (raw && typeof raw === "object") {
+            return Record.filterMap(raw as Record<string, unknown>, (value) =>
+              Result.fromOption(decode(value), () => undefined),
+            )
+          }
+        } catch (err) {
+          // Malformed env var — fall through to file-based auth
+        }
       }
 
       const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
@@ -85,6 +92,7 @@ export const layer = Layer.effect(
       const data = yield* all()
       delete data[key]
       delete data[norm]
+      delete data[norm + "/"]
       yield* fsys.writeJson(file, data, 0o600).pipe(Effect.mapError(fail("Failed to write auth data")))
     })
 

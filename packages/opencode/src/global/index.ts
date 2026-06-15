@@ -30,6 +30,10 @@ await Promise.all([
   fs.mkdir(Path.state, { recursive: true }),
   fs.mkdir(Path.log, { recursive: true }),
   fs.mkdir(Path.bin, { recursive: true }),
+  // Ensure the MiMo-Code home skill directory exists so that
+  // ~/.mimocode/ is discoverable by config.directories() and
+  // users have an obvious place to install skills.
+  fs.mkdir(path.join(Path.home, ".mimocode", "skills"), { recursive: true }),
 ])
 
 const CACHE_VERSION = "21"

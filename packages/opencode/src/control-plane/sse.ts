@@ -17,7 +17,13 @@ export async function parseSSE(
 
   try {
     while (!signal.aborted) {
-      const chunk = await reader.read().catch(() => ({ done: true, value: undefined as Uint8Array | undefined }))
+      const chunk = await reader.read().catch((e) => {
+        // Log read errors instead of silently treating them as clean stream end.
+        // Network resets, stream corruption, or permission errors should be
+        // distinguishable from a normal server-side close.
+        console.warn("[sse] read error, treating as stream end:", e)
+        return { done: true, value: undefined as Uint8Array | undefined }
+      })
       if (chunk.done) break
 
       buf += decoder.decode(chunk.value, { stream: true })

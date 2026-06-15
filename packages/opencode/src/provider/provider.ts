@@ -1557,7 +1557,11 @@ const layer: Layer.Layer<
         const importSpec = installedPath.startsWith("file://") ? installedPath : pathToFileURL(installedPath).href
         const mod = await import(importSpec)
 
-        const fn = mod[Object.keys(mod).find((key) => key.startsWith("create"))!]
+        const exportName = Object.keys(mod).find((key) => key.startsWith("create"))
+        if (!exportName) {
+          throw new Error(`Provider package "${model.api.npm}" has no "create*" export`)
+        }
+        const fn = mod[exportName]
         const loaded = fn({
           name: model.providerID,
           ...options,

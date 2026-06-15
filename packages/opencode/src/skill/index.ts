@@ -19,7 +19,7 @@ import { Discovery } from "./discovery"
 import { extractComposeBundle } from "./compose/extract"
 
 const log = Log.create({ service: "skill" })
-const EXTERNAL_DIRS = [".claude", ".agents", ".codex", ".opencode"]
+const EXTERNAL_DIRS = [".claude", ".agents", ".codex"]
 const EXTERNAL_SKILL_PATTERN = "skills/**/SKILL.md"
 const MIMOCODE_SKILL_PATTERN = "{skill,skills}/**/SKILL.md"
 const SKILL_PATTERN = "**/SKILL.md"
@@ -167,7 +167,6 @@ const discoverSkills = Effect.fnUntraced(function* (
     const externalDirs = EXTERNAL_DIRS.filter((dir) => {
       if (dir === ".claude" && Flag.MIMOCODE_DISABLE_CLAUDE_CODE_SKILLS) return false
       if (dir === ".codex" && Flag.MIMOCODE_DISABLE_CODEX_SKILLS) return false
-      if (dir === ".opencode" && Flag.MIMOCODE_DISABLE_OPENCODE_SKILLS) return false
       return true
     })
 
