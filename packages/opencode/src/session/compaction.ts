@@ -80,6 +80,8 @@ export interface Interface {
     auto: boolean
     overflow?: boolean
     agentID?: string
+    prebuiltSystem?: string[]
+    tools?: Record<string, import("ai").Tool>
   }) => Effect.Effect<"continue" | "stop">
   readonly create: (input: {
     sessionID: SessionID
@@ -232,6 +234,10 @@ export const layer: Layer.Layer<
       auto: boolean
       overflow?: boolean
       agentID?: string
+      /** Parent agent's prebuilt system for prefix cache reuse */
+      prebuiltSystem?: string[]
+      /** Parent agent's tool schemas for prefix cache reuse (execute closures not needed) */
+      tools?: Record<string, import("ai").Tool>
     }) {
       const parent = input.messages.findLast((m) => m.info.id === input.parentID)
       if (!parent || parent.info.role !== "user") {
@@ -308,6 +314,11 @@ export const layer: Layer.Layer<
 
       const prompt = compacting.prompt ?? [defaultPrompt, ...compacting.context].join("\n\n")
       const msgs = structuredClone(selected.head)
+      // Strip reasoning parts so the compaction LLM only sees final output,
+      // preventing thinking/reasoning text from leaking into the summary.
+      for (const msg of msgs) {
+        msg.parts = msg.parts.filter((part) => part.type !== "reasoning")
+      }
       yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
       const modelMessages = yield* MessageV2.toModelMessagesEffect(msgs, model, { stripMedia: true })
       const ctx = yield* InstanceState.context
@@ -348,8 +359,10 @@ export const layer: Layer.Layer<
         user: userMessage,
         agent,
         sessionID: input.sessionID,
-        tools: {},
+        tools: input.tools ?? {},
         system: [],
+        prebuiltSystem: input.prebuiltSystem,
+        toolChoice: input.tools ? "none" : undefined,
         messages: [
           ...modelMessages,
           {

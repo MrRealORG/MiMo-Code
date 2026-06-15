@@ -2358,12 +2358,39 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
           // Detect compaction boundary: if the last user message has a compaction
           // part, route to compact.process() instead of the normal LLM flow.
+          // Build the parent agent's prefix first so the compaction request
+          // shares cache bytes with normal requests (preserves DeepSeek
+          // prefix cache; see #725).
           const lastUserMsgForCompaction = msgs.findLast((m) => m.info.role === "user")
           if (lastUserMsgForCompaction?.parts.some((p) => p.type === "compaction")) {
             const compactionPart = lastUserMsgForCompaction.parts.find(
               (p): p is MessageV2.CompactionPart => p.type === "compaction",
             )
             const allMsgs = yield* sessions.messages({ sessionID, agentID: lastUser.agentID ?? "main" })
+
+            // Build prefix for cache reuse — use schema-only tools (same
+            // bytes as full tools) with toolChoice: "none" to prevent
+            // tool calls during compaction.
+            let prebuiltSystem: string[] | undefined
+            let prefixTools: Record<string, ReturnType<typeof tool>> | undefined
+            if (model) {
+              const compactionAgent = yield* agents.get(lastUser.agent)
+              if (compactionAgent) {
+                const prefix = yield* buildLLMRequestPrefix({
+                  sessionID,
+                  agent: compactionAgent,
+                  model,
+                  msgs,
+                  additions: [],  // additions not yet computed; agent prompt + tools still provide most cache benefit
+                }).pipe(
+                  Effect.provideService(LLM.Service, llm),
+                  Effect.provideService(ToolRegistry.Service, registry),
+                )
+                prebuiltSystem = prefix.system
+                prefixTools = prefix.tools
+              }
+            }
+
             const result = yield* compaction.process({
               parentID: lastUser.id,
               messages: allMsgs,
@@ -2371,6 +2398,8 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               auto: compactionPart?.auto ?? false,
               overflow: compactionPart?.overflow,
               agentID: lastUser.agentID,
+              prebuiltSystem,
+              tools: prefixTools,
             })
             if (result === "stop") break
             continue

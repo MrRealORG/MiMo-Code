@@ -543,6 +543,17 @@ export function Session() {
         name: "undo",
       },
       onSelect: async (dialog) => {
+        // Prevent destructive git operations in plan mode — the LLM should
+        // not be able to trigger file-system changes via slash commands.
+        if (local.agent.current()?.name === "plan") {
+          toast.show({
+            message: "/undo is not available in plan mode",
+            variant: "warning",
+            duration: 3000,
+          })
+          dialog.clear()
+          return
+        }
         const status = sync.data.session_status?.[route.sessionID]
         if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
         const revert = session()?.revert?.messageID
@@ -582,6 +593,15 @@ export function Session() {
         name: "redo",
       },
       onSelect: (dialog) => {
+        if (local.agent.current()?.name === "plan") {
+          toast.show({
+            message: "/redo is not available in plan mode",
+            variant: "warning",
+            duration: 3000,
+          })
+          dialog.clear()
+          return
+        }
         dialog.clear()
         const messageID = session()?.revert?.messageID
         if (!messageID) return
