@@ -1393,6 +1393,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
           <text fg={theme.text}>
             {keybind.print("session_child_first")}
             <span style={{ fg: theme.textMuted }}> view subagents</span>
+            <span style={{ fg: theme.textMuted }}> · click to navigate</span>
           </text>
         </box>
       </Show>
@@ -1628,10 +1629,13 @@ function ToolPart(props: { last: boolean; part: ToolPart; message: AssistantMess
   const ctx = use()
   const sync = useSync()
 
-  // Hide tool if showDetails is false and tool completed successfully
+  // Hide tool if showDetails is false and tool completed successfully.
+  // Actor (subagent) entries are always visible — they are navigation targets,
+  // not just output details, so hiding them makes subagents unreachable (#674).
   const shouldHide = createMemo(() => {
     if (ctx.showDetails()) return false
     if (props.part.state.status !== "completed") return false
+    if (props.part.tool === "actor") return false
     return true
   })
 
@@ -1881,6 +1885,7 @@ function InlineTool(props: {
     <box
       marginTop={margin()}
       paddingLeft={3}
+      backgroundColor={hover() && props.onClick ? theme.backgroundMenu : undefined}
       onMouseOver={() => props.onClick && setHover(true)}
       onMouseOut={() => setHover(false)}
       onMouseUp={() => {
