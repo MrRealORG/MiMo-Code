@@ -4,9 +4,11 @@ import { useSync } from "@tui/context/sync"
 import { map, pipe, entries, sortBy } from "remeda"
 import { DialogSelect, type DialogSelectRef, type DialogSelectOption } from "@tui/ui/dialog-select"
 import { useTheme } from "../context/theme"
-import { Keybind } from "@/util"
+import { Keybind, Log } from "@/util"
 import { TextAttributes } from "@opentui/core"
 import { useSDK } from "@tui/context/sdk"
+
+const log = Log.create({ service: "dialog-mcp" })
 
 function Status(props: { enabled: boolean; loading: boolean }) {
   const { theme } = useTheme()
@@ -61,10 +63,10 @@ export function DialogMcp() {
           if (status.data) {
             sync.set("mcp", status.data)
           } else {
-            console.error("Failed to refresh MCP status: no data returned")
+            log.error("Failed to refresh MCP status: no data returned")
           }
         } catch (error) {
-          console.error("Failed to toggle MCP:", error)
+          log.error("Failed to toggle MCP", { error })
         } finally {
           setLoading(null)
         }

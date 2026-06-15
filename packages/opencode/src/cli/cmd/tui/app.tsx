@@ -61,16 +61,18 @@ import { DialogSelect } from "./ui/dialog-select"
 import { Provider } from "@/provider"
 import { ArgsProvider, useArgs, type Args } from "./context/args"
 import open from "open"
-import { Process } from "@/util"
+import { Process, Log } from "@/util"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
 import { TuiConfigProvider, useTuiConfig } from "./context/tui-config"
 import { TuiConfig } from "@/cli/cmd/tui/config/tui"
 import { createTuiApi, TuiPluginRuntime, type RouteMap } from "./plugin"
 import { FormatError, FormatUnknownError } from "@/cli/error"
 import { isPlainTerminal } from "./util/terminal"
-
 import type { EventSource } from "./context/sdk"
+
 import { DialogVariant } from "./component/dialog-variant"
+
+const log = Log.create({ service: "tui-app" })
 
 function rendererConfig(_config: TuiConfig.Info, plainTerminal: boolean): CliRendererConfig {
   const mouseEnabled = !plainTerminal && !Flag.MIMOCODE_DISABLE_MOUSE && (_config.mouse ?? true)
@@ -99,7 +101,7 @@ function rendererConfig(_config: TuiConfig.Info, plainTerminal: boolean): CliRen
       keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
       onCopySelection: (text) => {
         Clipboard.copy(text).catch((error) => {
-          console.error(`Failed to copy console selection to clipboard: ${error}`)
+          log.error("Failed to copy console selection to clipboard", { error })
         })
       },
     },
@@ -272,7 +274,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     config: tuiConfig,
   })
     .catch((error) => {
-      console.error("Failed to load TUI plugins", error)
+      log.error("Failed to load TUI plugins", { error })
     })
     .finally(() => {
       setReady(true)
