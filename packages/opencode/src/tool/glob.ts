@@ -55,11 +55,12 @@ export const GlobTool = Tool.define(
               Effect.gen(function* () {
                 const full = path.resolve(search, file)
                 const info = yield* fs.stat(full).pipe(Effect.catch(() => Effect.succeed(undefined)))
-                const mtime =
-                  info?.mtime.pipe(
-                    Option.map((date) => date.getTime()),
-                    Option.getOrElse(() => 0),
-                  ) ?? 0
+                const mtime = info
+                  ? info.mtime.pipe(
+                      Option.map((date) => date.getTime()),
+                      Option.getOrElse(() => 0),
+                    )
+                  : 0
                 return { path: full, mtime }
               }),
             ),
