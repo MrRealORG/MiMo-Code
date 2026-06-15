@@ -429,4 +429,12 @@ export const dict = {
   "trust.dangerous.advice_root": "明確な理由がない限り、ファイルシステムのルートを信頼しないでください。",
   "trust.dangerous.option.yes": "リスクを理解した上で、今回のみ信頼する",
   "trust.dangerous.option.no": "終了（推奨）",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "セッション名の変更",
+
+  // Prompt toast/alert strings
+  "tui.prompt.connect_provider": "プロンプトを送信するにはプロバイダーに接続してください",
+  "tui.prompt.session_create_failed": "セッションの作成に失敗しました。詳細はログを確認してください。",
+  "tui.prompt.send_message_failed": "メッセージの送信に失敗しました",
 } satisfies Partial<Record<Keys, string>>

@@ -489,4 +489,12 @@ export const dict = {
   "trust.dangerous.advice_root": "Если нет весомой причины, НЕ доверяйте корню файловой системы.",
   "trust.dangerous.option.yes": "Я понимаю риски, доверять только в этой сессии",
   "trust.dangerous.option.no": "Выйти (рекомендуется)",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "Переименовать сессию",
+
+  // Prompt toast/alert strings
+  "tui.prompt.connect_provider": "Подключите провайдера для отправки запросов",
+  "tui.prompt.session_create_failed": "Не удалось создать сессию. Подробности в журнале.",
+  "tui.prompt.send_message_failed": "Не удалось отправить сообщение",
 } satisfies Partial<Record<Keys, string>>

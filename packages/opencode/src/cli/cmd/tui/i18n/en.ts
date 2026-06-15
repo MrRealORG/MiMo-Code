@@ -428,4 +428,12 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "Rename Session",
+
+  // Prompt toast/alert strings
+  "tui.prompt.connect_provider": "Connect a provider to send prompts",
+  "tui.prompt.session_create_failed": "Creating a session failed. Open console for more details.",
+  "tui.prompt.send_message_failed": "Failed to send message",
 }

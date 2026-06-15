@@ -421,4 +421,12 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "重命名会话",
+
+  // Prompt toast/alert strings
+  "tui.prompt.connect_provider": "请先连接一个模型提供者以发送提示",
+  "tui.prompt.session_create_failed": "创建会话失败，请查看日志获取详情。",
+  "tui.prompt.send_message_failed": "发送消息失败",
 } satisfies Partial<Record<Keys, string>>

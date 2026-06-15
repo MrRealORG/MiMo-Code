@@ -477,4 +477,12 @@ export const dict = {
   "trust.dangerous.advice_root": "Sauf raison très spécifique, NE faites PAS confiance à la racine du système de fichiers.",
   "trust.dangerous.option.yes": "Je comprends les risques, faire confiance pour cette session",
   "trust.dangerous.option.no": "Quitter (recommandé)",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "Renommer la session",
+
+  // Prompt toast/alert strings
+  "tui.prompt.connect_provider": "Connectez un fournisseur pour envoyer des prompts",
+  "tui.prompt.session_create_failed": "Échec de la création de la session. Consultez la console pour plus de détails.",
+  "tui.prompt.send_message_failed": "Échec de l'envoi du message",
 } satisfies Partial<Record<Keys, string>>

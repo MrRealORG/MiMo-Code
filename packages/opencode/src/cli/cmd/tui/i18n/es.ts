@@ -470,4 +470,12 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "Esperando autorización del navegador...",
   "tui.dialog.login.flow.invalid_code": "Código inválido, intenta de nuevo",
   "tui.dialog.login.flow.copied": "Copiado",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "Renombrar sesión",
+
+  // Prompt toast/alert strings
+  "tui.prompt.connect_provider": "Conecta un proveedor para enviar prompts",
+  "tui.prompt.session_create_failed": "Error al crear la sesión. Consulta la consola para más detalles.",
+  "tui.prompt.send_message_failed": "Error al enviar el mensaje",
 } satisfies Partial<Record<Keys, string>>

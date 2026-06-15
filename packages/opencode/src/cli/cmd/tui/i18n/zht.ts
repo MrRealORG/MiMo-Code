@@ -397,4 +397,12 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "等待瀏覽器授權中...",
   "tui.dialog.login.flow.invalid_code": "Code 無效，請重試",
   "tui.dialog.login.flow.copied": "已複製",
+
+  // Session rename dialog
+  "tui.dialog.session_rename.title": "重新命名工作階段",
+
+  // Prompt toast/alert strings
+  "tui.prompt.connect_provider": "請先連接一個模型提供者以發送提示",
+  "tui.prompt.session_create_failed": "建立工作階段失敗，請查看日誌獲取詳情。",
+  "tui.prompt.send_message_failed": "發送訊息失敗",
 } satisfies Partial<Record<Keys, string>>
