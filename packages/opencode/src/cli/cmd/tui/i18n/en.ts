@@ -413,7 +413,14 @@ export const dict: Record<string, string> = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
-  // Workspace trust
+  
+  // Session rename + prompt toasts
+  "tui.dialog.session_rename.title": "Rename Session",
+  "tui.prompt.connect_provider": "Connect a provider to send prompts",
+  "tui.prompt.retry_error_title": "Retry Error",
+  "tui.prompt.send_failed": "Failed to send message",
+  "tui.prompt.session_create_failed": "Creating a session failed. Open console for more details.",
+// Workspace trust
   "trust.title": "Accessing workspace:",
   "trust.safety_check": "Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first.",
   "trust.capabilities": "MiMo Code will be able to read, edit, and execute files here.",

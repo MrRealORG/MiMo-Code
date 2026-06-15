@@ -474,7 +474,14 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Авто",
 
-  // Workspace trust
+  
+  // Session rename + prompt toasts
+  "tui.dialog.session_rename.title": "Переименовать сеанс",
+  "tui.prompt.connect_provider": "Подключите провайдера для отправки сообщений",
+  "tui.prompt.retry_error_title": "Ошибка повтора",
+  "tui.prompt.send_failed": "Не удалось отправить сообщение",
+  "tui.prompt.session_create_failed": "Не удалось создать сеанс. Откройте консоль для подробностей.",
+// Workspace trust
   "trust.title": "Доступ к рабочему пространству:",
   "trust.safety_check": "Проверка безопасности: это проект, который вы создали или которому доверяете? (Ваш собственный код, известный open source проект или работа вашей команды). Если нет, сначала проверьте содержимое этой папки.",
   "trust.capabilities": "MiMo Code сможет читать, редактировать и выполнять файлы здесь.",

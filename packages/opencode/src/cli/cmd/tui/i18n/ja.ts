@@ -414,7 +414,14 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
-  // Workspace trust
+  
+  // Session rename + prompt toasts
+  "tui.dialog.session_rename.title": "セッションの名前変更",
+  "tui.prompt.connect_provider": "プロンプトに接続してメッセージを送信してください",
+  "tui.prompt.retry_error_title": "再試行エラー",
+  "tui.prompt.send_failed": "メッセージの送信に失敗しました",
+  "tui.prompt.session_create_failed": "セッションの作成に失敗しました。詳細はコンソールを参照してください。",
+// Workspace trust
   "trust.title": "ワークスペースにアクセス中：",
   "trust.safety_check": "安全確認：これはあなたが作成した、または信頼しているプロジェクトですか？（自分のコード、有名なオープンソースプロジェクト、チームの作業など）。そうでない場合は、まずこのフォルダの内容を確認してください。",
   "trust.capabilities": "MiMo Code はここでファイルの読み取り、編集、実行が可能になります。",

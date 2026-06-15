@@ -448,7 +448,14 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
-  // Workspace trust
+  
+  // Session rename + prompt toasts
+  "tui.dialog.session_rename.title": "Renombrar sesión",
+  "tui.prompt.connect_provider": "Conecta un proveedor para enviar mensajes",
+  "tui.prompt.retry_error_title": "Error de reintento",
+  "tui.prompt.send_failed": "Error al enviar el mensaje",
+  "tui.prompt.session_create_failed": "Error al crear la sesión. Abre la consola para más detalles.",
+// Workspace trust
   "trust.title": "Accediendo al espacio de trabajo:",
   "trust.safety_check": "Verificación rápida: ¿Es este un proyecto que creaste o en el que confías? (Tu propio código, un proyecto open source conocido o trabajo de tu equipo). Si no, tómate un momento para revisar el contenido de esta carpeta.",
   "trust.capabilities": "MiMo Code podrá leer, editar y ejecutar archivos aquí.",

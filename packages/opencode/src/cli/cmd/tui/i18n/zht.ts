@@ -375,7 +375,14 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
-  // Workspace trust
+  
+  // Session rename + prompt toasts
+  "tui.dialog.session_rename.title": "重新命名工作階段",
+  "tui.prompt.connect_provider": "連線提供商以發送提示",
+  "tui.prompt.retry_error_title": "重試錯誤",
+  "tui.prompt.send_failed": "發送訊息失敗",
+  "tui.prompt.session_create_failed": "建立工作階段失敗。請查看控制台了解詳情。",
+// Workspace trust
   "trust.title": "存取工作區：",
   "trust.safety_check": "安全確認：這是你自己建立或信任的專案嗎？（如你自己的程式碼、知名開源專案或團隊內部專案）。如果不是，請先檢查此目錄下的內容。",
   "trust.capabilities": "MiMo Code 將能夠讀取、編輯和執行此目錄中的檔案。",
