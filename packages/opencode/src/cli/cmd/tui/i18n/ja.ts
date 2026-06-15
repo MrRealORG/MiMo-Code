@@ -413,6 +413,13 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+  "tui.session.list": "セッション",
+  "tui.session.today": "今日",
+  "tui.session.confirm_delete": "もう一度押して確認",
+  "tui.session.delete": "削除",
+  "tui.session.delete_failed": "セッションの削除に失敗しました",
+  "tui.session.delete_workspace_failed": "ワークスペースの削除に失敗しました",
+  "tui.session.new_workspace": "新しいワークスペース",
 
   // Workspace trust
   "trust.title": "ワークスペースにアクセス中：",

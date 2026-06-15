@@ -473,6 +473,13 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Авто",
+  "tui.session.list": "Сессии",
+  "tui.session.today": "Сегодня",
+  "tui.session.confirm_delete": "Нажмите ещё раз для подтверждения",
+  "tui.session.delete": "удалить",
+  "tui.session.delete_failed": "Не удалось удалить сессию",
+  "tui.session.delete_workspace_failed": "Не удалось удалить рабочее пространство",
+  "tui.session.new_workspace": "новое пространство",
 
   // Workspace trust
   "trust.title": "Доступ к рабочему пространству:",

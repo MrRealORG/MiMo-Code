@@ -374,6 +374,13 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+  "tui.session.list": "會話",
+  "tui.session.today": "今天",
+  "tui.session.confirm_delete": "再次按下以確認",
+  "tui.session.delete": "刪除",
+  "tui.session.delete_failed": "刪除會話失敗",
+  "tui.session.delete_workspace_failed": "刪除工作區失敗",
+  "tui.session.new_workspace": "新建工作區",
 
   // Workspace trust
   "trust.title": "存取工作區：",

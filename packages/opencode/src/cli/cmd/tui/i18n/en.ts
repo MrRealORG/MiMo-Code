@@ -412,6 +412,13 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+  "tui.session.list": "Sessions",
+  "tui.session.today": "Today",
+  "tui.session.confirm_delete": "Press again to confirm",
+  "tui.session.delete": "delete",
+  "tui.session.delete_failed": "Failed to delete session",
+  "tui.session.delete_workspace_failed": "Failed to delete workspace",
+  "tui.session.new_workspace": "new workspace",
 
   // Workspace trust
   "trust.title": "Accessing workspace:",

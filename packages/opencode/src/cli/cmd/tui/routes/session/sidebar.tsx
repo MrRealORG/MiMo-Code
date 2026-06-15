@@ -71,8 +71,8 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                     {workspaceLabel()}
                   </text>
                 </Show>
-                <Show when={session()!.share?.url}>
-                  <text fg={theme.textMuted}>{session()!.share!.url}</text>
+                <Show when={session()?.share?.url}>
+                  <text fg={theme.textMuted}>{session()?.share?.url}</text>
                 </Show>
               </box>
             </TuiPluginRuntime.Slot>

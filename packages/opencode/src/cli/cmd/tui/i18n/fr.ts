@@ -461,6 +461,13 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+  "tui.session.list": "Sessions",
+  "tui.session.today": "Aujourd'hui",
+  "tui.session.confirm_delete": "Appuyez à nouveau pour confirmer",
+  "tui.session.delete": "supprimer",
+  "tui.session.delete_failed": "Échec de la suppression de la session",
+  "tui.session.delete_workspace_failed": "Échec de la suppression de l'espace de travail",
+  "tui.session.new_workspace": "nouvel espace",
 
   // Workspace trust
   "trust.title": "Accès à l'espace de travail :",
