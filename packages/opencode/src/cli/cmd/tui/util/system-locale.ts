@@ -188,8 +188,7 @@ function detectTimezoneLocale(): Locale | undefined {
 }
 
 export function detectSystemLocale(): Locale {
-  const tz = detectTimezoneLocale()
-  if (tz) return tz
+  // 1. Check environment variables first (explicit user language settings)
   for (const env of ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] as const) {
     const value = process.env[env]
     if (!value) continue
@@ -200,10 +199,17 @@ export function detectSystemLocale(): Locale {
       if (match) return match.locale
     }
   }
+
+  // 2. Check Intl locale (reflects system/display language on most platforms)
   try {
     const intl = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase()
     const match = matchers.find((m) => m.test(intl))
     if (match) return match.locale
   } catch {}
+
+  // 3. Fall back to timezone heuristic as last resort
+  const tz = detectTimezoneLocale()
+  if (tz) return tz
+
   return "en"
 }
