@@ -1,6 +1,6 @@
 import path from "path"
 import { Global } from "@/global"
-import { Filesystem } from "@/util"
+import { Filesystem, Log } from "@/util"
 import { onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createSimpleContext } from "../../context/helper"
@@ -54,7 +54,7 @@ export const { use: useFrecency, provider: FrecencyProvider } = createSimpleCont
 
       if (sorted.length > 0) {
         const content = sorted.map((entry) => JSON.stringify(entry)).join("\n") + "\n"
-        writeFile(frecencyPath, content).catch(() => {})
+        writeFile(frecencyPath, content).catch((e) => Log.Default.debug("frecency write failed", { error: String(e) }))
       }
     })
 
@@ -77,7 +77,7 @@ export const { use: useFrecency, provider: FrecencyProvider } = createSimpleCont
           .slice(0, MAX_FRECENCY_ENTRIES)
         setStore("data", Object.fromEntries(sorted))
         const content = sorted.map(([path, entry]) => JSON.stringify({ path, ...entry })).join("\n") + "\n"
-        writeFile(frecencyPath, content).catch(() => {})
+        writeFile(frecencyPath, content).catch((e) => Log.Default.debug("frecency trim failed", { error: String(e) }))
       }
     }
 
