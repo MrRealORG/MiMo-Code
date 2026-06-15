@@ -5,6 +5,7 @@ import { useSDK } from "../context/sdk"
 import { useSync } from "@tui/context/sync"
 import { useRoute } from "@tui/context/route"
 import { useToast } from "../ui/toast"
+import { useLanguage } from "@tui/context/language"
 import path from "path"
 
 const CREATE_SENTINEL = "__create_worktree__"
@@ -15,6 +16,7 @@ export function DialogWorktree() {
   const sync = useSync()
   const route = useRoute()
   const toast = useToast()
+  const { t } = useLanguage()
   const [worktrees, setWorktrees] = createSignal<string[]>()
   const [busy, setBusy] = createSignal<string>()
 
@@ -74,7 +76,7 @@ export function DialogWorktree() {
 
   return (
     <DialogSelect
-      title="Worktrees"
+      title={t("tui.dialog.worktree.title")}
       options={options()}
       skipFilter={true}
       onSelect={(option) => {

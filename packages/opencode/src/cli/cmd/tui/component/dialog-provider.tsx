@@ -7,6 +7,7 @@ import { useSDK } from "../context/sdk"
 import { DialogPrompt } from "../ui/dialog-prompt"
 import { Link } from "../ui/link"
 import { useTheme } from "../context/theme"
+import { useLanguage } from "../context/language"
 import { TextAttributes } from "@opentui/core"
 import type { ProviderAuthAuthorization, ProviderAuthMethod } from "@mimo-ai/sdk/v2"
 import { DialogModel } from "./dialog-model"
@@ -30,6 +31,7 @@ export function createDialogProviderOptions() {
   const sdk = useSDK()
   const toast = useToast()
   const { theme } = useTheme()
+  const { t } = useLanguage()
   const options = createMemo(() => {
     const list = pipe(
       sync.data.provider_next.all,
@@ -65,7 +67,7 @@ export function createDialogProviderOptions() {
                 dialog.replace(
                   () => (
                     <DialogSelect
-                      title="Select auth method"
+                      title={t("tui.dialog.provider.select_auth")}
                       options={methods.map((x, index) => ({
                         title: x.label,
                         value: index,
@@ -159,7 +161,8 @@ export function createDialogProviderOptions() {
 
 export function DialogProvider() {
   const options = createDialogProviderOptions()
-  return <DialogSelect title="Connect a provider" options={options()} />
+  const { t } = useLanguage()
+  return <DialogSelect title={t("tui.dialog.provider.title")} options={options()} />
 }
 
 export async function runCustomProviderWizard(opts: {

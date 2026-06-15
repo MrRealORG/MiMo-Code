@@ -428,4 +428,21 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Dialog titles
+  "tui.dialog.workflows.title": "Workflows",
+  "tui.dialog.workspace_create.title": "New Workspace",
+  "tui.dialog.workspace_create.creating": "Creating Workspace",
+  "tui.dialog.session_list.title": "Sessions",
+  "tui.dialog.tag.title": "Autocomplete",
+  "tui.dialog.theme_list.title": "Themes",
+  "tui.dialog.agent.title": "Select agent",
+  "tui.dialog.worktree.title": "Worktrees",
+  "tui.dialog.skill.title": "Skills",
+  "tui.dialog.skill.placeholder": "Search skills...",
+  "tui.dialog.variant.title": "Select variant",
+  "tui.dialog.provider.select_auth": "Select auth method",
+  "tui.dialog.provider.title": "Connect a provider",
+  "tui.dialog.mcp.title": "MCPs",
+  "tui.dialog.stash.title": "Stash",
 }

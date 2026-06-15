@@ -429,4 +429,21 @@ export const dict = {
   "trust.dangerous.advice_root": "明確な理由がない限り、ファイルシステムのルートを信頼しないでください。",
   "trust.dangerous.option.yes": "リスクを理解した上で、今回のみ信頼する",
   "trust.dangerous.option.no": "終了（推奨）",
+
+  // Dialog titles
+  "tui.dialog.workflows.title": "ワークフロー",
+  "tui.dialog.workspace_create.title": "新しいワークスペース",
+  "tui.dialog.workspace_create.creating": "ワークスペース作成中",
+  "tui.dialog.session_list.title": "セッション一覧",
+  "tui.dialog.tag.title": "オートコンプリート",
+  "tui.dialog.theme_list.title": "テーマ",
+  "tui.dialog.agent.title": "エージェントを選択",
+  "tui.dialog.worktree.title": "ワークツリー",
+  "tui.dialog.skill.title": "スキル",
+  "tui.dialog.skill.placeholder": "スキルを検索...",
+  "tui.dialog.variant.title": "バリアントを選択",
+  "tui.dialog.provider.select_auth": "認証方法を選択",
+  "tui.dialog.provider.title": "プロバイダーに接続",
+  "tui.dialog.mcp.title": "MCP",
+  "tui.dialog.stash.title": "Stash",
 } satisfies Partial<Record<Keys, string>>

@@ -3,6 +3,7 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { createMemo, createSignal } from "solid-js"
 import { Locale } from "@/util"
 import { useTheme } from "../context/theme"
+import { useLanguage } from "../context/language"
 import { useKeybind } from "../context/keybind"
 import { usePromptStash, type StashEntry } from "./prompt/stash"
 
@@ -31,6 +32,7 @@ export function DialogStash(props: { onSelect: (entry: StashEntry) => void }) {
   const stash = usePromptStash()
   const { theme } = useTheme()
   const keybind = useKeybind()
+  const { t } = useLanguage()
 
   const [toDelete, setToDelete] = createSignal<number>()
 
@@ -54,7 +56,7 @@ export function DialogStash(props: { onSelect: (entry: StashEntry) => void }) {
 
   return (
     <DialogSelect
-      title="Stash"
+      title={t("tui.dialog.stash.title")}
       options={options()}
       onMove={() => {
         setToDelete(undefined)

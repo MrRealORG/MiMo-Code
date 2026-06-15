@@ -183,7 +183,7 @@ export function DialogSessionList() {
 
   return (
     <DialogSelect
-      title="Sessions"
+      title={t("tui.dialog.session_list.title")}
       options={options()}
       skipFilter={true}
       current={currentSessionID()}

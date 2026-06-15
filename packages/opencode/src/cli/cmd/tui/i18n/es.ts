@@ -470,4 +470,21 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "Esperando autorización del navegador...",
   "tui.dialog.login.flow.invalid_code": "Código inválido, intenta de nuevo",
   "tui.dialog.login.flow.copied": "Copiado",
+
+  // Dialog titles
+  "tui.dialog.workflows.title": "Flujos de trabajo",
+  "tui.dialog.workspace_create.title": "Nuevo espacio de trabajo",
+  "tui.dialog.workspace_create.creating": "Creando espacio de trabajo",
+  "tui.dialog.session_list.title": "Sesiones",
+  "tui.dialog.tag.title": "Autocompletar",
+  "tui.dialog.theme_list.title": "Temas",
+  "tui.dialog.agent.title": "Seleccionar agente",
+  "tui.dialog.worktree.title": "Árboles de trabajo",
+  "tui.dialog.skill.title": "Habilidades",
+  "tui.dialog.skill.placeholder": "Buscar habilidades...",
+  "tui.dialog.variant.title": "Seleccionar variante",
+  "tui.dialog.provider.select_auth": "Seleccionar método de autenticación",
+  "tui.dialog.provider.title": "Conectar un proveedor",
+  "tui.dialog.mcp.title": "MCPs",
+  "tui.dialog.stash.title": "Stash",
 } satisfies Partial<Record<Keys, string>>

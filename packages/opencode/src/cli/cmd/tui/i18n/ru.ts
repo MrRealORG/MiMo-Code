@@ -489,4 +489,21 @@ export const dict = {
   "trust.dangerous.advice_root": "Если нет весомой причины, НЕ доверяйте корню файловой системы.",
   "trust.dangerous.option.yes": "Я понимаю риски, доверять только в этой сессии",
   "trust.dangerous.option.no": "Выйти (рекомендуется)",
+
+  // Dialog titles
+  "tui.dialog.workflows.title": "Workflow-и",
+  "tui.dialog.workspace_create.title": "Новое рабочее пространство",
+  "tui.dialog.workspace_create.creating": "Создание рабочего пространства",
+  "tui.dialog.session_list.title": "Сессии",
+  "tui.dialog.tag.title": "Автодополнение",
+  "tui.dialog.theme_list.title": "Темы",
+  "tui.dialog.agent.title": "Выбрать агента",
+  "tui.dialog.worktree.title": "Рабочие деревья",
+  "tui.dialog.skill.title": "Навыки",
+  "tui.dialog.skill.placeholder": "Поиск навыков...",
+  "tui.dialog.variant.title": "Выбрать вариант",
+  "tui.dialog.provider.select_auth": "Выбрать метод аутентификации",
+  "tui.dialog.provider.title": "Подключить провайдера",
+  "tui.dialog.mcp.title": "MCP",
+  "tui.dialog.stash.title": "Stash",
 } satisfies Partial<Record<Keys, string>>

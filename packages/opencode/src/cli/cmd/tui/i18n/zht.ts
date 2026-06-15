@@ -397,4 +397,21 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "等待瀏覽器授權中...",
   "tui.dialog.login.flow.invalid_code": "Code 無效，請重試",
   "tui.dialog.login.flow.copied": "已複製",
+
+  // Dialog titles
+  "tui.dialog.workflows.title": "工作流程",
+  "tui.dialog.workspace_create.title": "新建工作區",
+  "tui.dialog.workspace_create.creating": "正在建立工作區",
+  "tui.dialog.session_list.title": "工作階段列表",
+  "tui.dialog.tag.title": "自動補全",
+  "tui.dialog.theme_list.title": "主題",
+  "tui.dialog.agent.title": "選擇智慧體",
+  "tui.dialog.worktree.title": "工作樹",
+  "tui.dialog.skill.title": "技能",
+  "tui.dialog.skill.placeholder": "搜尋技能...",
+  "tui.dialog.variant.title": "選擇變體",
+  "tui.dialog.provider.select_auth": "選擇認證方式",
+  "tui.dialog.provider.title": "連接模型提供者",
+  "tui.dialog.mcp.title": "MCP 服務",
+  "tui.dialog.stash.title": "暫存",
 } satisfies Partial<Record<Keys, string>>

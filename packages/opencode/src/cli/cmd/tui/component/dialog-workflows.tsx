@@ -3,12 +3,14 @@ import { DialogConfirm } from "@tui/ui/dialog-confirm"
 import { DialogSelect, type DialogSelectOption } from "@tui/ui/dialog-select"
 import { useRoute } from "@tui/context/route"
 import { useSync } from "@tui/context/sync"
+import { useLanguage } from "@tui/context/language"
 import { createMemo, onCleanup, onMount } from "solid-js"
 
 export function DialogWorkflows() {
   const dialog = useDialog()
   const route = useRoute()
   const sync = useSync()
+  const { t } = useLanguage()
 
   const currentSessionID = createMemo(() => (route.data.type === "session" ? route.data.sessionID : undefined))
 
@@ -58,5 +60,5 @@ export function DialogWorkflows() {
     }))
   })
 
-  return <DialogSelect title="Workflows" options={options()} />
+  return <DialogSelect title={t("tui.dialog.workflows.title")} options={options()} />
 }

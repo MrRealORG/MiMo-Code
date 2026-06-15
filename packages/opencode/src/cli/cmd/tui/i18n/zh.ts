@@ -421,4 +421,21 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+
+  // Dialog titles
+  "tui.dialog.workflows.title": "工作流",
+  "tui.dialog.workspace_create.title": "新建工作区",
+  "tui.dialog.workspace_create.creating": "正在创建工作区",
+  "tui.dialog.session_list.title": "会话列表",
+  "tui.dialog.tag.title": "自动补全",
+  "tui.dialog.theme_list.title": "主题",
+  "tui.dialog.agent.title": "选择智能体",
+  "tui.dialog.worktree.title": "工作树",
+  "tui.dialog.skill.title": "技能",
+  "tui.dialog.skill.placeholder": "搜索技能...",
+  "tui.dialog.variant.title": "选择变体",
+  "tui.dialog.provider.select_auth": "选择认证方式",
+  "tui.dialog.provider.title": "连接模型提供者",
+  "tui.dialog.mcp.title": "MCP 服务",
+  "tui.dialog.stash.title": "暂存",
 } satisfies Partial<Record<Keys, string>>

@@ -477,4 +477,21 @@ export const dict = {
   "trust.dangerous.advice_root": "Sauf raison très spécifique, NE faites PAS confiance à la racine du système de fichiers.",
   "trust.dangerous.option.yes": "Je comprends les risques, faire confiance pour cette session",
   "trust.dangerous.option.no": "Quitter (recommandé)",
+
+  // Dialog titles
+  "tui.dialog.workflows.title": "Workflows",
+  "tui.dialog.workspace_create.title": "Nouvel espace de travail",
+  "tui.dialog.workspace_create.creating": "Création de l'espace de travail",
+  "tui.dialog.session_list.title": "Sessions",
+  "tui.dialog.tag.title": "Autocomplétion",
+  "tui.dialog.theme_list.title": "Thèmes",
+  "tui.dialog.agent.title": "Sélectionner un agent",
+  "tui.dialog.worktree.title": "Arbres de travail",
+  "tui.dialog.skill.title": "Compétences",
+  "tui.dialog.skill.placeholder": "Rechercher des compétences...",
+  "tui.dialog.variant.title": "Sélectionner une variante",
+  "tui.dialog.provider.select_auth": "Sélectionner la méthode d'authentification",
+  "tui.dialog.provider.title": "Connecter un fournisseur",
+  "tui.dialog.mcp.title": "MCPs",
+  "tui.dialog.stash.title": "Stash",
 } satisfies Partial<Record<Keys, string>>
