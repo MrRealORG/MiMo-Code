@@ -550,13 +550,13 @@ export const dict = {
   "sidebar.workspaces.disable": "Désactiver les espaces de travail",
   "sidebar.gettingStarted.title": "Commencer",
   "sidebar.gettingStarted.line1":
-    "OpenCode inclut des modèles gratuits pour que vous puissiez commencer immédiatement.",
+    "MiMo Code inclut des modèles gratuits pour que vous puissiez commencer immédiatement.",
   "sidebar.gettingStarted.line2":
     "Connectez n'importe quel fournisseur pour utiliser des modèles, y compris Claude, GPT, Gemini etc.",
   "sidebar.project.recentSessions": "Sessions récentes",
   "sidebar.project.viewAllSessions": "Voir toutes les sessions",
   "sidebar.project.clearNotifications": "Effacer les notifications",
-  "app.name.desktop": "OpenCode Desktop",
+  "app.name.desktop": "MiMo Code Desktop",
   "settings.section.desktop": "Bureau",
   "settings.section.server": "Serveur",
   "settings.tab.general": "Général",

@@ -599,13 +599,13 @@ export const dict = {
   "sidebar.workspaces.enable": "เปิดใช้งานพื้นที่ทำงาน",
   "sidebar.workspaces.disable": "ปิดใช้งานพื้นที่ทำงาน",
   "sidebar.gettingStarted.title": "เริ่มต้นใช้งาน",
-  "sidebar.gettingStarted.line1": "OpenCode รวมถึงโมเดลฟรีเพื่อให้คุณเริ่มต้นได้ทันที",
+  "sidebar.gettingStarted.line1": "MiMo Code รวมถึงโมเดลฟรีเพื่อให้คุณเริ่มต้นได้ทันที",
   "sidebar.gettingStarted.line2": "เชื่อมต่อผู้ให้บริการใด ๆ เพื่อใช้โมเดล รวมถึง Claude, GPT, Gemini ฯลฯ",
   "sidebar.project.recentSessions": "เซสชันล่าสุด",
   "sidebar.project.viewAllSessions": "ดูเซสชันทั้งหมด",
   "sidebar.project.clearNotifications": "ล้างการแจ้งเตือน",
 
-  "app.name.desktop": "OpenCode Desktop",
+  "app.name.desktop": "MiMo Code Desktop",
 
   "settings.section.desktop": "เดสก์ท็อป",
   "settings.section.server": "เซิร์ฟเวอร์",

@@ -308,7 +308,7 @@ export const dict = {
   "dialog.directory.empty": "Nema pronađenih foldera",
 
   "dialog.server.title": "Serveri",
-  "dialog.server.description": "Promijeni na koji se OpenCode server ova aplikacija povezuje.",
+  "dialog.server.description": "Promijeni na koji se MiMo Code server ova aplikacija povezuje.",
   "dialog.server.search.placeholder": "Pretraži servere",
   "dialog.server.empty": "Još nema servera",
   "dialog.server.add.title": "Dodaj server",
@@ -605,13 +605,13 @@ export const dict = {
   "sidebar.workspaces.enable": "Omogući radne prostore",
   "sidebar.workspaces.disable": "Onemogući radne prostore",
   "sidebar.gettingStarted.title": "Početak",
-  "sidebar.gettingStarted.line1": "OpenCode uključuje besplatne modele, tako da možeš odmah početi.",
+  "sidebar.gettingStarted.line1": "MiMo Code uključuje besplatne modele, tako da možeš odmah početi.",
   "sidebar.gettingStarted.line2": "Poveži bilo kojeg provajdera da koristiš modele, npr. Claude, GPT, Gemini itd.",
   "sidebar.project.recentSessions": "Nedavne sesije",
   "sidebar.project.viewAllSessions": "Prikaži sve sesije",
   "sidebar.project.clearNotifications": "Očisti obavijesti",
 
-  "app.name.desktop": "OpenCode Desktop",
+  "app.name.desktop": "MiMo Code Desktop",
 
   "settings.section.desktop": "Desktop",
   "settings.section.server": "Server",
@@ -619,7 +619,7 @@ export const dict = {
   "settings.tab.shortcuts": "Prečice",
   "settings.desktop.section.wsl": "WSL",
   "settings.desktop.wsl.title": "WSL integracija",
-  "settings.desktop.wsl.description": "Pokreni OpenCode server unutar WSL-a na Windowsu.",
+  "settings.desktop.wsl.description": "Pokreni MiMo Code server unutar WSL-a na Windowsu.",
 
   "settings.general.section.appearance": "Izgled",
   "settings.general.section.notifications": "Sistemske obavijesti",

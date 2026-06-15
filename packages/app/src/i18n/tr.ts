@@ -119,7 +119,7 @@ export const dict = {
   "dialog.model.manage.description": "Model seçicide hangi modellerin görüneceğini özelleştirin.",
   "dialog.model.manage.provider.toggle": "Tüm {{provider}} modellerini aç/kapat",
 
-  "dialog.model.unpaid.freeModels.title": "OpenCode tarafından sunulan ücretsiz modeller",
+  "dialog.model.unpaid.freeModels.title": "MiMo Code tarafından sunulan ücretsiz modeller",
   "dialog.model.unpaid.addMore.title": "Popüler sağlayıcılardan daha fazla model ekleyin",
 
   "dialog.provider.viewAll": "Daha fazla sağlayıcı göster",
@@ -444,7 +444,7 @@ export const dict = {
   "toast.session.listFailed.title": "{{project}} için oturumlar yüklenemedi",
 
   "toast.update.title": "Güncelleme mevcut",
-  "toast.update.description": "OpenCode'un yeni bir sürümü ({{version}}) yüklemeye hazır.",
+  "toast.update.description": "MiMo Code'un yeni bir sürümü ({{version}}) yüklemeye hazır.",
   "toast.update.action.installRestart": "Yükle ve yeniden başlat",
   "toast.update.action.notYet": "Şimdi değil",
 
@@ -611,13 +611,13 @@ export const dict = {
   "sidebar.workspaces.enable": "Çalışma alanlarını etkinleştir",
   "sidebar.workspaces.disable": "Çalışma alanlarını devre dışı bırak",
   "sidebar.gettingStarted.title": "Başlarken",
-  "sidebar.gettingStarted.line1": "OpenCode ücretsiz modeller içerir, böylece hemen başlayabilirsiniz.",
+  "sidebar.gettingStarted.line1": "MiMo Code ücretsiz modeller içerir, böylece hemen başlayabilirsiniz.",
   "sidebar.gettingStarted.line2": "Claude, GPT, Gemini vb. modelleri kullanmak için herhangi bir sağlayıcı bağlayın.",
   "sidebar.project.recentSessions": "Son oturumlar",
   "sidebar.project.viewAllSessions": "Tüm oturumları görüntüle",
   "sidebar.project.clearNotifications": "Bildirimleri temizle",
 
-  "app.name.desktop": "OpenCode Masaüstü",
+  "app.name.desktop": "MiMo Code Masaüstü",
 
   "settings.section.desktop": "Masaüstü",
   "settings.section.server": "Sunucu",
@@ -625,7 +625,7 @@ export const dict = {
   "settings.tab.shortcuts": "Kısayollar",
   "settings.desktop.section.wsl": "WSL",
   "settings.desktop.wsl.title": "WSL entegrasyonu",
-  "settings.desktop.wsl.description": "OpenCode sunucusunu Windows'ta WSL içinde çalıştırın.",
+  "settings.desktop.wsl.description": "MiMo Code sunucusunu Windows'ta WSL içinde çalıştırın.",
 
   "settings.general.section.appearance": "Görünüm",
   "settings.general.section.notifications": "Sistem bildirimleri",
@@ -635,14 +635,14 @@ export const dict = {
   "settings.general.section.display": "Ekran",
 
   "settings.general.row.language.title": "Dil",
-  "settings.general.row.language.description": "OpenCode'un görünüm dilini değiştirin",
+  "settings.general.row.language.description": "MiMo Code'un görünüm dilini değiştirin",
   "settings.general.row.appearance.title": "Görünüm",
-  "settings.general.row.appearance.description": "OpenCode'un cihazınızdaki görünümünü özelleştirin",
+  "settings.general.row.appearance.description": "MiMo Code'un cihazınızdaki görünümünü özelleştirin",
   "settings.general.row.colorScheme.title": "Renk şeması",
   "settings.general.row.colorScheme.description":
-    "OpenCode'un sistem, açık veya koyu temayı takip etip etmeyeceğini seçin",
+    "MiMo Code'un sistem, açık veya koyu temayı takip etip etmeyeceğini seçin",
   "settings.general.row.theme.title": "Tema",
-  "settings.general.row.theme.description": "OpenCode'un temasını özelleştirin.",
+  "settings.general.row.theme.description": "MiMo Code'un temasını özelleştirin.",
   "settings.general.row.font.title": "Kod Yazı Tipi",
   "settings.general.row.font.description": "Kod bloklarında kullanılan yazı tipini özelleştirin",
   "settings.general.row.terminalFont.title": "Terminal Font",
@@ -673,13 +673,13 @@ export const dict = {
   "settings.general.row.releaseNotes.description": "Güncellemelerden sonra Yenilikler bildirimlerini göster",
 
   "settings.updates.row.startup.title": "Başlangıçta güncellemeleri kontrol et",
-  "settings.updates.row.startup.description": "OpenCode başladığında otomatik güncelleme kontrolü yap",
+  "settings.updates.row.startup.description": "MiMo Code başladığında otomatik güncelleme kontrolü yap",
   "settings.updates.row.check.title": "Güncellemeleri kontrol et",
   "settings.updates.row.check.description": "Elle güncelleme kontrolü yap ve varsa yükle",
   "settings.updates.action.checkNow": "Şimdi kontrol et",
   "settings.updates.action.checking": "Kontrol ediliyor...",
   "settings.updates.toast.latest.title": "Güncelsiniz",
-  "settings.updates.toast.latest.description": "OpenCode'un en son sürümünü kullanıyorsunuz.",
+  "settings.updates.toast.latest.description": "MiMo Code'un en son sürümünü kullanıyorsunuz.",
 
   "sound.option.none": "Yok",
   "sound.option.alert01": "Uyarı 01",
