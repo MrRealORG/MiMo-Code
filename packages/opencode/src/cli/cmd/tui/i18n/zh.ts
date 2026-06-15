@@ -387,4 +387,32 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自动",
+
+  // Session view — share, copy, export toasts
+  "tui.session.share_url_copied": "分享链接已复制到剪贴板！",
+  "tui.session.copy_url_failed": "复制链接到剪贴板失败",
+  "tui.session.share_confirm_title": "分享会话",
+  "tui.session.share_confirm_desc": "确定要分享此会话吗？",
+  "tui.session.share_failed": "分享会话失败",
+  "tui.session.unshared": "已取消分享",
+  "tui.session.unshare_failed": "取消分享失败",
+  "tui.session.no_assistant_msg": "未找到助手消息",
+  "tui.session.no_text_parts": "最后一条助手消息中没有文本内容",
+  "tui.session.no_text_content": "最后一条助手消息中没有有效文本",
+  "tui.session.msg_copied": "消息已复制到剪贴板！",
+  "tui.session.copy_failed": "复制到剪贴板失败",
+  "tui.session.transcript_copied": "会话记录已复制到剪贴板！",
+  "tui.session.transcript_copy_failed": "复制会话记录失败",
+  "tui.session.exported": "会话已导出到",
+  "tui.session.export_failed": "导出会话失败",
+  "tui.session.redo_confirm_title": "确认重做",
+  "tui.session.redo_confirm_desc": "确定要恢复被撤销的消息吗？",
+
+  // Dialog titles
+  "tui.dialog.skill.title": "技能",
+  "tui.dialog.skill.placeholder": "搜索技能...",
+  "tui.dialog.agent.title": "选择智能体",
+  "tui.dialog.variant.title": "选择变体",
+  "tui.dialog.variant.default": "默认",
+  "tui.dialog.model.select_title": "选择模型",
 } satisfies Partial<Record<Keys, string>>

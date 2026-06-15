@@ -398,8 +398,8 @@ export function Session() {
       onSelect: async (dialog) => {
         const copy = (url: string) =>
           Clipboard.copy(url)
-            .then(() => toast.show({ message: "Share URL copied to clipboard!", variant: "success" }))
-            .catch(() => toast.show({ message: "Failed to copy URL to clipboard", variant: "error" }))
+            .then(() => toast.show({ message: t("tui.session.share_url_copied"), variant: "success" }))
+            .catch(() => toast.show({ message: t("tui.session.copy_url_failed"), variant: "error" }))
         const url = session()?.share?.url
         if (url) {
           await copy(url)
@@ -407,7 +407,7 @@ export function Session() {
           return
         }
         if (!kv.get("share_consent", false)) {
-          const ok = await DialogConfirm.show(dialog, "Share Session", "Are you sure you want to share it?")
+          const ok = await DialogConfirm.show(dialog, t("tui.session.share_confirm_title"), t("tui.session.share_confirm_desc"))
           if (ok !== true) return
           kv.set("share_consent", true)
         }
@@ -418,7 +418,7 @@ export function Session() {
           .then((res) => copy(res.data!.share!.url))
           .catch((error) => {
             toast.show({
-              message: error instanceof Error ? error.message : "Failed to share session",
+              message: error instanceof Error ? error.message : t("tui.session.share_failed"),
               variant: "error",
             })
           })
@@ -524,10 +524,10 @@ export function Session() {
           .unshare({
             sessionID: route.sessionID,
           })
-          .then(() => toast.show({ message: "Session unshared successfully", variant: "success" }))
+          .then(() => toast.show({ message: t("tui.session.unshared"), variant: "success" }))
           .catch((error) => {
             toast.show({
-              message: error instanceof Error ? error.message : "Failed to unshare session",
+              message: error instanceof Error ? error.message : t("tui.session.unshare_failed"),
               variant: "error",
             })
           })
@@ -834,7 +834,7 @@ export function Session() {
           (msg) => msg.role === "assistant" && (!revertID || msg.id < revertID),
         )
         if (!lastAssistantMessage) {
-          toast.show({ message: "No assistant messages found", variant: "error" })
+          toast.show({ message: t("tui.session.no_assistant_msg"), variant: "error" })
           dialog.clear()
           return
         }
@@ -842,7 +842,7 @@ export function Session() {
         const parts = sync.data.part[lastAssistantMessage.id] ?? []
         const textParts = parts.filter((part) => part.type === "text")
         if (textParts.length === 0) {
-          toast.show({ message: "No text parts found in last assistant message", variant: "error" })
+          toast.show({ message: t("tui.session.no_text_parts"), variant: "error" })
           dialog.clear()
           return
         }
@@ -853,7 +853,7 @@ export function Session() {
           .trim()
         if (!text) {
           toast.show({
-            message: "No text content found in last assistant message",
+            message: t("tui.session.no_text_content"),
             variant: "error",
           })
           dialog.clear()
@@ -861,8 +861,8 @@ export function Session() {
         }
 
         Clipboard.copy(text)
-          .then(() => toast.show({ message: "Message copied to clipboard!", variant: "success" }))
-          .catch(() => toast.show({ message: "Failed to copy to clipboard", variant: "error" }))
+          .then(() => toast.show({ message: t("tui.session.msg_copied"), variant: "success" }))
+          .catch(() => toast.show({ message: t("tui.session.copy_failed"), variant: "error" }))
         dialog.clear()
       },
     },
@@ -889,9 +889,9 @@ export function Session() {
             },
           )
           await Clipboard.copy(transcript)
-          toast.show({ message: "Session transcript copied to clipboard!", variant: "success" })
+          toast.show({ message: t("tui.session.transcript_copied"), variant: "success" })
         } catch {
-          toast.show({ message: "Failed to copy session transcript", variant: "error" })
+          toast.show({ message: t("tui.session.transcript_copy_failed"), variant: "error" })
         }
         dialog.clear()
       },
@@ -950,10 +950,10 @@ export function Session() {
               await Filesystem.write(filepath, result)
             }
 
-            toast.show({ message: `Session exported to ${filename}`, variant: "success" })
+            toast.show({ message: `${t("tui.session.exported")} ${filename}`, variant: "success" })
           }
         } catch {
-          toast.show({ message: "Failed to export session", variant: "error" })
+          toast.show({ message: t("tui.session.export_failed"), variant: "error" })
         }
         dialog.clear()
       },
@@ -1095,8 +1095,8 @@ export function Session() {
                         const handleUnrevert = async () => {
                           const confirmed = await DialogConfirm.show(
                             dialog,
-                            "Confirm Redo",
-                            "Are you sure you want to restore the reverted messages?",
+                            t("tui.session.redo_confirm_title"),
+                            t("tui.session.redo_confirm_desc"),
                           )
                           if (confirmed) {
                             command.trigger("session.redo")

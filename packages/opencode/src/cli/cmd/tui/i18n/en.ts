@@ -394,4 +394,32 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Session view — share, copy, export toasts
+  "tui.session.share_url_copied": "Share URL copied to clipboard!",
+  "tui.session.copy_url_failed": "Failed to copy URL to clipboard",
+  "tui.session.share_confirm_title": "Share Session",
+  "tui.session.share_confirm_desc": "Are you sure you want to share it?",
+  "tui.session.share_failed": "Failed to share session",
+  "tui.session.unshared": "Session unshared successfully",
+  "tui.session.unshare_failed": "Failed to unshare session",
+  "tui.session.no_assistant_msg": "No assistant messages found",
+  "tui.session.no_text_parts": "No text parts found in last assistant message",
+  "tui.session.no_text_content": "No text content found in last assistant message",
+  "tui.session.msg_copied": "Message copied to clipboard!",
+  "tui.session.copy_failed": "Failed to copy to clipboard",
+  "tui.session.transcript_copied": "Session transcript copied to clipboard!",
+  "tui.session.transcript_copy_failed": "Failed to copy session transcript",
+  "tui.session.exported": "Session exported to",
+  "tui.session.export_failed": "Failed to export session",
+  "tui.session.redo_confirm_title": "Confirm Redo",
+  "tui.session.redo_confirm_desc": "Are you sure you want to restore the reverted messages?",
+
+  // Dialog titles
+  "tui.dialog.skill.title": "Skills",
+  "tui.dialog.skill.placeholder": "Search skills...",
+  "tui.dialog.agent.title": "Select agent",
+  "tui.dialog.variant.title": "Select variant",
+  "tui.dialog.variant.default": "Default",
+  "tui.dialog.model.select_title": "Select model",
 }

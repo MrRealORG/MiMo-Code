@@ -9,6 +9,7 @@ import { DialogVariant } from "./dialog-variant"
 import { useKeybind } from "../context/keybind"
 import { useSDK } from "../context/sdk"
 import { useToast, type ToastContext } from "../ui/toast"
+import { useLanguage } from "../context/language"
 import { DialogPrompt } from "../ui/dialog-prompt"
 import * as fuzzysort from "fuzzysort"
 
@@ -28,6 +29,7 @@ export function DialogModel(props: { providerID?: string }) {
   const sdk = useSDK()
   const toast = useToast()
   const keybind = useKeybind()
+  const { t } = useLanguage()
   const [query, setQuery] = createSignal("")
 
   const connected = useConnected()
@@ -157,7 +159,7 @@ export function DialogModel(props: { providerID?: string }) {
 
   const title = createMemo(() => {
     const value = provider()
-    if (!value) return "Select model"
+    if (!value) return t("tui.dialog.model.select_title")
     return value.name
   })
 
