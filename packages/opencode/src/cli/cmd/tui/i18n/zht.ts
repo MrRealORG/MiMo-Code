@@ -375,6 +375,38 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
+  "tui.agent.select": "選擇代理",
+  "tui.workflows.title": "工作流程",
+  "tui.workflows.no_runs": "沒有工作流程執行記錄",
+  "tui.workflows.resume_title": "恢復工作流程",
+  "tui.workflows.resume_confirm": "重新執行「{{name}}」？這將重新執行工作流程，可能產生費用。",
+  "tui.provider.title": "連接供應商",
+  "tui.provider.select_auth_method": "選擇認證方式",
+  "tui.provider.custom": "自訂供應商",
+  "tui.provider.category.popular": "熱門",
+  "tui.provider.category.other": "其他",
+  "tui.provider.description.opencode": "（推薦）",
+  "tui.provider.description.anthropic": "（API 金鑰）",
+  "tui.provider.description.openai": "（ChatGPT Plus/Pro 或 API 金鑰）",
+  "tui.provider.description.opencode_go": "低價訂閱，人人可用",
+  "tui.provider.waiting_auth": "等待授權...",
+  "tui.provider.copy": "複製",
+  "tui.provider.auth_code_placeholder": "授權碼",
+  "tui.provider.invalid_code": "無效的授權碼",
+  "tui.provider.api_key_placeholder": "API 金鑰",
+  "tui.provider.wizard.provider_id": "供應商 ID",
+  "tui.provider.wizard.provider_id_hint": "例如 mimorouter",
+  "tui.provider.wizard.display_name": "顯示名稱",
+  "tui.provider.wizard.display_name_hint": "例如 MiMo Router",
+  "tui.provider.wizard.base_url": "基礎 URL",
+  "tui.provider.wizard.base_url_hint": "https://.../v1",
+  "tui.provider.wizard.api_key": "API 金鑰",
+  "tui.provider.wizard.api_key_hint": "sk-...",
+  "tui.provider.wizard.model_id": "第一個模型 ID",
+  "tui.provider.wizard.model_id_hint": "例如 claude-sonnet-4-6",
+  "tui.provider.wizard.model_name": "第一個模型名稱",
+  "tui.provider.wizard.model_name_hint": "例如 Claude Sonnet 4.6",
+
   // Workspace trust
   "trust.title": "存取工作區：",
   "trust.safety_check": "安全確認：這是你自己建立或信任的專案嗎？（如你自己的程式碼、知名開源專案或團隊內部專案）。如果不是，請先檢查此目錄下的內容。",
@@ -397,4 +429,6 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "等待瀏覽器授權中...",
   "tui.dialog.login.flow.invalid_code": "Code 無效，請重試",
   "tui.dialog.login.flow.copied": "已複製",
+
+  // Workspace trust
 } satisfies Partial<Record<Keys, string>>

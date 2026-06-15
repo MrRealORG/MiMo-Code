@@ -448,6 +448,38 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
+  "tui.agent.select": "Seleccionar agente",
+  "tui.workflows.title": "Flujos de trabajo",
+  "tui.workflows.no_runs": "sin ejecuciones de flujo de trabajo",
+  "tui.workflows.resume_title": "Reanudar flujo de trabajo",
+  "tui.workflows.resume_confirm": "¿Re-ejecutar «{{name}}»? Esto vuelve a ejecutar el flujo y puede incurrir en costos.",
+  "tui.provider.title": "Conectar un proveedor",
+  "tui.provider.select_auth_method": "Seleccionar método de autenticación",
+  "tui.provider.custom": "Proveedor personalizado",
+  "tui.provider.category.popular": "Populares",
+  "tui.provider.category.other": "Otros",
+  "tui.provider.description.opencode": "（Recomendado）",
+  "tui.provider.description.anthropic": "（Clave API）",
+  "tui.provider.description.openai": "（ChatGPT Plus/Pro o clave API）",
+  "tui.provider.description.opencode_go": "Suscripción económica para todos",
+  "tui.provider.waiting_auth": "Esperando autorización...",
+  "tui.provider.copy": "copiar",
+  "tui.provider.auth_code_placeholder": "Código de autorización",
+  "tui.provider.invalid_code": "Código inválido",
+  "tui.provider.api_key_placeholder": "Clave API",
+  "tui.provider.wizard.provider_id": "ID del proveedor",
+  "tui.provider.wizard.provider_id_hint": "ej. mimorouter",
+  "tui.provider.wizard.display_name": "Nombre para mostrar",
+  "tui.provider.wizard.display_name_hint": "ej. MiMo Router",
+  "tui.provider.wizard.base_url": "URL base",
+  "tui.provider.wizard.base_url_hint": "https://.../v1",
+  "tui.provider.wizard.api_key": "Clave API",
+  "tui.provider.wizard.api_key_hint": "sk-...",
+  "tui.provider.wizard.model_id": "ID del primer modelo",
+  "tui.provider.wizard.model_id_hint": "ej. claude-sonnet-4-6",
+  "tui.provider.wizard.model_name": "Nombre del primer modelo",
+  "tui.provider.wizard.model_name_hint": "ej. Claude Sonnet 4.6",
+
   // Workspace trust
   "trust.title": "Accediendo al espacio de trabajo:",
   "trust.safety_check": "Verificación rápida: ¿Es este un proyecto que creaste o en el que confías? (Tu propio código, un proyecto open source conocido o trabajo de tu equipo). Si no, tómate un momento para revisar el contenido de esta carpeta.",
@@ -470,4 +502,6 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "Esperando autorización del navegador...",
   "tui.dialog.login.flow.invalid_code": "Código inválido, intenta de nuevo",
   "tui.dialog.login.flow.copied": "Copiado",
+
+  // Workspace trust
 } satisfies Partial<Record<Keys, string>>

@@ -14,6 +14,8 @@ import { useKeyboard } from "@opentui/solid"
 import * as Clipboard from "@tui/util/clipboard"
 import { useToast, type ToastContext } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
+import { useLanguage } from "@tui/context/language"
+import { dict as en } from "@tui/i18n/en"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
@@ -30,6 +32,7 @@ export function createDialogProviderOptions() {
   const sdk = useSDK()
   const toast = useToast()
   const { theme } = useTheme()
+  const { t } = useLanguage()
   const options = createMemo(() => {
     const list = pipe(
       sync.data.provider_next.all,
@@ -42,13 +45,13 @@ export function createDialogProviderOptions() {
           title: provider.name,
           value: provider.id,
           description: {
-            opencode: "(Recommended)",
-            anthropic: "(API key)",
-            openai: "(ChatGPT Plus/Pro or API key)",
-            "opencode-go": "Low cost subscription for everyone",
+            opencode: t("tui.provider.description.opencode"),
+            anthropic: t("tui.provider.description.anthropic"),
+            openai: t("tui.provider.description.openai"),
+            "opencode-go": t("tui.provider.description.opencode_go"),
           }[provider.id],
           footer: consoleManaged ? sync.data.console_state.activeOrgName : undefined,
-          category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
+          category: provider.id in PROVIDER_PRIORITY ? t("tui.provider.category.popular") : t("tui.provider.category.other"),
           gutter: connected ? <text fg={theme.success}>✓</text> : undefined,
           async onSelect() {
             if (consoleManaged) return
@@ -65,7 +68,7 @@ export function createDialogProviderOptions() {
                 dialog.replace(
                   () => (
                     <DialogSelect
-                      title="Select auth method"
+                      title={t("tui.provider.select_auth_method")}
                       options={methods.map((x, index) => ({
                         title: x.label,
                         value: index,
@@ -142,11 +145,11 @@ export function createDialogProviderOptions() {
     return [
       ...list,
       {
-        title: "+ Custom provider",
+        title: `+ ${t("tui.provider.custom")}`,
         value: "__custom__",
         description: undefined,
         footer: undefined,
-        category: "Other",
+        category: t("tui.provider.category.other"),
         gutter: undefined,
         async onSelect() {
           await runCustomProviderWizard({ dialog, sdk, sync, toast })
@@ -159,7 +162,8 @@ export function createDialogProviderOptions() {
 
 export function DialogProvider() {
   const options = createDialogProviderOptions()
-  return <DialogSelect title="Connect a provider" options={options()} />
+  const { t } = useLanguage()
+  return <DialogSelect title={t("tui.provider.title")} options={options()} />
 }
 
 export async function runCustomProviderWizard(opts: {
@@ -174,31 +178,31 @@ export async function runCustomProviderWizard(opts: {
     return DialogPrompt.show(dialog, `${title} (${n}/${total})`, { placeholder, value })
   }
 
-  const providerIDRaw = await step(1, 6, "Provider id", "e.g. mimorouter")
+  const providerIDRaw = await step(1, 6, en["tui.provider.wizard.provider_id"] ?? "Provider id", en["tui.provider.wizard.provider_id_hint"] ?? "e.g. mimorouter")
   if (providerIDRaw === null) return
   const providerID = providerIDRaw.trim()
   if (!providerID) return
 
-  const nameRaw = await step(2, 6, "Display name", "e.g. MiMo Router", providerID)
+  const nameRaw = await step(2, 6, en["tui.provider.wizard.display_name"] ?? "Display name", en["tui.provider.wizard.display_name_hint"] ?? "e.g. MiMo Router", providerID)
   if (nameRaw === null) return
   const name = nameRaw.trim() || providerID
 
-  const baseURLRaw = await step(3, 6, "Base URL", "https://.../v1")
+  const baseURLRaw = await step(3, 6, en["tui.provider.wizard.base_url"] ?? "Base URL", en["tui.provider.wizard.base_url_hint"] ?? "https://.../v1")
   if (baseURLRaw === null) return
   const baseURL = baseURLRaw.trim()
   if (!baseURL) return
 
-  const apiKeyRaw = await step(4, 6, "API key", "sk-...")
+  const apiKeyRaw = await step(4, 6, en["tui.provider.wizard.api_key"] ?? "API key", en["tui.provider.wizard.api_key_hint"] ?? "sk-...")
   if (apiKeyRaw === null) return
   const apiKey = apiKeyRaw.trim()
   if (!apiKey) return
 
-  const modelIDRaw = await step(5, 6, "First model id", "e.g. claude-sonnet-4-6")
+  const modelIDRaw = await step(5, 6, en["tui.provider.wizard.model_id"] ?? "First model id", en["tui.provider.wizard.model_id_hint"] ?? "e.g. claude-sonnet-4-6")
   if (modelIDRaw === null) return
   const modelID = modelIDRaw.trim()
   if (!modelID) return
 
-  const modelNameRaw = await step(6, 6, "First model name", "e.g. Claude Sonnet 4.6", modelID)
+  const modelNameRaw = await step(6, 6, en["tui.provider.wizard.model_name"] ?? "First model name", en["tui.provider.wizard.model_name_hint"] ?? "e.g. Claude Sonnet 4.6", modelID)
   if (modelNameRaw === null) return
   const modelName = modelNameRaw.trim() || modelID
 
@@ -254,6 +258,7 @@ function AutoMethod(props: AutoMethodProps) {
   const dialog = useDialog()
   const sync = useSync()
   const toast = useToast()
+  const { t } = useLanguage()
 
   useKeyboard((evt) => {
     if (evt.name === "c" && !evt.ctrl && !evt.meta) {
@@ -292,9 +297,9 @@ function AutoMethod(props: AutoMethodProps) {
         <Link href={props.authorization.url} fg={theme.primary} />
         <text fg={theme.textMuted}>{props.authorization.instructions}</text>
       </box>
-      <text fg={theme.textMuted}>Waiting for authorization...</text>
+      <text fg={theme.textMuted}>{t("tui.provider.waiting_auth")}</text>
       <text fg={theme.text}>
-        c <span style={{ fg: theme.textMuted }}>copy</span>
+        c <span style={{ fg: theme.textMuted }}>{t("tui.provider.copy")}</span>
       </text>
     </box>
   )
@@ -312,11 +317,12 @@ function CodeMethod(props: CodeMethodProps) {
   const sync = useSync()
   const dialog = useDialog()
   const [error, setError] = createSignal(false)
+  const { t } = useLanguage()
 
   return (
     <DialogPrompt
       title={props.title}
-      placeholder="Authorization code"
+      placeholder={t("tui.provider.auth_code_placeholder")}
       onConfirm={async (value) => {
         const { error } = await sdk.client.provider.oauth.callback({
           providerID: props.providerID,
@@ -336,7 +342,7 @@ function CodeMethod(props: CodeMethodProps) {
           <text fg={theme.textMuted}>{props.authorization.instructions}</text>
           <Link href={props.authorization.url} fg={theme.primary} />
           <Show when={error()}>
-            <text fg={theme.error}>Invalid code</text>
+            <text fg={theme.error}>{t("tui.provider.invalid_code")}</text>
           </Show>
         </box>
       )}
@@ -354,11 +360,12 @@ function ApiMethod(props: ApiMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const { theme } = useTheme()
+  const { t } = useLanguage()
 
   return (
     <DialogPrompt
       title={props.title}
-      placeholder="API key"
+      placeholder={t("tui.provider.api_key_placeholder")}
       description={
         {
           opencode: (
