@@ -337,6 +337,8 @@ export const dict = {
   "tui.voice.error.network": "轉寫失敗，請檢查網路",
   "tui.voice.error.empty_send": "無內容可發送",
   "tui.voice.error.unknown_agent": "未找到 agent「{{name}}」",
+  "tui.voice.error.no_device": "未偵測到麥克風/音訊裝置 — 請檢查系統音訊設定",
+  "tui.voice.error.recorder_failed": "錄音失敗",
   "tui.command.prompt.stash.title": "暫存提示詞",
   "tui.command.prompt.stash.pop.title": "彈出暫存",
   "tui.command.prompt.stash.list.title": "暫存清單",

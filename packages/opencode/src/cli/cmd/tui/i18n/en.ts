@@ -344,6 +344,8 @@ export const dict: Record<string, string> = {
   "tui.voice.error.network": "Transcription failed, please check your network",
   "tui.voice.error.empty_send": "Nothing to send",
   "tui.voice.error.unknown_agent": "Agent \"{{name}}\" not found",
+  "tui.voice.error.no_device": "No microphone/audio device found — please check your system audio settings",
+  "tui.voice.error.recorder_failed": "Recording failed",
   "tui.command.prompt.stash.title": "Stash prompt",
   "tui.command.prompt.stash.pop.title": "Stash pop",
   "tui.command.prompt.stash.list.title": "Stash list",
@@ -394,4 +396,17 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Workspace dialog
+  "tui.workspace.error.create_session": "Failed to create workspace session",
+  "tui.workspace.error.restore_session": "Failed to restore session",
+  "tui.workspace.session_restored": "Session restored into the new workspace",
+  "tui.workspace.error.load_adaptors": "Failed to load workspace adaptors",
+  "tui.workspace.creating": "Creating {{type}} workspace...",
+  "tui.workspace.creating_hint": "This can take a while for remote environments",
+  "tui.workspace.loading": "Loading workspaces...",
+  "tui.workspace.loading_hint": "Fetching available workspace adaptors",
+  "tui.workspace.error.create_failed": "Failed to create workspace",
+  "tui.workspace.creating_title": "Creating Workspace",
+  "tui.workspace.new_title": "New Workspace",
 }

@@ -77,10 +77,32 @@ export function startStreaming(opts: {
   const proc = Process.spawn([recorder.cmd, ...recorder.pipeArgs()], {
     stdin: "ignore",
     stdout: "pipe",
-    stderr: "ignore",
+    stderr: "pipe",
   })
 
   const handle: StreamingHandle = { proc, vad, startTime: Date.now(), aborted: false, reading: Promise.resolve() }
+
+  // Collect stderr so we can surface recorder errors (e.g. "no default audio device")
+  const stderrChunks: Buffer[] = []
+  if (proc.stderr) {
+    ;(async () => {
+      for await (const chunk of proc.stderr as AsyncIterable<Buffer>) {
+        stderrChunks.push(chunk)
+      }
+    })().catch(() => {})
+  }
+
+  // Detect early exit (recorder binary exists but device is unavailable)
+  proc.exited
+    .then((code) => {
+      if (code !== 0 && !handle.aborted) {
+        handle.aborted = true
+        const stderrText = Buffer.concat(stderrChunks).toString().trim()
+        const msg = stderrText || `Recorder exited with code ${code}`
+        opts.onError?.(new Error(msg))
+      }
+    })
+    .catch(() => {})
 
   handle.reading = (async () => {
     await vad.init()

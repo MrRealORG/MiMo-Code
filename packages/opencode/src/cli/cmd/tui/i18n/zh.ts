@@ -337,6 +337,8 @@ export const dict = {
   "tui.voice.error.network": "转写失败，请检查网络",
   "tui.voice.error.empty_send": "无内容可发送",
   "tui.voice.error.unknown_agent": "未找到 agent「{{name}}」",
+  "tui.voice.error.no_device": "未检测到麦克风/音频设备 — 请检查系统音频设置",
+  "tui.voice.error.recorder_failed": "录音失败",
   "tui.command.prompt.stash.title": "暂存提示词",
   "tui.command.prompt.stash.pop.title": "弹出暂存",
   "tui.command.prompt.stash.list.title": "暂存列表",
@@ -387,4 +389,17 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自动",
+
+  // Workspace dialog
+  "tui.workspace.error.create_session": "创建工作区会话失败",
+  "tui.workspace.error.restore_session": "恢复会话失败",
+  "tui.workspace.session_restored": "会话已恢复到新工作区",
+  "tui.workspace.error.load_adaptors": "加载工作区适配器失败",
+  "tui.workspace.creating": "正在创建 {{type}} 工作区...",
+  "tui.workspace.creating_hint": "远程环境可能需要一些时间",
+  "tui.workspace.loading": "加载工作区...",
+  "tui.workspace.loading_hint": "正在获取可用的工作区适配器",
+  "tui.workspace.error.create_failed": "创建工作区失败",
+  "tui.workspace.creating_title": "创建工作区",
+  "tui.workspace.new_title": "新建工作区",
 } satisfies Partial<Record<Keys, string>>

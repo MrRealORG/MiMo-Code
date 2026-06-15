@@ -410,6 +410,8 @@ export const dict = {
   "tui.voice.error.network": "La transcripción falló, verifica tu red",
   "tui.voice.error.empty_send": "No hay contenido para enviar",
   "tui.voice.error.unknown_agent": "Agente \"{{name}}\" no encontrado",
+  "tui.voice.error.no_device": "No se encontró micrófono/dispositivo de audio — verifica la configuración de audio del sistema",
+  "tui.voice.error.recorder_failed": "Error de grabación",
   "tui.command.prompt.stash.title": "Guardar prompt",
   "tui.command.prompt.stash.pop.title": "Recuperar prompt",
   "tui.command.prompt.stash.list.title": "Lista de prompts guardados",

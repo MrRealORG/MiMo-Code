@@ -324,8 +324,14 @@ export function Prompt(props: PromptProps) {
       onActiveChange: (active) => {
         if (active && activeVoice === av) av.setState("speaking")
       },
-      onError: () => {
-        av.showError(t("tui.voice.error.no_recorder"))
+      onError: (err) => {
+        const msg = err.message || ""
+        // Surface the actual recorder error (e.g. "no default audio device configured")
+        if (msg.includes("no default audio") || msg.includes("not found") || msg.includes("Cannot open") || msg.includes("ALSA")) {
+          av.showError(t("tui.voice.error.no_device"))
+        } else {
+          av.showError(`${t("tui.voice.error.recorder_failed")}: ${msg}`)
+        }
         activeVoice = undefined
         av.setState("idle")
       },
