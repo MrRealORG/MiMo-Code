@@ -188,8 +188,19 @@ function detectTimezoneLocale(): Locale | undefined {
 }
 
 export function detectSystemLocale(): Locale {
-  const tz = detectTimezoneLocale()
-  if (tz) return tz
+  // Stage 1: Intl locale — the most reliable signal on all platforms.
+  // On Windows, this reflects the user's actual display language, not the
+  // timezone.  On Linux/macOS it honours LC_ALL / LANG when set, so it
+  // already incorporates env-var information in most cases.
+  let intlLocale: Locale | undefined
+  try {
+    const intl = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase()
+    const match = matchers.find((m) => m.test(intl))
+    if (match) intlLocale = match.locale
+  } catch {}
+
+  // Stage 2: Explicit environment variables (Linux/macOS terminals,
+  // WSL, Git Bash).  These are the strongest explicit signal when present.
   for (const env of ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] as const) {
     const value = process.env[env]
     if (!value) continue
@@ -200,10 +211,15 @@ export function detectSystemLocale(): Locale {
       if (match) return match.locale
     }
   }
-  try {
-    const intl = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase()
-    const match = matchers.find((m) => m.test(intl))
-    if (match) return match.locale
-  } catch {}
+
+  // Stage 3: Intl locale from stage 1 — use when no env var matched.
+  if (intlLocale) return intlLocale
+
+  // Stage 4: Timezone-based heuristic — least reliable because timezone
+  // is independent of display language (especially on Windows).  Only
+  // used as a last resort when no other signal is available.
+  const tz = detectTimezoneLocale()
+  if (tz) return tz
+
   return "en"
 }
