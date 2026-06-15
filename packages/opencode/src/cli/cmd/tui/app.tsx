@@ -167,14 +167,7 @@ export function tui(input: {
                   <UiI18nBridge>
                 <ToastProvider>
                   <RouteProvider
-                    initialRoute={
-                      input.args.continue
-                        ? {
-                            type: "session",
-                            sessionID: "dummy",
-                          }
-                        : undefined
-                    }
+                    initialRoute={undefined}
                   >
                     <TuiConfigProvider config={input.config}>
                       <SDKProvider
@@ -377,7 +370,9 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
   let continued = false
   createEffect(() => {
     // When using -c, session list is loaded in blocking phase, so we can navigate at "partial"
-    if (continued || sync.status === "loading" || !args.continue) return
+    if (continued || !args.continue) return
+    // Wait until session data is available (at least "partial")
+    if (sync.status === "loading" || (sync.data.session.length === 0 && sync.status !== "complete")) return
     const match = sync.data.session
       .toSorted((a, b) => b.time.updated - a.time.updated)
       .find((x) => x.parentID === undefined)?.id
@@ -394,6 +389,11 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       } else {
         route.navigate({ type: "session", sessionID: match })
       }
+    } else if (sync.status === "complete") {
+      // No sessions to continue — show error and navigate to home
+      continued = true
+      toast.show({ message: t("tui.continue.no_session"), variant: "error" })
+      route.navigate({ type: "home" })
     }
   })
 

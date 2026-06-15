@@ -448,6 +448,7 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
+    "tui.continue.no_session": "No hay sesión para continuar. Primero inicia una nueva sesión.",
   // Workspace trust
   "trust.title": "Accediendo al espacio de trabajo:",
   "trust.safety_check": "Verificación rápida: ¿Es este un proyecto que creaste o en el que confías? (Tu propio código, un proyecto open source conocido o trabajo de tu equipo). Si no, tómate un momento para revisar el contenido de esta carpeta.",

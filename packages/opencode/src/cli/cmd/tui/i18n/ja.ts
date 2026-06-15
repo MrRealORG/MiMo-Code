@@ -414,6 +414,7 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
+    "tui.continue.no_session": "続行可能なセッションがありません。先に新しいセッションを作成してください。",
   // Workspace trust
   "trust.title": "ワークスペースにアクセス中：",
   "trust.safety_check": "安全確認：これはあなたが作成した、または信頼しているプロジェクトですか？（自分のコード、有名なオープンソースプロジェクト、チームの作業など）。そうでない場合は、まずこのフォルダの内容を確認してください。",
