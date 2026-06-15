@@ -14,6 +14,7 @@ import { useKeyboard } from "@opentui/solid"
 import * as Clipboard from "@tui/util/clipboard"
 import { useToast, type ToastContext } from "../ui/toast"
 import { isConsoleManagedProvider } from "@tui/util/provider-origin"
+import { useLanguage } from "../context/language"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
@@ -30,6 +31,7 @@ export function createDialogProviderOptions() {
   const sdk = useSDK()
   const toast = useToast()
   const { theme } = useTheme()
+  const { t } = useLanguage()
   const options = createMemo(() => {
     const list = pipe(
       sync.data.provider_next.all,
@@ -42,13 +44,13 @@ export function createDialogProviderOptions() {
           title: provider.name,
           value: provider.id,
           description: {
-            opencode: "(Recommended)",
-            anthropic: "(API key)",
-            openai: "(ChatGPT Plus/Pro or API key)",
-            "opencode-go": "Low cost subscription for everyone",
+            opencode: t("tui.dialog.provider.opencode"),
+            anthropic: t("tui.dialog.provider.anthropic"),
+            openai: t("tui.dialog.provider.openai"),
+            "opencode-go": t("tui.dialog.provider.opencode-go"),
           }[provider.id],
           footer: consoleManaged ? sync.data.console_state.activeOrgName : undefined,
-          category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Other",
+          category: provider.id in PROVIDER_PRIORITY ? t("tui.dialog.provider.category.popular") : t("tui.dialog.provider.category.other"),
           gutter: connected ? <text fg={theme.success}>✓</text> : undefined,
           async onSelect() {
             if (consoleManaged) return
@@ -65,7 +67,7 @@ export function createDialogProviderOptions() {
                 dialog.replace(
                   () => (
                     <DialogSelect
-                      title="Select auth method"
+                      title={t("tui.dialog.provider.select_auth_method")}
                       options={methods.map((x, index) => ({
                         title: x.label,
                         value: index,
@@ -142,11 +144,11 @@ export function createDialogProviderOptions() {
     return [
       ...list,
       {
-        title: "+ Custom provider",
+        title: t("tui.dialog.provider.custom"),
         value: "__custom__",
         description: undefined,
         footer: undefined,
-        category: "Other",
+        category: t("tui.dialog.provider.category.other"),
         gutter: undefined,
         async onSelect() {
           await runCustomProviderWizard({ dialog, sdk, sync, toast })
@@ -158,8 +160,9 @@ export function createDialogProviderOptions() {
 }
 
 export function DialogProvider() {
+  const { t } = useLanguage()
   const options = createDialogProviderOptions()
-  return <DialogSelect title="Connect a provider" options={options()} />
+  return <DialogSelect title={t("tui.dialog.provider.connect_title")} options={options()} />
 }
 
 export async function runCustomProviderWizard(opts: {
@@ -254,12 +257,13 @@ function AutoMethod(props: AutoMethodProps) {
   const dialog = useDialog()
   const sync = useSync()
   const toast = useToast()
+  const { t } = useLanguage()
 
   useKeyboard((evt) => {
     if (evt.name === "c" && !evt.ctrl && !evt.meta) {
       const code = props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
       Clipboard.copy(code)
-        .then(() => toast.show({ message: "Copied to clipboard", variant: "info" }))
+        .then(() => toast.show({ message: t("tui.dialog.provider.copied"), variant: "info" }))
         .catch(toast.error)
     }
   })
@@ -311,12 +315,13 @@ function CodeMethod(props: CodeMethodProps) {
   const sdk = useSDK()
   const sync = useSync()
   const dialog = useDialog()
+  const { t } = useLanguage()
   const [error, setError] = createSignal(false)
 
   return (
     <DialogPrompt
       title={props.title}
-      placeholder="Authorization code"
+      placeholder={t("tui.dialog.provider.auth_code_placeholder")}
       onConfirm={async (value) => {
         const { error } = await sdk.client.provider.oauth.callback({
           providerID: props.providerID,

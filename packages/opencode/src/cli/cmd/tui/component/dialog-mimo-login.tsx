@@ -154,7 +154,7 @@ export function DialogMimoLogin() {
   )
 }
 
-function MimoOAuthFlow(props: { url: string; instructions: string }) {
+function MimoOAuthFlow(props: { url: string; instructions?: string }) {
   const dialog = useDialog()
   const sdk = useSDK()
   const sync = useSync()
@@ -196,9 +196,7 @@ function MimoOAuthFlow(props: { url: string; instructions: string }) {
             <text fg={theme.textMuted}>{t("tui.dialog.login.flow.manual_hint")}</text>
             <text fg={theme.primary}>{props.url}</text>
           </Show>
-          <Show when={props.instructions}>
-            <text fg={theme.textMuted}>{props.instructions}</text>
-          </Show>
+          <text fg={theme.textMuted}>{t("tui.dialog.login.flow.instructions")}</text>
           <text fg={theme.textMuted}>{t("tui.dialog.login.flow.waiting")}</text>
         </box>
       }

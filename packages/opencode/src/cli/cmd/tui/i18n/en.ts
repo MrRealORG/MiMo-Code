@@ -383,6 +383,19 @@ export const dict: Record<string, string> = {
   "tui.dialog.login.flow.manual_hint": "Browser didn't open? Visit manually:",
   "tui.dialog.login.flow.waiting": "Waiting for browser authorization...",
   "tui.dialog.login.flow.invalid_code": "Invalid Code, please retry",
+  "tui.dialog.login.flow.instructions": "Complete authorization in the browser, or paste the Code to finish login.",
+
+  "tui.dialog.provider.select_auth_method": "Select auth method",
+  "tui.dialog.provider.opencode": "(Recommended)",
+  "tui.dialog.provider.anthropic": "(API key)",
+  "tui.dialog.provider.openai": "(ChatGPT Plus/Pro or API key)",
+  "tui.dialog.provider.opencode-go": "Low cost subscription for everyone",
+  "tui.dialog.provider.category.popular": "Popular",
+  "tui.dialog.provider.category.other": "Other",
+  "tui.dialog.provider.custom": "+ Custom provider",
+  "tui.dialog.provider.connect_title": "Connect a provider",
+  "tui.dialog.provider.copied": "Copied to clipboard",
+  "tui.dialog.provider.auth_code_placeholder": "Authorization code",
 
   // Question i18n — plan_exit
   "tui.question.plan_exit.question": "Plan at {{plan}} is complete. Would you like to switch to the build agent and start implementing?",

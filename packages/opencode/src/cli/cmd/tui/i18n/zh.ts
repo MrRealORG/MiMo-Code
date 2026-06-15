@@ -376,6 +376,19 @@ export const dict = {
   "tui.dialog.login.flow.manual_hint": "浏览器未打开？手动访问：",
   "tui.dialog.login.flow.waiting": "等待浏览器授权中...",
   "tui.dialog.login.flow.invalid_code": "Code 无效，请重试",
+  "tui.dialog.login.flow.instructions": "在浏览器中完成授权，或粘贴 Code 完成登录。",
+
+  "tui.dialog.provider.select_auth_method": "选择登录方式",
+  "tui.dialog.provider.opencode": "（推荐）",
+  "tui.dialog.provider.anthropic": "（API 密钥）",
+  "tui.dialog.provider.openai": "（ChatGPT Plus/Pro 或 API 密钥）",
+  "tui.dialog.provider.opencode-go": "低价订阅，人人可用",
+  "tui.dialog.provider.category.popular": "热门",
+  "tui.dialog.provider.category.other": "其他",
+  "tui.dialog.provider.custom": "+ 自定义服务商",
+  "tui.dialog.provider.connect_title": "连接服务商",
+  "tui.dialog.provider.copied": "已复制到剪贴板",
+  "tui.dialog.provider.auth_code_placeholder": "授权码",
 
   // Question i18n — plan_exit
   "tui.question.plan_exit.question": "{{plan}} 处的计划已完成。是否切换到 build 智能体开始实现？",
