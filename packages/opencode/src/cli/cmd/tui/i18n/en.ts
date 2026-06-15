@@ -394,4 +394,16 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Dialog titles
+  "tui.dialog.session_rename.title": "Rename Session",
+  "tui.dialog.agent.title": "Select agent",
+  "tui.dialog.mcp.title": "MCPs",
+  "tui.dialog.skill.title": "Skills",
+  "tui.dialog.skill.placeholder": "Search skills...",
+  "tui.dialog.theme.title": "Themes",
+  "tui.dialog.org.title": "Switch org",
+  "tui.dialog.org.loading": "Loading orgs...",
+  "tui.dialog.org.empty": "No orgs found",
+  "tui.dialog.org.switched": "Switched to {{name}}",
 }

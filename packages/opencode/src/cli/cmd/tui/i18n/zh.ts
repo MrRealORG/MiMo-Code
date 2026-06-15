@@ -387,4 +387,16 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自动",
+
+  // Dialog titles
+  "tui.dialog.session_rename.title": "重命名会话",
+  "tui.dialog.agent.title": "选择智能体",
+  "tui.dialog.mcp.title": "MCP 服务",
+  "tui.dialog.skill.title": "技能",
+  "tui.dialog.skill.placeholder": "搜索技能...",
+  "tui.dialog.theme.title": "主题",
+  "tui.dialog.org.title": "切换组织",
+  "tui.dialog.org.loading": "加载组织中...",
+  "tui.dialog.org.empty": "未找到组织",
+  "tui.dialog.org.switched": "已切换到 {{name}}",
 } satisfies Partial<Record<Keys, string>>

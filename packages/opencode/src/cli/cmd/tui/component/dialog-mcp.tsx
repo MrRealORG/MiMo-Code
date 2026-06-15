@@ -7,6 +7,7 @@ import { useTheme } from "../context/theme"
 import { Keybind } from "@/util"
 import { TextAttributes } from "@opentui/core"
 import { useSDK } from "@tui/context/sdk"
+import { useLanguage } from "../context/language"
 
 function Status(props: { enabled: boolean; loading: boolean }) {
   const { theme } = useTheme()
@@ -23,6 +24,7 @@ export function DialogMcp() {
   const local = useLocal()
   const sync = useSync()
   const sdk = useSDK()
+  const { t } = useLanguage()
   const [, setRef] = createSignal<DialogSelectRef<unknown>>()
   const [loading, setLoading] = createSignal<string | null>(null)
 
@@ -75,7 +77,7 @@ export function DialogMcp() {
   return (
     <DialogSelect
       ref={setRef}
-      title="MCPs"
+      title={t("tui.dialog.mcp.title")}
       options={options()}
       keybind={keybinds()}
       onSelect={(_option) => {
