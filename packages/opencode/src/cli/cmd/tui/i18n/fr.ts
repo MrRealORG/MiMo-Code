@@ -462,6 +462,31 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
+
+  // Stash, Status, Theme
+  "tui.stash.title": "Réserve",
+  "tui.stash.just_now": "à l'instant",
+  "tui.stash.minutes_ago": "il y a {{count}} min",
+  "tui.stash.hours_ago": "il y a {{count}} h",
+  "tui.stash.days_ago": "il y a {{count}} j",
+  "tui.stash.confirm_delete": "Appuyez à nouveau",
+  "tui.stash.delete": "supprimer",
+  "tui.stash.lines": "~{{count}} lignes",
+  "tui.status.title": "Statut",
+  "tui.status.no_mcp": "Aucun serveur MCP",
+  "tui.status.mcp_servers": "{{count}} serveurs MCP",
+  "tui.status.connected": "Connecté",
+  "tui.status.pending_approval": "En attente d'approbation",
+  "tui.status.disabled_config": "Désactivé dans la configuration",
+  "tui.status.needs_auth": "Authentification requise (exécuter: opencode mcp auth {{name}})",
+  "tui.status.lsp_servers": "{{count}} serveurs LSP",
+  "tui.status.no_formatters": "Aucun formateur",
+  "tui.status.formatters": "{{count}} formateurs",
+  "tui.status.no_plugins": "Aucun plugin",
+  "tui.status.plugins": "{{count}} plugins",
+  "tui.theme.title": "Thèmes",
+
+    "tui.autocomplete.no_matching": "Aucun résultat",
   // Workspace trust
   "trust.title": "Accès à l'espace de travail :",
   "trust.safety_check": "Vérification rapide : est-ce un projet que vous avez créé ou auquel vous faites confiance ? (Votre propre code, un projet open source reconnu ou un travail de votre équipe). Sinon, prenez un moment pour examiner le contenu de ce dossier.",

@@ -413,6 +413,31 @@ export const dict: Record<string, string> = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
+
+  // Stash, Status, Theme
+  "tui.stash.title": "Stash",
+  "tui.stash.just_now": "just now",
+  "tui.stash.minutes_ago": "{{count}}m ago",
+  "tui.stash.hours_ago": "{{count}}h ago",
+  "tui.stash.days_ago": "{{count}}d ago",
+  "tui.stash.confirm_delete": "Press again to confirm",
+  "tui.stash.delete": "delete",
+  "tui.stash.lines": "~{{count}} lines",
+  "tui.status.title": "Status",
+  "tui.status.no_mcp": "No MCP Servers",
+  "tui.status.mcp_servers": "{{count}} MCP Servers",
+  "tui.status.connected": "Connected",
+  "tui.status.pending_approval": "Pending approval",
+  "tui.status.disabled_config": "Disabled in configuration",
+  "tui.status.needs_auth": "Needs authentication (run: opencode mcp auth {{name}})",
+  "tui.status.lsp_servers": "{{count}} LSP Servers",
+  "tui.status.no_formatters": "No Formatters",
+  "tui.status.formatters": "{{count}} Formatters",
+  "tui.status.no_plugins": "No Plugins",
+  "tui.status.plugins": "{{count}} Plugins",
+  "tui.theme.title": "Themes",
+
+    "tui.autocomplete.no_matching": "No matching items",
   // Workspace trust
   "trust.title": "Accessing workspace:",
   "trust.safety_check": "Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first.",

@@ -406,6 +406,31 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自动",
 
+
+  // Stash, Status, Theme
+  "tui.stash.title": "暂存",
+  "tui.stash.just_now": "刚刚",
+  "tui.stash.minutes_ago": "{{count}}分钟前",
+  "tui.stash.hours_ago": "{{count}}小时前",
+  "tui.stash.days_ago": "{{count}}天前",
+  "tui.stash.confirm_delete": "再次按下以确认",
+  "tui.stash.delete": "删除",
+  "tui.stash.lines": "~{{count}} 行",
+  "tui.status.title": "状态",
+  "tui.status.no_mcp": "无 MCP 服务器",
+  "tui.status.mcp_servers": "{{count}} 个 MCP 服务器",
+  "tui.status.connected": "已连接",
+  "tui.status.pending_approval": "待批准",
+  "tui.status.disabled_config": "配置中已禁用",
+  "tui.status.needs_auth": "需要认证 (运行: opencode mcp auth {{name}})",
+  "tui.status.lsp_servers": "{{count}} 个 LSP 服务器",
+  "tui.status.no_formatters": "无格式化工具",
+  "tui.status.formatters": "{{count}} 个格式化工具",
+  "tui.status.no_plugins": "无插件",
+  "tui.status.plugins": "{{count}} 个插件",
+  "tui.theme.title": "主题",
+
+    "tui.autocomplete.no_matching": "无匹配项",
   // Workspace trust
   "trust.title": "访问工作区：",
   "trust.safety_check": "安全确认：这是你自己创建或信任的项目吗？（如你自己的代码、知名开源项目或团队内部项目）。如果不是，请先检查此目录下的内容。",

@@ -414,6 +414,31 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
+
+  // Stash, Status, Theme
+  "tui.stash.title": "スタッシュ",
+  "tui.stash.just_now": "たった今",
+  "tui.stash.minutes_ago": "{{count}}分前",
+  "tui.stash.hours_ago": "{{count}}時間前",
+  "tui.stash.days_ago": "{{count}}日前",
+  "tui.stash.confirm_delete": "もう一度押して確認",
+  "tui.stash.delete": "削除",
+  "tui.stash.lines": "~{{count}} 行",
+  "tui.status.title": "ステータス",
+  "tui.status.no_mcp": "MCPサーバーなし",
+  "tui.status.mcp_servers": "{{count}} 個のMCPサーバー",
+  "tui.status.connected": "接続済み",
+  "tui.status.pending_approval": "承認待ち",
+  "tui.status.disabled_config": "設定で無効化",
+  "tui.status.needs_auth": "認証が必要 (実行: opencode mcp auth {{name}})",
+  "tui.status.lsp_servers": "{{count}} 個のLSPサーバー",
+  "tui.status.no_formatters": "フォーマッターなし",
+  "tui.status.formatters": "{{count}} 個のフォーマッター",
+  "tui.status.no_plugins": "プラグインなし",
+  "tui.status.plugins": "{{count}} 個のプラグイン",
+  "tui.theme.title": "テーマ",
+
+    "tui.autocomplete.no_matching": "一致する項目なし",
   // Workspace trust
   "trust.title": "ワークスペースにアクセス中：",
   "trust.safety_check": "安全確認：これはあなたが作成した、または信頼しているプロジェクトですか？（自分のコード、有名なオープンソースプロジェクト、チームの作業など）。そうでない場合は、まずこのフォルダの内容を確認してください。",

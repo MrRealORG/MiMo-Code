@@ -448,6 +448,31 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
+
+  // Stash, Status, Theme
+  "tui.stash.title": "Almacén",
+  "tui.stash.just_now": "ahora mismo",
+  "tui.stash.minutes_ago": "hace {{count}} min",
+  "tui.stash.hours_ago": "hace {{count}} h",
+  "tui.stash.days_ago": "hace {{count}} d",
+  "tui.stash.confirm_delete": "Pulse de nuevo",
+  "tui.stash.delete": "eliminar",
+  "tui.stash.lines": "~{{count}} líneas",
+  "tui.status.title": "Estado",
+  "tui.status.no_mcp": "Sin servidores MCP",
+  "tui.status.mcp_servers": "{{count}} servidores MCP",
+  "tui.status.connected": "Conectado",
+  "tui.status.pending_approval": "Pendiente de aprobación",
+  "tui.status.disabled_config": "Desactivado en configuración",
+  "tui.status.needs_auth": "Requiere autenticación (ejecutar: opencode mcp auth {{name}})",
+  "tui.status.lsp_servers": "{{count}} servidores LSP",
+  "tui.status.no_formatters": "Sin formateadores",
+  "tui.status.formatters": "{{count}} formateadores",
+  "tui.status.no_plugins": "Sin plugins",
+  "tui.status.plugins": "{{count}} plugins",
+  "tui.theme.title": "Temas",
+
+    "tui.autocomplete.no_matching": "Sin coincidencias",
   // Workspace trust
   "trust.title": "Accediendo al espacio de trabajo:",
   "trust.safety_check": "Verificación rápida: ¿Es este un proyecto que creaste o en el que confías? (Tu propio código, un proyecto open source conocido o trabajo de tu equipo). Si no, tómate un momento para revisar el contenido de esta carpeta.",

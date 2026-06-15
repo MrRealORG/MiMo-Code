@@ -474,6 +474,31 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Авто",
 
+
+  // Stash, Status, Theme
+  "tui.stash.title": "Стек",
+  "tui.stash.just_now": "только что",
+  "tui.stash.minutes_ago": "{{count}} мин. назад",
+  "tui.stash.hours_ago": "{{count}} ч. назад",
+  "tui.stash.days_ago": "{{count}} дн. назад",
+  "tui.stash.confirm_delete": "Нажмите ещё раз",
+  "tui.stash.delete": "удалить",
+  "tui.stash.lines": "~{{count}} строк",
+  "tui.status.title": "Статус",
+  "tui.status.no_mcp": "Нет MCP серверов",
+  "tui.status.mcp_servers": "{{count}} MCP серверов",
+  "tui.status.connected": "Подключено",
+  "tui.status.pending_approval": "Ожидает подтверждения",
+  "tui.status.disabled_config": "Отключено в конфигурации",
+  "tui.status.needs_auth": "Требуется аутентификация (запустите: opencode mcp auth {{name}})",
+  "tui.status.lsp_servers": "{{count}} LSP серверов",
+  "tui.status.no_formatters": "Нет форматтеров",
+  "tui.status.formatters": "{{count}} форматтеров",
+  "tui.status.no_plugins": "Нет плагинов",
+  "tui.status.plugins": "{{count}} плагинов",
+  "tui.theme.title": "Темы",
+
+    "tui.autocomplete.no_matching": "Нет совпадений",
   // Workspace trust
   "trust.title": "Доступ к рабочему пространству:",
   "trust.safety_check": "Проверка безопасности: это проект, который вы создали или которому доверяете? (Ваш собственный код, известный open source проект или работа вашей команды). Если нет, сначала проверьте содержимое этой папки.",
