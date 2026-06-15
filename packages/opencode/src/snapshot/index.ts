@@ -102,6 +102,7 @@ export const layer: Layer.Layer<
               env: opts?.env,
               extendEnv: true,
               stdin: opts?.stdin,
+              forceKillAfter: Duration.seconds(120),
             })
             const handle = yield* spawner.spawn(proc)
             const [text, stderr] = yield* Effect.all(
@@ -161,7 +162,7 @@ export const layer: Layer.Layer<
         const stage = Effect.fnUntraced(function* (files: string[]) {
           if (!files.length) return
           const result = yield* git(
-            [...cfg, ...args(["add", "--all", "--sparse", "--pathspec-from-file=-", "--pathspec-file-nul"])],
+            [...cfg, ...args(["add", "--sparse", "--pathspec-from-file=-", "--pathspec-file-nul"])],
             {
               cwd: state.directory,
               stdin: feed(files),
@@ -294,6 +295,8 @@ export const layer: Layer.Layer<
           return yield* locked(
             Effect.gen(function* () {
               if (!(yield* enabled())) return
+              // Remove stale index.lock left by a previously killed git process
+              yield* remove(path.join(state.gitdir, "index.lock"))
               const existed = yield* exists(state.gitdir)
               yield* fs.ensureDir(state.gitdir).pipe(Effect.orDie)
               if (!existed) {
@@ -318,6 +321,8 @@ export const layer: Layer.Layer<
         const patch = Effect.fnUntraced(function* (hash: string) {
           return yield* locked(
             Effect.gen(function* () {
+              // Remove stale index.lock left by a previously killed git process
+              yield* remove(path.join(state.gitdir, "index.lock"))
               yield* add()
               const result = yield* git(
                 [...quote, ...args(["diff", "--cached", "--no-ext-diff", "--name-only", hash, "--", "."])],

@@ -423,7 +423,7 @@ export const ProvidersLoginCommand = cmd({
       directory: process.cwd(),
       async fn() {
         UI.empty()
-        prompts.intro("Add credential")
+        prompts.intro(t("cli.providers.add_credential"))
         if (args.url) {
           const url = args.url.replace(/\/+$/, "")
           const wellknown = (await fetch(`${url}/.well-known/opencode`).then((x) => x.json())) as {
@@ -434,14 +434,14 @@ export const ProvidersLoginCommand = cmd({
             stdout: "pipe",
           })
           if (!proc.stdout) {
-            prompts.log.error("Failed")
-            prompts.outro("Done")
+            prompts.log.error(t("cli.providers.failed"))
+            prompts.outro(t("cli.providers.done"))
             return
           }
           const [exit, token] = await Promise.all([proc.exited, text(proc.stdout)])
           if (exit !== 0) {
-            prompts.log.error("Failed")
-            prompts.outro("Done")
+            prompts.log.error(t("cli.providers.failed"))
+            prompts.outro(t("cli.providers.done"))
             return
           }
           await put(url, {
@@ -449,8 +449,8 @@ export const ProvidersLoginCommand = cmd({
             key: wellknown.auth.env,
             token: token.trim(),
           })
-          prompts.log.success("Logged into " + url)
-          prompts.outro("Done")
+          prompts.log.success(t("cli.providers.logged_in", { url }))
+          prompts.outro(t("cli.providers.done"))
           return
         }
         await ModelsDev.refresh(true).catch(() => {})
@@ -577,8 +577,8 @@ export const ProvidersLoginCommand = cmd({
 
         if (provider === "other") {
           const custom = await prompts.text({
-            message: "Enter provider id",
-            validate: (x) => (x && x.match(/^[0-9a-z-]+$/) ? undefined : "a-z, 0-9 and hyphens only"),
+            message: t("cli.providers.enter_provider_id"),
+            validate: (x) => (x && x.match(/^[0-9a-z-]+$/) ? undefined : t("cli.providers.provider_id_format")),
           })
           if (prompts.isCancel(custom)) throw new UI.CancelledError()
           provider = custom.replace(/^@ai-sdk\//, "")
@@ -590,7 +590,7 @@ export const ProvidersLoginCommand = cmd({
           }
 
           prompts.log.warn(
-            `This only stores a credential for ${provider} - you will need configure it in mimocode.json, check the docs for examples.`,
+            t("cli.providers.custom_provider_warning", { provider }),
           )
         }
 
@@ -628,7 +628,7 @@ export const ProvidersLoginCommand = cmd({
           key,
         })
 
-        prompts.outro("Done")
+        prompts.outro(t("cli.providers.done"))
       },
     })
   },
@@ -645,14 +645,14 @@ export const ProvidersLogoutCommand = cmd({
         return Object.entries(yield* auth.all())
       }),
     )
-    prompts.intro("Remove credential")
+    prompts.intro(t("cli.providers.remove_credential"))
     if (credentials.length === 0) {
-      prompts.log.error("No credentials found")
+      prompts.log.error(t("cli.providers.no_credentials"))
       return
     }
     const database = await ModelsDev.get()
     const selected = await prompts.select({
-      message: "Select provider",
+      message: t("cli.providers.select_provider"),
       options: credentials.map(([key, value]) => ({
         label: (database[key]?.name || key) + UI.Style.TEXT_DIM + " (" + value.type + ")",
         value: key,
@@ -666,7 +666,7 @@ export const ProvidersLogoutCommand = cmd({
         yield* auth.remove(providerID)
       }),
     )
-    prompts.outro("Logout successful")
+    prompts.outro(t("cli.providers.logout_success"))
   },
 })
 
@@ -675,7 +675,7 @@ export const ProvidersWhoamiCommand = cmd({
   describe: "show current logged-in user info",
   async handler(_args) {
     UI.empty()
-    prompts.intro("Current user")
+    prompts.intro(t("cli.providers.current_user"))
     const info = await AppRuntime.runPromise(
       Effect.gen(function* () {
         const auth = yield* Auth.Service
@@ -683,7 +683,7 @@ export const ProvidersWhoamiCommand = cmd({
       }),
     )
     if (!info) {
-      prompts.log.error("Not logged in. Run `mimo auth login` to log in.")
+      prompts.log.error(t("cli.providers.not_logged_in"))
       return
     }
     if (info.type === "api" && info.metadata) {
