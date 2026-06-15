@@ -1,5 +1,6 @@
 import { createMemo, createSignal } from "solid-js"
 import { useLocal } from "@tui/context/local"
+import { useLanguage } from "@tui/context/language"
 import { useSync } from "@tui/context/sync"
 import { map, pipe, flatMap, entries, filter, sortBy, take } from "remeda"
 import { DialogSelect } from "@tui/ui/dialog-select"
@@ -11,6 +12,7 @@ import { useSDK } from "../context/sdk"
 import { useToast, type ToastContext } from "../ui/toast"
 import { DialogPrompt } from "../ui/dialog-prompt"
 import * as fuzzysort from "fuzzysort"
+import { dict as en } from "@tui/i18n/en"
 
 const ADD_MODEL_SENTINEL = "__add_model__"
 
@@ -28,6 +30,7 @@ export function DialogModel(props: { providerID?: string }) {
   const sdk = useSDK()
   const toast = useToast()
   const keybind = useKeybind()
+  const { t } = useLanguage()
   const [query, setQuery] = createSignal("")
 
   const connected = useConnected()
@@ -56,7 +59,7 @@ export function DialogModel(props: { providerID?: string }) {
             description: provider.name,
             category,
             disabled: provider.id === "opencode" && model.id.includes("-nano"),
-            footer: model.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+            footer: model.cost?.input === 0 && provider.id === "opencode" ? t("tui.model.free") : undefined,
             onSelect: () => {
               onSelect(provider.id, model.id)
             },
@@ -65,12 +68,12 @@ export function DialogModel(props: { providerID?: string }) {
       })
     }
 
-    const favoriteOptions = toOptions(favorites, "Favorites")
+    const favoriteOptions = toOptions(favorites, t("tui.model.favorites"))
     const recentOptions = toOptions(
       recents.filter(
         (item) => !favorites.some((fav) => fav.providerID === item.providerID && fav.modelID === item.modelID),
       ),
-      "Recent",
+      t("tui.model.recent"),
     )
 
     const providerOptions = pipe(
@@ -89,11 +92,11 @@ export function DialogModel(props: { providerID?: string }) {
             value: { providerID: provider.id, modelID: model },
             title: info.name ?? model,
             description: favorites.some((item) => item.providerID === provider.id && item.modelID === model)
-              ? "(Favorite)"
+              ? `(${t("tui.model.favorite")})`
               : undefined,
             category: connected() ? provider.name : undefined,
             disabled: provider.id === "opencode" && model.includes("-nano"),
-            footer: info.cost?.input === 0 && provider.id === "opencode" ? "Free" : undefined,
+            footer: info.cost?.input === 0 && provider.id === "opencode" ? t("tui.model.free") : undefined,
             onSelect() {
               onSelect(provider.id, model)
             },
@@ -107,7 +110,7 @@ export function DialogModel(props: { providerID?: string }) {
             return true
           }),
           sortBy(
-            (x) => x.footer !== "Free",
+            (x) => x.footer !== t("tui.model.free"),
             (x) => x.title,
           ),
         )
@@ -117,7 +120,7 @@ export function DialogModel(props: { providerID?: string }) {
           ...models,
           {
             value: { providerID: provider.id, modelID: ADD_MODEL_SENTINEL },
-            title: "+ Add model",
+            title: `${t("tui.model.add_model")}`,
             description: undefined,
             category: connected() ? provider.name : undefined,
             disabled: false,
@@ -135,7 +138,7 @@ export function DialogModel(props: { providerID?: string }) {
           providers(),
           map((option) => ({
             ...option,
-            category: "Popular providers",
+            category: t("tui.model.popular_providers"),
           })),
           take(6),
         )
@@ -157,7 +160,7 @@ export function DialogModel(props: { providerID?: string }) {
 
   const title = createMemo(() => {
     const value = provider()
-    if (!value) return "Select model"
+    if (!value) return t("tui.model.select_model")
     return value.name
   })
 
@@ -182,14 +185,14 @@ export function DialogModel(props: { providerID?: string }) {
       keybind={[
         {
           keybind: keybind.all.model_provider_list?.[0],
-          title: connected() ? "Connect provider" : "View all providers",
+          title: connected() ? t("tui.model.connect_provider") : t("tui.model.view_all_providers"),
           onTrigger() {
             dialog.replace(() => <DialogProvider />)
           },
         },
         {
           keybind: keybind.all.model_favorite_toggle?.[0],
-          title: "Favorite",
+          title: t("tui.model.favorite"),
           disabled: !connected(),
           onTrigger: (option) => {
             const v = option.value as { providerID: string; modelID: string }
@@ -220,12 +223,12 @@ async function runAddModelWizard(opts: {
     return DialogPrompt.show(dialog, `${title} (${n}/${total})`, { placeholder, value })
   }
 
-  const modelIDRaw = await step(1, 2, "Model id", "gateway model id")
+  const modelIDRaw = await step(1, 2, en["tui.model.wizard.model_id"] ?? "Model id", en["tui.model.wizard.model_id_hint"] ?? "gateway model id")
   if (modelIDRaw === null) return
   const modelID = modelIDRaw.trim()
   if (!modelID) return
 
-  const modelNameRaw = await step(2, 2, "Display name", "shown in model picker", modelID)
+  const modelNameRaw = await step(2, 2, en["tui.model.wizard.display_name"] ?? "Display name", en["tui.model.wizard.display_name_hint"] ?? "shown in model picker", modelID)
   if (modelNameRaw === null) return
   const modelName = modelNameRaw.trim() || modelID
 

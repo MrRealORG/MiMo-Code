@@ -414,7 +414,30 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
-  // Workspace trust
+  "tui.model.select_model": "モデルを選択",
+  "tui.model.free": "無料",
+  "tui.model.favorites": "お気に入り",
+  "tui.model.recent": "最近使用",
+  "tui.model.favorite": "お気に入り",
+  "tui.model.add_model": "+ モデルを追加",
+  "tui.model.popular_providers": "人気プロバイダー",
+  "tui.model.connect_provider": "プロバイダーに接続",
+  "tui.model.view_all_providers": "すべてのプロバイダーを表示",
+  "tui.model.wizard.model_id": "モデル ID",
+  "tui.model.wizard.model_id_hint": "ゲートウェイモデル ID",
+  "tui.model.wizard.display_name": "表示名",
+  "tui.model.wizard.display_name_hint": "モデルピッカーに表示",
+  "tui.skill.title": "スキル",
+  "tui.skill.category": "スキル",
+  "tui.skill.search_placeholder": "スキルを検索...",
+  "tui.tag.title": "オートコンプリート",
+  "tui.workspace_unavailable.title": "ワークスペースが利用できません",
+  "tui.workspace_unavailable.message": "このセッションは、利用できなくなったワークスペースに接続されています。",
+  "tui.workspace_unavailable.restore_hint": "このセッションを新しいワークスペースに復元しますか？",
+  "tui.workspace_unavailable.cancel": "キャンセル",
+  "tui.workspace_unavailable.restore": "復元",
+
+    // Workspace trust
   "trust.title": "ワークスペースにアクセス中：",
   "trust.safety_check": "安全確認：これはあなたが作成した、または信頼しているプロジェクトですか？（自分のコード、有名なオープンソースプロジェクト、チームの作業など）。そうでない場合は、まずこのフォルダの内容を確認してください。",
   "trust.capabilities": "MiMo Code はここでファイルの読み取り、編集、実行が可能になります。",

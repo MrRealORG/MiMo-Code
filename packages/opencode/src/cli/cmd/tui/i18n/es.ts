@@ -448,7 +448,30 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
-  // Workspace trust
+  "tui.model.select_model": "Seleccionar modelo",
+  "tui.model.free": "Gratis",
+  "tui.model.favorites": "Favoritos",
+  "tui.model.recent": "Recientes",
+  "tui.model.favorite": "Favorito",
+  "tui.model.add_model": "+ Añadir modelo",
+  "tui.model.popular_providers": "Proveedores populares",
+  "tui.model.connect_provider": "Conectar proveedor",
+  "tui.model.view_all_providers": "Ver todos los proveedores",
+  "tui.model.wizard.model_id": "ID del modelo",
+  "tui.model.wizard.model_id_hint": "ID del modelo de puerta de enlace",
+  "tui.model.wizard.display_name": "Nombre para mostrar",
+  "tui.model.wizard.display_name_hint": "se muestra en el selector de modelos",
+  "tui.skill.title": "Habilidades",
+  "tui.skill.category": "Habilidades",
+  "tui.skill.search_placeholder": "Buscar habilidades...",
+  "tui.tag.title": "Autocompletar",
+  "tui.workspace_unavailable.title": "Espacio de trabajo no disponible",
+  "tui.workspace_unavailable.message": "Esta sesión está asociada a un espacio de trabajo que ya no está disponible.",
+  "tui.workspace_unavailable.restore_hint": "¿Desea restaurar esta sesión en un nuevo espacio de trabajo?",
+  "tui.workspace_unavailable.cancel": "cancelar",
+  "tui.workspace_unavailable.restore": "restaurar",
+
+    // Workspace trust
   "trust.title": "Accediendo al espacio de trabajo:",
   "trust.safety_check": "Verificación rápida: ¿Es este un proyecto que creaste o en el que confías? (Tu propio código, un proyecto open source conocido o trabajo de tu equipo). Si no, tómate un momento para revisar el contenido de esta carpeta.",
   "trust.capabilities": "MiMo Code podrá leer, editar y ejecutar archivos aquí.",

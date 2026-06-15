@@ -1,6 +1,7 @@
 import { createMemo, createSignal } from "solid-js"
 import { useLocal } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
+import * as Log from "@/util/log"
 import { map, pipe, entries, sortBy } from "remeda"
 import { DialogSelect, type DialogSelectRef, type DialogSelectOption } from "@tui/ui/dialog-select"
 import { useTheme } from "../context/theme"
@@ -61,10 +62,10 @@ export function DialogMcp() {
           if (status.data) {
             sync.set("mcp", status.data)
           } else {
-            console.error("Failed to refresh MCP status: no data returned")
+            Log.Default.error("Failed to refresh MCP status: no data returned")
           }
         } catch (error) {
-          console.error("Failed to toggle MCP:", error)
+          Log.Default.error("Failed to toggle MCP", { error })
         } finally {
           setLoading(null)
         }

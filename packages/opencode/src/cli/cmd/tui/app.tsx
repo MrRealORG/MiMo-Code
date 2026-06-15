@@ -1,5 +1,6 @@
 import { render, TimeToFirstDraw, useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import * as Clipboard from "@tui/util/clipboard"
+import * as Log from "@/util/log"
 import * as Selection from "@tui/util/selection"
 import { createCliRenderer, MouseButton, type CliRendererConfig } from "@opentui/core"
 import { RouteProvider, useRoute } from "@tui/context/route"
@@ -99,7 +100,7 @@ function rendererConfig(_config: TuiConfig.Info, plainTerminal: boolean): CliRen
       keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
       onCopySelection: (text) => {
         Clipboard.copy(text).catch((error) => {
-          console.error(`Failed to copy console selection to clipboard: ${error}`)
+          Log.Default.error("Failed to copy console selection to clipboard", { error: String(error) })
         })
       },
     },
@@ -272,7 +273,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     config: tuiConfig,
   })
     .catch((error) => {
-      console.error("Failed to load TUI plugins", error)
+      Log.Default.error("Failed to load TUI plugins", { error })
     })
     .finally(() => {
       setReady(true)

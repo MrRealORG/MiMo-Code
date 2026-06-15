@@ -375,7 +375,30 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
-  // Workspace trust
+  "tui.model.select_model": "選擇模型",
+  "tui.model.free": "免費",
+  "tui.model.favorites": "收藏",
+  "tui.model.recent": "最近使用",
+  "tui.model.favorite": "收藏",
+  "tui.model.add_model": "+ 新增模型",
+  "tui.model.popular_providers": "熱門供應商",
+  "tui.model.connect_provider": "連接供應商",
+  "tui.model.view_all_providers": "檢視所有供應商",
+  "tui.model.wizard.model_id": "模型 ID",
+  "tui.model.wizard.model_id_hint": "閘道模型 ID",
+  "tui.model.wizard.display_name": "顯示名稱",
+  "tui.model.wizard.display_name_hint": "在模型選擇器中顯示",
+  "tui.skill.title": "技能",
+  "tui.skill.category": "技能",
+  "tui.skill.search_placeholder": "搜尋技能...",
+  "tui.tag.title": "自動完成",
+  "tui.workspace_unavailable.title": "工作空間不可用",
+  "tui.workspace_unavailable.message": "此會話關聯的工作空間已不可用。",
+  "tui.workspace_unavailable.restore_hint": "是否要將此會話復原到一個新的工作空間？",
+  "tui.workspace_unavailable.cancel": "取消",
+  "tui.workspace_unavailable.restore": "復原",
+
+    // Workspace trust
   "trust.title": "存取工作區：",
   "trust.safety_check": "安全確認：這是你自己建立或信任的專案嗎？（如你自己的程式碼、知名開源專案或團隊內部專案）。如果不是，請先檢查此目錄下的內容。",
   "trust.capabilities": "MiMo Code 將能夠讀取、編輯和執行此目錄中的檔案。",

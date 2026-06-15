@@ -474,7 +474,30 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Авто",
 
-  // Workspace trust
+  "tui.model.select_model": "Выбрать модель",
+  "tui.model.free": "Бесплатно",
+  "tui.model.favorites": "Избранное",
+  "tui.model.recent": "Недавние",
+  "tui.model.favorite": "Избранное",
+  "tui.model.add_model": "+ Добавить модель",
+  "tui.model.popular_providers": "Популярные провайдеры",
+  "tui.model.connect_provider": "Подключить провайдер",
+  "tui.model.view_all_providers": "Все провайдеры",
+  "tui.model.wizard.model_id": "ID модели",
+  "tui.model.wizard.model_id_hint": "идентификатор модели шлюза",
+  "tui.model.wizard.display_name": "Отображаемое имя",
+  "tui.model.wizard.display_name_hint": "отображается в выборе модели",
+  "tui.skill.title": "Навыки",
+  "tui.skill.category": "Навыки",
+  "tui.skill.search_placeholder": "Поиск навыков...",
+  "tui.tag.title": "Автозаполнение",
+  "tui.workspace_unavailable.title": "Рабочее пространство недоступно",
+  "tui.workspace_unavailable.message": "Этот сеанс привязан к рабочему пространству, которое больше недоступно.",
+  "tui.workspace_unavailable.restore_hint": "Хотите восстановить этот сеанс в новом рабочем пространстве?",
+  "tui.workspace_unavailable.cancel": "отмена",
+  "tui.workspace_unavailable.restore": "восстановить",
+
+    // Workspace trust
   "trust.title": "Доступ к рабочему пространству:",
   "trust.safety_check": "Проверка безопасности: это проект, который вы создали или которому доверяете? (Ваш собственный код, известный open source проект или работа вашей команды). Если нет, сначала проверьте содержимое этой папки.",
   "trust.capabilities": "MiMo Code сможет читать, редактировать и выполнять файлы здесь.",
