@@ -364,6 +364,8 @@ export const dict = {
   "cli.providers.mimo_free.usage_hint": "无需登录，直接 mimo run 即可使用。如需付费/更高级模型，可重新选择 MiMo 浏览器登录。",
   "cli.providers.mimo_login.decrypt_retry": "解密失败，请重试 (剩余 {remaining} 次)",
   "cli.providers.mimo_login.decrypt_exhausted": "解密失败，已达最大重试次数",
+  "plugin.mimo.login.label": "浏览器登录",
+  "plugin.mimo.login.instructions": "在浏览器中完成授权，或粘贴 Code 完成登录。",
   "tui.dialog.login.import_claude": "从 Claude Code 导入",
   "tui.dialog.login.other": "其他服务商",
   "tui.dialog.login.import_claude.no_key": "未找到 Claude Code API Key",

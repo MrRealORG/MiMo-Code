@@ -1,4 +1,5 @@
 import type { Hooks, PluginInput } from "@mimo-ai/plugin"
+import { t } from "../cli/i18n"
 import { Log } from "../util"
 import { createServer } from "http"
 import crypto from "crypto"
@@ -99,7 +100,7 @@ export async function MimoAuthPlugin(_input: PluginInput): Promise<Hooks> {
       },
       methods: [
         {
-          label: "浏览器登录",
+          label: t("plugin.mimo.login.label"),
           type: "oauth" as const,
           authorize: async () => {
             const { publicKey, privateKeyDer } = generateKeyPair()
@@ -159,7 +160,7 @@ export async function MimoAuthPlugin(_input: PluginInput): Promise<Hooks> {
             return {
               url: manualUrl,
               method: "auto" as const,
-              instructions: "在浏览器中完成授权，或粘贴 Code 完成登录。",
+              instructions: t("plugin.mimo.login.instructions"),
               callback: async (code?: string) => {
                 if (code) {
                   try {

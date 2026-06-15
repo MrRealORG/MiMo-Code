@@ -371,6 +371,8 @@ export const dict: Record<string, string> = {
   "cli.providers.mimo_free.usage_hint": "No login required — just run mimo. For paid/premium models, choose MiMo browser login instead.",
   "cli.providers.mimo_login.decrypt_retry": "Decryption failed, please retry ({remaining} attempts left)",
   "cli.providers.mimo_login.decrypt_exhausted": "Decryption failed, max retries reached",
+  "plugin.mimo.login.label": "Browser Login",
+  "plugin.mimo.login.instructions": "Complete authorization in the browser, or paste Code to finish login.",
   "tui.dialog.login.import_claude": "Import from Claude Code",
   "tui.dialog.login.other": "Other Provider",
   "tui.dialog.login.import_claude.no_key": "Claude Code API Key not found",

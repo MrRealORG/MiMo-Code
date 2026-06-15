@@ -378,6 +378,8 @@ export const dict = {
     "ログイン不要 — そのまま mimo を実行できます。有料/上位モデルを利用する場合は MiMo ブラウザログインを選択してください。",
   "cli.providers.mimo_login.decrypt_retry": "復号に失敗しました、再試行してください（残り {remaining} 回）",
   "cli.providers.mimo_login.decrypt_exhausted": "復号に失敗しました、最大再試行回数に達しました",
+  "plugin.mimo.login.label": "ブラウザログイン",
+  "plugin.mimo.login.instructions": "ブラウザで認証を完了するか、Code を貼り付けてログインしてください。",
 
   // Question i18n — plan_exit
   "tui.question.plan_exit.question": "{{plan}} の計画が完了しました。build エージェントに切り替えて実装を開始しますか？",

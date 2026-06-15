@@ -1121,7 +1121,7 @@ export class Agent implements ACPAgent {
     const model = await defaultModel(this.config, directory)
     const sessionId = params.sessionId
 
-    const providers = await this.sdk.config.providers({ directory }).then((x) => x.data!.providers)
+    const providers = await this.sdk.config.providers({ directory }, { throwOnError: true }).then((x) => x.data!.providers)
     const entries = sortProvidersByName(providers)
     const availableVariants = modelVariantsFromProviders(entries, model)
     const currentVariant = this.sessionManager.getVariant(sessionId)
