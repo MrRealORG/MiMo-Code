@@ -2,6 +2,7 @@ import { createStore } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import { batch, createEffect, createMemo, createSignal } from "solid-js"
 import { useSync } from "@tui/context/sync"
+import { useRoute } from "@tui/context/route"
 import { useTheme } from "@tui/context/theme"
 import { uniqueBy } from "remeda"
 import path from "path"
@@ -12,6 +13,7 @@ import { useArgs } from "./args"
 import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
 import { Filesystem } from "@/util"
+import * as Log from "@/util/log"
 
 export function parseModel(model: string) {
   const [providerID, ...rest] = model.split("/")
@@ -26,6 +28,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
   init: () => {
     const sync = useSync()
     const sdk = useSDK()
+    const route = useRoute()
     const toast = useToast()
 
     function isModelValid(model: { providerID: string; modelID: string }) {
@@ -38,6 +41,20 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const model = modelFn()
         if (!model) continue
         if (isModelValid(model)) return model
+      }
+    }
+
+    // When the user switches models while a retry (e.g. rate-limit 429) is in
+    // progress, abort the session so the stale retry clears. Otherwise the old
+    // provider's retry loop keeps running and the status bar keeps showing the
+    // previous error even though the user has moved on to a different model.
+    function abortRetryOnModelChange(newProviderID: string) {
+      const sessionID = route.data.type === "session" ? route.data.sessionID : undefined
+      if (!sessionID) return
+      const status = sync.data.session_status?.[sessionID]
+      if (status?.type === "retry") {
+        Log.Default.debug("model change during retry — aborting session", { sessionID, newProviderID })
+        void sdk.client.session.abort({ sessionID }).catch(() => {})
       }
     }
 
@@ -298,6 +315,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
             }
             const a = agent.current()
             if (!a) return
+            // If switching providers during a retry loop (e.g. rate-limited),
+            // abort the session so the stale retry status clears (#720).
+            const prev = modelStore.model[a.name]
+            if (prev && prev.providerID !== model.providerID) {
+              abortRetryOnModelChange(model.providerID)
+            }
             setModelStore("model", a.name, model)
             if (options?.recent) {
               const uniq = uniqueBy([model, ...modelStore.recent], (x) => `${x.providerID}/${x.modelID}`)

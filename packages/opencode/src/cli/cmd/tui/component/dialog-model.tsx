@@ -10,7 +10,6 @@ import { useKeybind } from "../context/keybind"
 import { useSDK } from "../context/sdk"
 import { useToast, type ToastContext } from "../ui/toast"
 import { DialogPrompt } from "../ui/dialog-prompt"
-import * as fuzzysort from "fuzzysort"
 
 const ADD_MODEL_SENTINEL = "__add_model__"
 
@@ -28,16 +27,15 @@ export function DialogModel(props: { providerID?: string }) {
   const sdk = useSDK()
   const toast = useToast()
   const keybind = useKeybind()
-  const [query, setQuery] = createSignal("")
+  const [filtering, setFiltering] = createSignal(false)
 
   const connected = useConnected()
   const providers = createDialogProviderOptions()
 
-  const showExtra = createMemo(() => connected() && !props.providerID)
+  const showExtra = createMemo(() => connected() && !props.providerID && !filtering())
 
   const options = createMemo(() => {
-    const needle = query().trim()
-    const showSections = showExtra() && needle.length === 0
+    const showSections = showExtra()
     const favorites = connected() ? local.model.favorite() : []
     const recents = local.model.recent()
 
@@ -141,13 +139,6 @@ export function DialogModel(props: { providerID?: string }) {
         )
       : []
 
-    if (needle) {
-      return [
-        ...fuzzysort.go(needle, providerOptions, { keys: ["title", "category"] }).map((x) => x.obj),
-        ...fuzzysort.go(needle, popularProviders, { keys: ["title"] }).map((x) => x.obj),
-      ]
-    }
-
     return [...favoriteOptions, ...recentOptions, ...providerOptions, ...popularProviders]
   })
 
@@ -198,9 +189,7 @@ export function DialogModel(props: { providerID?: string }) {
           },
         },
       ]}
-      onFilter={setQuery}
-      flat={true}
-      skipFilter={true}
+      onFilter={(text) => setFiltering(text.trim().length > 0)}
       title={title()}
       current={local.model.current()}
     />
