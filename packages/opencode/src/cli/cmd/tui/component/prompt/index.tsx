@@ -1723,7 +1723,7 @@ export function Prompt(props: PromptProps) {
               flexGrow={1}
               justifyContent={status().type === "retry" ? "space-between" : "flex-start"}
             >
-              <box flexShrink={0} flexDirection="row" gap={1}>
+              <box flexShrink={0} flexDirection="row" gap={1} minWidth={18}>
                 <box marginLeft={1}>
                   <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>
                     <spinner color={spinnerDef().color} frames={spinnerDef().frames} interval={40} />
@@ -1736,7 +1736,7 @@ export function Prompt(props: PromptProps) {
                   })
                   return (
                     <Show when={busyMessage()}>
-                      <text fg={theme.textMuted}>{busyMessage()}</text>
+                      <text fg={theme.textMuted} wrapMode="nowrap" overflow="hidden">{busyMessage()}</text>
                     </Show>
                   )
                 })()}
@@ -1827,19 +1827,17 @@ export function Prompt(props: PromptProps) {
                       <span style={{ fg: theme.textMuted }}>{t("tui.prompt.hint.settings")}</span>
                     </text>
                   </box>
-                  <Show when={status().type === "idle"}>
-                    <box gap={2} flexDirection="row">
-                      <text fg={theme.text}>
-                        @ <span style={{ fg: theme.textMuted }}>{t("tui.prompt.hint.attach_file")}</span>
-                      </text>
-                      <text fg={theme.text}>
-                        $ <span style={{ fg: theme.textMuted }}>{t("tui.prompt.hint.subagent")}</span>
-                      </text>
-                      <text fg={theme.text}>
-                        / <span style={{ fg: theme.textMuted }}>{t("tui.prompt.hint.commands")}</span>
-                      </text>
-                    </box>
-                  </Show>
+                  <box gap={2} flexDirection="row">
+                    <text fg={theme.textMuted}>
+                      @ <span style={{ fg: theme.textMuted }}>{t("tui.prompt.hint.attach_file")}</span>
+                    </text>
+                    <text fg={theme.textMuted}>
+                      $ <span style={{ fg: theme.textMuted }}>{t("tui.prompt.hint.subagent")}</span>
+                    </text>
+                    <text fg={theme.textMuted}>
+                      / <span style={{ fg: theme.textMuted }}>{t("tui.prompt.hint.commands")}</span>
+                    </text>
+                  </box>
                 </Match>
                 <Match when={store.mode === "shell"}>
                   <box flexGrow={1} flexDirection="row" justifyContent="flex-end">

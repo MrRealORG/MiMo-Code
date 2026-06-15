@@ -194,6 +194,40 @@ export const layer = Layer.effect(
     const scope = yield* Scope.Scope
     const runs = new Map<string, RunEntry>()
 
+    // --- Eviction: prevent unbounded growth of the in-memory runs Map ---
+    // Completed / failed / cancelled entries are retained for a grace period
+    // (default 5 min) so that status() and wait() can still return results,
+    // then evicted to free the Deferred (which holds the full result payload)
+    // and Fiber references. The durable record lives on in the DB via
+    // WorkflowPersistence.
+    const DEFAULT_COMPLETED_RUN_TTL_MS = 5 * 60 * 1000
+    const evictionTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+    const scheduleEviction = (runID: string) => {
+      const existing = evictionTimers.get(runID)
+      if (existing) { clearTimeout(existing); evictionTimers.delete(runID) }
+      const timer = setTimeout(() => {
+        evictionTimers.delete(runID)
+        const entry = runs.get(runID)
+        if (entry && entry.status !== "running") {
+          entry.childActorIDs.clear()
+          entry.worktrees.clear()
+          entry.childRunIDs.clear()
+          entry.warnedModelRefs.clear()
+          entry.fiber = undefined
+          runs.delete(runID)
+          log.debug("evicted completed workflow run from memory", { runID, status: entry.status })
+        }
+      }, DEFAULT_COMPLETED_RUN_TTL_MS)
+      if (timer.unref) timer.unref()
+      evictionTimers.set(runID, timer)
+    }
+
+    const cancelEviction = (runID: string) => {
+      const t = evictionTimers.get(runID)
+      if (t) { clearTimeout(t); evictionTimers.delete(runID) }
+    }
+
     // Resolve a guest-supplied model ref (a "provider/model" literal OR a
     // tier/group name like "lite") to a concrete {providerID, modelID} via the
     // Provider service — host-side, inside the runtime's own Layer scope (so it
@@ -355,6 +389,7 @@ export const layer = Layer.effect(
         entry.status = "cancelled"
         yield* Deferred.succeed(entry.deferred, { status: "cancelled" })
         yield* bus.publish(WorkflowFinished, { sessionID: entry.sessionID, runID: entry.runID, status: "cancelled" })
+        scheduleEviction(entry.runID)
       })
 
     const waitFor = (childRunID: string) =>
@@ -1051,6 +1086,7 @@ export const layer = Layer.effect(
           yield* WorkflowPersistence.recordTerminal({ runID, status: "completed" }).pipe(Effect.ignore)
           yield* Deferred.succeed(deferred, { status: "completed", result: result.success })
           yield* bus.publish(WorkflowFinished, { sessionID: input.sessionID, runID, status: "completed" })
+          scheduleEviction(runID)
           // Notify the parent so its next turn drains a completion message, the
           // same way background actors notify on terminal (see actor/spawn.ts
           // forkWork.notify). Fire-and-forget: a notify failure (e.g. parent row
@@ -1079,6 +1115,7 @@ export const layer = Layer.effect(
         yield* WorkflowPersistence.recordTerminal({ runID, status: "failed", error }).pipe(Effect.ignore)
         yield* Deferred.succeed(deferred, { status: "failed", error })
         yield* bus.publish(WorkflowFinished, { sessionID: input.sessionID, runID, status: "failed", error })
+          scheduleEviction(runID)
         yield* inbox
           .send({
             receiverSessionID: input.sessionID,
@@ -1169,6 +1206,7 @@ export const layer = Layer.effect(
         // a live `runs` entry means a fiber is actually executing here.
         const live = runs.get(input.runID)
         if (live && live.status === "running") return { runID: input.runID, resumed: false }
+        cancelEviction(input.runID)
         const row = yield* WorkflowPersistence.load(input.runID)
         if (!row) return { runID: input.runID, resumed: false }
         // readScript is Effect.promise — a missing file rejects as a DEFECT, which
@@ -1217,6 +1255,9 @@ export const layer = Layer.effect(
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         if (workflowRef.current === impl) workflowRef.current = undefined
+        for (const t of evictionTimers.values()) clearTimeout(t)
+        evictionTimers.clear()
+        runs.clear()
       }),
     )
     return impl
