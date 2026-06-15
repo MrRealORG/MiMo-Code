@@ -5,6 +5,9 @@ import { useSDK } from "../context/sdk"
 import { useSync } from "@tui/context/sync"
 import { useRoute } from "@tui/context/route"
 import { useToast } from "../ui/toast"
+import { Log } from "@/util"
+
+const log = Log.create({ service: "dialog-worktree" })
 import path from "path"
 
 const CREATE_SENTINEL = "__create_worktree__"
@@ -53,7 +56,9 @@ export function DialogWorktree() {
 
   async function switchTo(directory: string) {
     setBusy("Switching to worktree...")
-    await sdk.client.instance.dispose().catch(() => {})
+    await sdk.client.instance.dispose().catch((error) => {
+      log.error("Failed to dispose instance during worktree switch", { error })
+    })
     sdk.switchDirectory(directory)
     await sync.bootstrap()
     route.navigate({ type: "home" })

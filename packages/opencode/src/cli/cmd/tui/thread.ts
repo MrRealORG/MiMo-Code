@@ -25,6 +25,8 @@ declare global {
 
 type RpcClient = ReturnType<typeof Rpc.client<typeof rpc>>
 
+const log = Log.create({ service: "tui-thread" })
+
 function createWorkerFetch(client: RpcClient): typeof fetch {
   const fn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = new Request(input, init)
@@ -286,7 +288,9 @@ export const TuiThreadCommand = cmd({
           }
 
       setTimeout(() => {
-        client.call("checkUpgrade", { directory: cwd }).catch(() => {})
+        client.call("checkUpgrade", { directory: cwd }).catch((error) => {
+          log.error("Upgrade check failed", { error })
+        })
       }, 1000).unref?.()
 
       try {

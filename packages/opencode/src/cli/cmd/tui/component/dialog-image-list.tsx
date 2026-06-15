@@ -15,8 +15,12 @@ const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg"])
 const NONE_VALUE = "__mimocode_image_none__"
 const IMPORT_VALUE = "__mimocode_image_import__"
 
+const log = Log.create({ service: "dialog-image-list" })
+
 async function listBackgrounds() {
-  await fs.mkdir(BG_DIR, { recursive: true }).catch(() => {})
+  await fs.mkdir(BG_DIR, { recursive: true }).catch((error) => {
+    log.error("Failed to create backgrounds directory", { dir: BG_DIR, error })
+  })
   const items = await fs.readdir(BG_DIR).catch(() => [] as string[])
   return items
     .filter((f) => IMAGE_EXT.has(path.extname(f).toLowerCase()))
