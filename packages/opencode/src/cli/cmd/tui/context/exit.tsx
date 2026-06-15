@@ -37,11 +37,17 @@ export const { use: useExit, provider: ExitProvider } = createSimpleContext({
           // Reset window title before destroying renderer
           renderer.setTerminalTitle("")
           renderer.destroy()
-          // SGR reset + show cursor + OSC 110/111/112 reset terminal fg/bg/cursor color.
+          // SGR reset + show cursor + disable mouse tracking + OSC 110/111/112
+          // reset terminal fg/bg/cursor color.
           // Without the OSC resets, whatever fg/bg the active mimocode theme pushed
           // via OSC 10/11/12 would persist in the terminal session, leaving the
           // shell prompt unreadable (e.g. white-on-white).
-          process.stdout.write("\x1b[0m\x1b[?25h\x1b]110\x07\x1b]111\x07\x1b]112\x07")
+          // Mouse tracking (SGR 1006/1002) must be explicitly disabled; if
+          // renderer.destroy() races or fails, leftover mouse reports appear as
+          // visible garbage (e.g. [222:13:47M) in the terminal.
+          process.stdout.write(
+            "\x1b[0m\x1b[?25h\x1b[?1002l\x1b[?1006l\x1b]110\x07\x1b]111\x07\x1b]112\x07",
+          )
           win32FlushInputBuffer()
           if (reason) {
             const formatted = FormatError(reason) ?? FormatUnknownError(reason)

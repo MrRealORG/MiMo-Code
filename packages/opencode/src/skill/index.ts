@@ -97,11 +97,12 @@ const add = Effect.fnUntraced(function* (state: State, match: string, bus: Bus.I
   if (!parsed.success) return
 
   if (state.skills[parsed.data.name]) {
-    log.warn("duplicate skill name", {
+    log.debug("duplicate skill name skipped", {
       name: parsed.data.name,
       existing: state.skills[parsed.data.name].location,
       duplicate: match,
     })
+    return
   }
 
   state.dirs.add(path.dirname(match))
@@ -153,7 +154,11 @@ const discoverSkills = Effect.fnUntraced(function* (
 ) {
   const state: ScanState = { matches: new Set(), dirs: new Set() }
 
-  // Extract compose skills to disk first (user skills with same name override)
+  // Scan order matters: first-wins for duplicate names, so mimocode's own
+  // skills are loaded before external compatibility dirs (.claude, .codex, etc.)
+  // to ensure they always take precedence.
+
+  // 1. Compose skills (bundled defaults)
   if (!Flag.MIMOCODE_DISABLE_COMPOSE_SKILLS) {
     const composeSkillRoot = yield* extractComposeBundle(fsys).pipe(
       Effect.catch(() => Effect.succeed(undefined)),
@@ -163,6 +168,35 @@ const discoverSkills = Effect.fnUntraced(function* (
     }
   }
 
+  // 2. Mimocode config directories (user's own .mimocode/skill(s)/)
+  const configDirs = yield* config.directories()
+  for (const dir of configDirs) {
+    yield* scan(state, dir, MIMOCODE_SKILL_PATTERN)
+  }
+
+  // 3. Explicit skill paths from mimocode.json
+  const cfg = yield* config.get()
+  for (const item of cfg.skills?.paths ?? []) {
+    const expanded = item.startsWith("~/") ? path.join(os.homedir(), item.slice(2)) : item
+    const dir = path.isAbsolute(expanded) ? expanded : path.join(directory, expanded)
+    if (!(yield* fsys.isDir(dir))) {
+      log.warn("skill path not found", { path: dir })
+      continue
+    }
+
+    yield* scan(state, dir, SKILL_PATTERN)
+  }
+
+  // 4. URL-based skills from mimocode.json
+  for (const url of cfg.skills?.urls ?? []) {
+    const pulledDirs = yield* discovery.pull(url)
+    for (const dir of pulledDirs) {
+      yield* scan(state, dir, SKILL_PATTERN)
+    }
+  }
+
+  // 5. External compatibility dirs (.claude, .codex, .opencode, .agents) —
+  //    scanned last so they never override mimocode's own skills
   if (!Flag.MIMOCODE_DISABLE_EXTERNAL_SKILLS) {
     const externalDirs = EXTERNAL_DIRS.filter((dir) => {
       if (dir === ".claude" && Flag.MIMOCODE_DISABLE_CLAUDE_CODE_SKILLS) return false
@@ -183,30 +217,6 @@ const discoverSkills = Effect.fnUntraced(function* (
 
     for (const root of upDirs) {
       yield* scan(state, root, EXTERNAL_SKILL_PATTERN, { dot: true, scope: "project" })
-    }
-  }
-
-  const configDirs = yield* config.directories()
-  for (const dir of configDirs) {
-    yield* scan(state, dir, MIMOCODE_SKILL_PATTERN)
-  }
-
-  const cfg = yield* config.get()
-  for (const item of cfg.skills?.paths ?? []) {
-    const expanded = item.startsWith("~/") ? path.join(os.homedir(), item.slice(2)) : item
-    const dir = path.isAbsolute(expanded) ? expanded : path.join(directory, expanded)
-    if (!(yield* fsys.isDir(dir))) {
-      log.warn("skill path not found", { path: dir })
-      continue
-    }
-
-    yield* scan(state, dir, SKILL_PATTERN)
-  }
-
-  for (const url of cfg.skills?.urls ?? []) {
-    const pulledDirs = yield* discovery.pull(url)
-    for (const dir of pulledDirs) {
-      yield* scan(state, dir, SKILL_PATTERN)
     }
   }
 
