@@ -3,7 +3,7 @@ import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, S
 import "opentui-spinner/solid"
 import path from "path"
 import { fileURLToPath } from "url"
-import { Filesystem } from "@/util"
+import { Filesystem, Log } from "@/util"
 import { useLocal } from "@tui/context/local"
 import { tint, useTheme } from "@tui/context/theme"
 import { EmptyBorder, SplitBorder } from "@tui/component/border"
@@ -71,6 +71,8 @@ export type PromptRef = {
   submit(): void
   paste(): void
 }
+
+const log = Log.create({ service: "tui.prompt" })
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -1017,7 +1019,7 @@ export function Prompt(props: PromptProps) {
       const res = await sdk.client.session.create({ workspace: props.workspaceID })
 
       if (res.error) {
-        console.log("Creating a session failed:", res.error)
+        log.error("Creating a session failed", { error: res.error })
 
         toast.show({
           message: "Creating a session failed. Open console for more details.",

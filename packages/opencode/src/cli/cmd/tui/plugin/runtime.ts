@@ -96,12 +96,10 @@ function fail(message: string, data: Record<string, unknown>) {
   const text = `${message}: ${errorMessage(data.error)}`
   const next = { ...data, error: errorData(data.error) }
   log.error(text, next)
-  console.error(`[tui.plugin] ${text}`, next)
 }
 
 function warn(message: string, data: Record<string, unknown>) {
   log.warn(message, data)
-  console.warn(`[tui.plugin] ${message}`, data)
 }
 
 type CleanupResult = { type: "ok" } | { type: "error"; error: unknown } | { type: "timeout" }
