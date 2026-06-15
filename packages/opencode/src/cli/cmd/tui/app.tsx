@@ -360,7 +360,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
         if (!providerID || !modelID)
           return toast.show({
             variant: "warning",
-            message: `Invalid model format: ${args.model}`,
+            message: `${t("tui.toast.invalid_model")}: ${args.model}`,
             duration: 3000,
           })
         local.model.set({ providerID, modelID }, { recent: true })
@@ -388,7 +388,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
           if (result.data?.id) {
             route.navigate({ type: "session", sessionID: result.data.id })
           } else {
-            toast.show({ message: "Failed to fork session", variant: "error" })
+            toast.show({ message: t("tui.toast.fork_failed"), variant: "error" })
           }
         })
       } else {
@@ -813,7 +813,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
         const files = await props.onSnapshot?.()
         toast.show({
           variant: "info",
-          message: `Heap snapshot written to ${files?.join(", ")}`,
+          message: `${t("tui.toast.heap_snapshot")}: ${files?.join(", ")}`,
           duration: 5000,
         })
         dialog.clear()
@@ -939,7 +939,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       route.navigate({ type: "home" })
       toast.show({
         variant: "info",
-        message: "The current session was deleted",
+        message: t("tui.toast.session_deleted"),
       })
     }
   })
@@ -1073,7 +1073,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
         } catch (retryErr: any) {
           toast.show({
             variant: "error",
-            message: `Interactive command reply failed: ${retryErr?.message ?? "unknown"}`,
+            message: `${t("tui.toast.command_reply_failed")}: ${retryErr?.message ?? "unknown"}`,
           })
         }
       }
