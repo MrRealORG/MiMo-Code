@@ -77,10 +77,21 @@ export function startStreaming(opts: {
   const proc = Process.spawn([recorder.cmd, ...recorder.pipeArgs()], {
     stdin: "ignore",
     stdout: "pipe",
-    stderr: "ignore",
+    stderr: "pipe",
   })
 
   const handle: StreamingHandle = { proc, vad, startTime: Date.now(), aborted: false, reading: Promise.resolve() }
+
+  // Collect stderr so we can include recorder diagnostics in
+  // error messages (e.g. sox "no default audio device configured").
+  let stderrBuf = ""
+  if (proc.stderr) {
+    void (async () => {
+      for await (const chunk of proc.stderr as AsyncIterable<Buffer>) {
+        stderrBuf += chunk.toString()
+      }
+    })().catch(() => {})
+  }
 
   handle.reading = (async () => {
     await vad.init()
@@ -105,7 +116,9 @@ export function startStreaming(opts: {
     }
   })().catch((err) => {
     proc.kill("SIGINT")
-    opts.onError?.(err instanceof Error ? err : new Error(String(err)))
+    const base = err instanceof Error ? err.message : String(err)
+    const detail = stderrBuf.trim()
+    opts.onError?.(new Error(detail ? `${base}: ${detail}` : base))
   })
 
   return handle
