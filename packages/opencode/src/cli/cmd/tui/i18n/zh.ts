@@ -387,4 +387,27 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自动",
+
+  // Worktree dialog
+  "tui.worktree.title": "工作树",
+  "tui.worktree.loading": "加载工作树...",
+  "tui.worktree.create": "+ 创建新工作树",
+  "tui.worktree.switching": "切换工作树中...",
+  "tui.worktree.switched": "已切换到 {name}",
+  "tui.worktree.creating": "创建工作树中...",
+  "tui.worktree.create_failed": "创建工作树失败",
+
+  // Session rename dialog
+  "tui.session_rename.title": "重命名会话",
+
+  // Skill dialog
+  "tui.skill.title": "技能",
+  "tui.skill.search_placeholder": "搜索技能...",
+
+  // Theme dialog
+  "tui.theme.title": "主题",
+
+  // Variant dialog
+  "tui.variant.default": "默认",
+  "tui.variant.select_title": "选择变体",
 } satisfies Partial<Record<Keys, string>>

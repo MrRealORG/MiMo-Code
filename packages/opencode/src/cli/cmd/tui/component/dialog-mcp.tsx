@@ -7,6 +7,7 @@ import { useTheme } from "../context/theme"
 import { Keybind } from "@/util"
 import { TextAttributes } from "@opentui/core"
 import { useSDK } from "@tui/context/sdk"
+import { useLanguage } from "../context/language"
 
 function Status(props: { enabled: boolean; loading: boolean }) {
   const { theme } = useTheme()
@@ -25,6 +26,7 @@ export function DialogMcp() {
   const sdk = useSDK()
   const [, setRef] = createSignal<DialogSelectRef<unknown>>()
   const [loading, setLoading] = createSignal<string | null>(null)
+  const { t } = useLanguage()
 
   const options = createMemo(() => {
     // Track sync data and loading state to trigger re-render when they change

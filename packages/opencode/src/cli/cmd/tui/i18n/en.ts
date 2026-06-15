@@ -394,4 +394,27 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Worktree dialog
+  "tui.worktree.title": "Worktrees",
+  "tui.worktree.loading": "Loading worktrees...",
+  "tui.worktree.create": "+ Create new worktree",
+  "tui.worktree.switching": "Switching to worktree...",
+  "tui.worktree.switched": "Switched to {name}",
+  "tui.worktree.creating": "Creating worktree...",
+  "tui.worktree.create_failed": "Failed to create worktree",
+
+  // Session rename dialog
+  "tui.session_rename.title": "Rename Session",
+
+  // Skill dialog
+  "tui.skill.title": "Skills",
+  "tui.skill.search_placeholder": "Search skills...",
+
+  // Theme dialog
+  "tui.theme.title": "Themes",
+
+  // Variant dialog
+  "tui.variant.default": "Default",
+  "tui.variant.select_title": "Select variant",
 }

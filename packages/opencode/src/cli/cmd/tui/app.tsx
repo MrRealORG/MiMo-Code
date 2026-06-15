@@ -35,6 +35,7 @@ import { DialogThemeList } from "@tui/component/dialog-theme-list"
 import { DialogImageList } from "@tui/component/dialog-image-list"
 import { DialogLogoDesign } from "@tui/component/dialog-logo-design"
 import { DialogHelp } from "./ui/dialog-help"
+import { Log } from "@/util"
 import { CommandProvider, useCommandDialog } from "@tui/component/dialog-command"
 import { DialogAgent } from "@tui/component/dialog-agent"
 import { DialogSessionList } from "@tui/component/dialog-session-list"
@@ -99,7 +100,7 @@ function rendererConfig(_config: TuiConfig.Info, plainTerminal: boolean): CliRen
       keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
       onCopySelection: (text) => {
         Clipboard.copy(text).catch((error) => {
-          console.error(`Failed to copy console selection to clipboard: ${error}`)
+          log.error("Failed to copy console selection to clipboard", { error: String(error) })
         })
       },
     },
@@ -223,6 +224,7 @@ export function tui(input: {
 }
 
 function App(props: { onSnapshot?: () => Promise<string[]> }) {
+  const log = Log.create({ service: "tui.app" })
   const tuiConfig = useTuiConfig()
   const plainTerminal = isPlainTerminal()
   const route = useRoute()
@@ -272,7 +274,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     config: tuiConfig,
   })
     .catch((error) => {
-      console.error("Failed to load TUI plugins", error)
+      log.error("Failed to load TUI plugins", { error })
     })
     .finally(() => {
       setReady(true)

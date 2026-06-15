@@ -27,6 +27,9 @@ import * as Editor from "@tui/util/editor"
 import * as Voice from "@tui/util/voice"
 import { useExit } from "../../context/exit"
 import * as Clipboard from "../../util/clipboard"
+import { Log } from "@/util"
+
+const log = Log.create({ service: "tui.prompt" })
 import type { AssistantMessage, FilePart, UserMessage } from "@mimo-ai/sdk/v2"
 import { TuiEvent } from "../../event"
 import { iife } from "@/util/iife"
@@ -1017,7 +1020,7 @@ export function Prompt(props: PromptProps) {
       const res = await sdk.client.session.create({ workspace: props.workspaceID })
 
       if (res.error) {
-        console.log("Creating a session failed:", res.error)
+        log.error("Creating a session failed", { error: res.error })
 
         toast.show({
           message: "Creating a session failed. Open console for more details.",

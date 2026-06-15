@@ -389,4 +389,27 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+
+  // Worktree dialog
+  "tui.worktree.title": "ワークツリー",
+  "tui.worktree.loading": "ワークツリーを読み込み中...",
+  "tui.worktree.create": "+ 新しいワークツリーを作成",
+  "tui.worktree.switching": "ワークツリーに切り替え中...",
+  "tui.worktree.switched": "{name} に切り替えました",
+  "tui.worktree.creating": "ワークツリーを作成中...",
+  "tui.worktree.create_failed": "ワークツリーの作成に失敗しました",
+
+  // Session rename dialog
+  "tui.session_rename.title": "セッションの名前変更",
+
+  // Skill dialog
+  "tui.skill.title": "スキル",
+  "tui.skill.search_placeholder": "スキルを検索...",
+
+  // Theme dialog
+  "tui.theme.title": "テーマ",
+
+  // Variant dialog
+  "tui.variant.default": "デフォルト",
+  "tui.variant.select_title": "バリアントを選択",
 } satisfies Partial<Record<Keys, string>>

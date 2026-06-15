@@ -449,4 +449,27 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Авто",
+
+  // Worktree dialog
+  "tui.worktree.title": "Рабочие деревья",
+  "tui.worktree.loading": "Загрузка рабочих деревьев...",
+  "tui.worktree.create": "+ Создать новое рабочее дерево",
+  "tui.worktree.switching": "Переключение на рабочее дерево...",
+  "tui.worktree.switched": "Переключено на {name}",
+  "tui.worktree.creating": "Создание рабочего дерева...",
+  "tui.worktree.create_failed": "Не удалось создать рабочее дерево",
+
+  // Session rename dialog
+  "tui.session_rename.title": "Переименовать сессию",
+
+  // Skill dialog
+  "tui.skill.title": "Навыки",
+  "tui.skill.search_placeholder": "Поиск навыков...",
+
+  // Theme dialog
+  "tui.theme.title": "Темы",
+
+  // Variant dialog
+  "tui.variant.default": "По умолчанию",
+  "tui.variant.select_title": "Выберите вариант",
 } satisfies Partial<Record<Keys, string>>

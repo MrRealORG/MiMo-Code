@@ -437,4 +437,27 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+
+  // Worktree dialog
+  "tui.worktree.title": "Arbres de travail",
+  "tui.worktree.loading": "Chargement des arbres de travail...",
+  "tui.worktree.create": "+ Créer un nouvel arbre de travail",
+  "tui.worktree.switching": "Basculement vers l'arbre de travail...",
+  "tui.worktree.switched": "Basculé vers {name}",
+  "tui.worktree.creating": "Création de l'arbre de travail...",
+  "tui.worktree.create_failed": "Échec de la création de l'arbre de travail",
+
+  // Session rename dialog
+  "tui.session_rename.title": "Renommer la session",
+
+  // Skill dialog
+  "tui.skill.title": "Compétences",
+  "tui.skill.search_placeholder": "Rechercher des compétences...",
+
+  // Theme dialog
+  "tui.theme.title": "Thèmes",
+
+  // Variant dialog
+  "tui.variant.default": "Par défaut",
+  "tui.variant.select_title": "Sélectionner une variante",
 } satisfies Partial<Record<Keys, string>>

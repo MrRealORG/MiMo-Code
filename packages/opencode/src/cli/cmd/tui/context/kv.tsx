@@ -1,5 +1,6 @@
 import { Global } from "@/global"
 import { Filesystem } from "@/util"
+import { Log } from "@/util"
 import { Flock } from "@mimo-ai/shared/util/flock"
 import { rename, rm } from "fs/promises"
 import { createSignal, type Setter } from "solid-js"
@@ -14,6 +15,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
     const [store, setStore] = createStore<Record<string, any>>()
     const filePath = path.join(Global.Path.state, "kv.json")
     const lock = `tui-kv:${filePath}`
+    const log = Log.create({ service: "tui.kv" })
     // Queue same-process writes so rapid updates persist in order.
     let write = Promise.resolve()
 
@@ -34,7 +36,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         setStore(x)
       })
       .catch((error) => {
-        console.error("Failed to read KV state", { filePath, error })
+        log.error("Failed to read KV state", { filePath, error })
       })
       .finally(() => {
         setReady(true)
@@ -67,7 +69,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         write = write
           .then(() => Flock.withLock(lock, () => writeSnapshot(snapshot)))
           .catch((error) => {
-            console.error("Failed to write KV state", { filePath, error })
+            log.error("Failed to write KV state", { filePath, error })
           })
       },
     }
