@@ -447,6 +447,7 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+  "tui.session.rename": "Renombrar sesión",
 
   // Workspace trust
   "trust.title": "Accediendo al espacio de trabajo:",

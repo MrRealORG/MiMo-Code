@@ -473,6 +473,7 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "Авто",
+  "tui.session.rename": "Переименовать сессию",
 
   // Workspace trust
   "trust.title": "Доступ к рабочему пространству:",

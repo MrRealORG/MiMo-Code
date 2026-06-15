@@ -413,6 +413,7 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+  "tui.session.rename": "セッション名の変更",
 
   // Workspace trust
   "trust.title": "ワークスペースにアクセス中：",

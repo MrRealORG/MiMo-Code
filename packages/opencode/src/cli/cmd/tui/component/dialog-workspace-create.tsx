@@ -251,7 +251,7 @@ export function DialogWorkspaceCreate(props: { onSelect: (workspaceID: string) =
       setCreating(undefined)
       log.error("workspace create failed", {
         type,
-        status: result?.response.status,
+        status: result?.response?.status,
         error: result?.error ? errorData(result.error) : undefined,
       })
       toast.show({

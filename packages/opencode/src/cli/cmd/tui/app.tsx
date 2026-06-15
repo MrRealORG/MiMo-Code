@@ -16,6 +16,7 @@ import {
 } from "solid-js"
 import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
 import { Flag } from "@/flag/flag"
+import * as Log from "@/util/log"
 import semver from "semver"
 import { DialogProvider, useDialog } from "@tui/ui/dialog"
 import { DialogMimoLogin } from "@tui/component/dialog-mimo-login"
@@ -99,7 +100,7 @@ function rendererConfig(_config: TuiConfig.Info, plainTerminal: boolean): CliRen
       keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
       onCopySelection: (text) => {
         Clipboard.copy(text).catch((error) => {
-          console.error(`Failed to copy console selection to clipboard: ${error}`)
+          Log.Default.error("Failed to copy console selection to clipboard", { error: String(error) })
         })
       },
     },
@@ -272,7 +273,7 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
     config: tuiConfig,
   })
     .catch((error) => {
-      console.error("Failed to load TUI plugins", error)
+      Log.Default.error("Failed to load TUI plugins", { error: String(error) })
     })
     .finally(() => {
       setReady(true)

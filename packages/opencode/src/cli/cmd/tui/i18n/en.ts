@@ -412,6 +412,7 @@ export const dict: Record<string, string> = {
 
   // Session badges
   "tui.session.badge.auto": "Auto",
+  "tui.session.rename": "Rename Session",
 
   // Workspace trust
   "trust.title": "Accessing workspace:",

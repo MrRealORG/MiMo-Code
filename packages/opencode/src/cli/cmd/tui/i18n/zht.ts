@@ -374,6 +374,7 @@ export const dict = {
 
   // Session badges
   "tui.session.badge.auto": "自動",
+  "tui.session.rename": "重新命名會話",
 
   // Workspace trust
   "trust.title": "存取工作區：",
