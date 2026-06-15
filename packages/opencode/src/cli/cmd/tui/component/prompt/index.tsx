@@ -1002,6 +1002,7 @@ export function Prompt(props: PromptProps) {
                     toast,
                     workspaceID: nextWorkspaceID,
                     sessionID: props.sessionID!,
+                    t,
                   })
                 }
               />
