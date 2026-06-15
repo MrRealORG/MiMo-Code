@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js"
+import { createSignal, onCleanup, onMount, Show } from "solid-js"
 import { useSDK } from "../context/sdk"
 import { useSync } from "@tui/context/sync"
 import { useLocal } from "@tui/context/local"
@@ -176,12 +176,14 @@ function MimoOAuthFlow(props: { url: string; instructions: string }) {
   const [copied, setCopied] = createSignal(false)
 
   function copyUrl() {
+    let handle: ReturnType<typeof setTimeout>
     Clipboard.copy(props.url)
       .then(() => {
         setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        handle = setTimeout(() => setCopied(false), 2000)
       })
       .catch(toast.error)
+    onCleanup(() => clearTimeout(handle))
   }
 
   async function onLoginSuccess() {

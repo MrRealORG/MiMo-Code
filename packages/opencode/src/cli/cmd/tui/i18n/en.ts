@@ -413,7 +413,15 @@ export const dict: Record<string, string> = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
-  // Workspace trust
+  
+  // MCP dialog
+  "tui.dialog.mcp.title": "MCPs",
+  "tui.dialog.mcp.loading": "⋯ Loading",
+  "tui.dialog.mcp.enabled": "✓ Enabled",
+  "tui.dialog.mcp.disabled": "○ Disabled",
+  "tui.dialog.mcp.failed": "failed",
+  "tui.dialog.mcp.toggle": "toggle",
+// Workspace trust
   "trust.title": "Accessing workspace:",
   "trust.safety_check": "Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first.",
   "trust.capabilities": "MiMo Code will be able to read, edit, and execute files here.",

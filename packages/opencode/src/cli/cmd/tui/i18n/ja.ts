@@ -414,7 +414,15 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
-  // Workspace trust
+  
+  // MCP dialog
+  "tui.dialog.mcp.title": "MCP",
+  "tui.dialog.mcp.loading": "⋯ 読み込み中",
+  "tui.dialog.mcp.enabled": "✓ 有効",
+  "tui.dialog.mcp.disabled": "○ 無効",
+  "tui.dialog.mcp.failed": "失敗",
+  "tui.dialog.mcp.toggle": "切り替え",
+// Workspace trust
   "trust.title": "ワークスペースにアクセス中：",
   "trust.safety_check": "安全確認：これはあなたが作成した、または信頼しているプロジェクトですか？（自分のコード、有名なオープンソースプロジェクト、チームの作業など）。そうでない場合は、まずこのフォルダの内容を確認してください。",
   "trust.capabilities": "MiMo Code はここでファイルの読み取り、編集、実行が可能になります。",

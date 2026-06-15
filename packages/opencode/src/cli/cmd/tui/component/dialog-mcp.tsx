@@ -1,28 +1,34 @@
 import { createMemo, createSignal } from "solid-js"
 import { useLocal } from "@tui/context/local"
 import { useSync } from "@tui/context/sync"
+import { useLanguage } from "@tui/context/language"
 import { map, pipe, entries, sortBy } from "remeda"
 import { DialogSelect, type DialogSelectRef, type DialogSelectOption } from "@tui/ui/dialog-select"
 import { useTheme } from "../context/theme"
 import { Keybind } from "@/util"
 import { TextAttributes } from "@opentui/core"
-import { useSDK } from "@tui/context/sdk"
+import { useSDK } from "../context/sdk"
+import { Log } from "@/util/log"
+
+const log = Log.Default.clone().tag("service", "tui-mcp")
 
 function Status(props: { enabled: boolean; loading: boolean }) {
   const { theme } = useTheme()
+  const { t } = useLanguage()
   if (props.loading) {
-    return <span style={{ fg: theme.textMuted }}>⋯ Loading</span>
+    return <span style={{ fg: theme.textMuted }}>{t("tui.dialog.mcp.loading")}</span>
   }
   if (props.enabled) {
-    return <span style={{ fg: theme.success, attributes: TextAttributes.BOLD }}>✓ Enabled</span>
+    return <span style={{ fg: theme.success, attributes: TextAttributes.BOLD }}>{t("tui.dialog.mcp.enabled")}</span>
   }
-  return <span style={{ fg: theme.textMuted }}>○ Disabled</span>
+  return <span style={{ fg: theme.textMuted }}>{t("tui.dialog.mcp.disabled")}</span>
 }
 
 export function DialogMcp() {
   const local = useLocal()
   const sync = useSync()
   const sdk = useSDK()
+  const { t } = useLanguage()
   const [, setRef] = createSignal<DialogSelectRef<unknown>>()
   const [loading, setLoading] = createSignal<string | null>(null)
 
@@ -38,7 +44,7 @@ export function DialogMcp() {
       map(([name, status]) => ({
         value: name,
         title: name,
-        description: status.status === "failed" ? "failed" : status.status,
+        description: status.status === "failed" ? t("tui.dialog.mcp.failed") : status.status,
         footer: <Status enabled={local.mcp.isEnabled(name)} loading={loadingMcp === name} />,
         category: undefined,
       })),
@@ -48,7 +54,7 @@ export function DialogMcp() {
   const keybinds = createMemo(() => [
     {
       keybind: Keybind.parse("space")[0],
-      title: "toggle",
+      title: t("tui.dialog.mcp.toggle"),
       onTrigger: async (option: DialogSelectOption<string>) => {
         // Prevent toggling while an operation is already in progress
         if (loading() !== null) return
@@ -61,10 +67,10 @@ export function DialogMcp() {
           if (status.data) {
             sync.set("mcp", status.data)
           } else {
-            console.error("Failed to refresh MCP status: no data returned")
+            log.warn("MCP status refresh returned no data")
           }
         } catch (error) {
-          console.error("Failed to toggle MCP:", error)
+          log.warn("MCP toggle failed", { name: option.value, error: String(error) })
         } finally {
           setLoading(null)
         }
@@ -75,7 +81,7 @@ export function DialogMcp() {
   return (
     <DialogSelect
       ref={setRef}
-      title="MCPs"
+      title={t("tui.dialog.mcp.title")}
       options={options()}
       keybind={keybinds()}
       onSelect={(_option) => {
