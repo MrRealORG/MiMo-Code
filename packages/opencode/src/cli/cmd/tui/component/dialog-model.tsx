@@ -164,11 +164,9 @@ export function DialogModel(props: { providerID?: string }) {
   function onSelect(providerID: string, modelID: string) {
     local.model.set({ providerID, modelID }, { recent: true })
     const list = local.model.variant.list()
-    const cur = local.model.variant.selected()
-    if (cur === "default" || (cur && list.includes(cur))) {
-      dialog.clear()
-      return
-    }
+    // Always show the variant selector when the model supports variants,
+    // so users can change their reasoning effort even when re-selecting
+    // the same model from the Recent group.
     if (list.length > 0) {
       dialog.replace(() => <DialogVariant />)
       return
