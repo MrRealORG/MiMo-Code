@@ -176,7 +176,7 @@ const INVALID_OUTPUT_CONTINUATION_LIMIT = Flag.MIMOCODE_INVALID_OUTPUT_CONTINUAT
 const log = Log.create({ service: "session.prompt" })
 
 function isExtensionPath(filePath: string): boolean {
-  return /\/\.mimocode\/(tools?|skills?|hooks?)\//.test(filePath)
+  return /[/\\]\.mimocode[/\\](tools?|skills?|hooks?)[/\\]/.test(filePath)
 }
 const elog = EffectLogger.create({ service: "session.prompt" })
 
@@ -2416,7 +2416,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
               const m = msgs[i]
               if (m.info.role !== "assistant" || !m.info.finish) continue
               const sig = stepSignature(m.parts)
-              if (sig === undefined) break
+              if (sig === undefined) continue
               recentSignatures.push(sig)
             }
             const repeating =
