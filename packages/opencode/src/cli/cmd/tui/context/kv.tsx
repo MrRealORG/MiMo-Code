@@ -1,5 +1,5 @@
 import { Global } from "@/global"
-import { Filesystem } from "@/util"
+import { Filesystem, Log } from "@/util"
 import { Flock } from "@mimo-ai/shared/util/flock"
 import { rename, rm } from "fs/promises"
 import { createSignal, type Setter } from "solid-js"
@@ -10,6 +10,7 @@ import path from "path"
 export const { use: useKV, provider: KVProvider } = createSimpleContext({
   name: "KV",
   init: () => {
+    const kvLog = Log.Default.clone().tag("service", "tui-kv")
     const [ready, setReady] = createSignal(false)
     const [store, setStore] = createStore<Record<string, any>>()
     const filePath = path.join(Global.Path.state, "kv.json")
@@ -34,7 +35,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         setStore(x)
       })
       .catch((error) => {
-        console.error("Failed to read KV state", { filePath, error })
+        kvLog.error("Failed to read KV state", { filePath, error })
       })
       .finally(() => {
         setReady(true)
@@ -67,7 +68,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         write = write
           .then(() => Flock.withLock(lock, () => writeSnapshot(snapshot)))
           .catch((error) => {
-            console.error("Failed to write KV state", { filePath, error })
+            kvLog.error("Failed to write KV state", { filePath, error })
           })
       },
       delete(key: string) {
@@ -77,7 +78,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         write = write
           .then(() => Flock.withLock(lock, () => writeSnapshot(snapshot)))
           .catch((error) => {
-            console.error("Failed to write KV state", { filePath, error })
+            kvLog.error("Failed to write KV state", { filePath, error })
           })
       },
     }

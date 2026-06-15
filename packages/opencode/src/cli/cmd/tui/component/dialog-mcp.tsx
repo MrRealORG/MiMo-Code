@@ -61,10 +61,10 @@ export function DialogMcp() {
           if (status.data) {
             sync.set("mcp", status.data)
           } else {
-            console.error("Failed to refresh MCP status: no data returned")
+            log.warn("MCP status refresh returned no data")
           }
         } catch (error) {
-          console.error("Failed to toggle MCP:", error)
+          log.warn("MCP toggle failed", { name: option.value, error: String(error) })
         } finally {
           setLoading(null)
         }
