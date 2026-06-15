@@ -6,6 +6,7 @@ import { Locale } from "@/util"
 import { useSDK } from "@tui/context/sdk"
 import { useRoute } from "@tui/context/route"
 import { useDialog, type DialogContext } from "../../ui/dialog"
+import { useLanguage } from "../../context/language"
 import type { PromptInfo } from "@tui/component/prompt/history"
 import { strip } from "@tui/component/prompt/part"
 
@@ -14,6 +15,7 @@ export function DialogForkFromTimeline(props: { sessionID: string; onMove: (mess
   const dialog = useDialog()
   const sdk = useSDK()
   const route = useRoute()
+  const { t } = useLanguage()
 
   onMount(() => {
     dialog.setSize("large")
@@ -22,7 +24,7 @@ export function DialogForkFromTimeline(props: { sessionID: string; onMove: (mess
   const options = createMemo((): DialogSelectOption<string | undefined>[] => {
     const messages = sync.data.message[props.sessionID]?.["main"] ?? []
     const fullSession = {
-      title: "Full session",
+      title: t("tui.dialog.fork.full_session"),
       value: undefined,
       onSelect: async (dialog: DialogContext) => {
         const forked = await sdk.client.session.fork({ sessionID: props.sessionID })
@@ -72,5 +74,5 @@ export function DialogForkFromTimeline(props: { sessionID: string; onMove: (mess
     return [fullSession, ...result.reverse()]
   })
 
-  return <DialogSelect onMove={(option) => props.onMove(option.value)} title="Fork session" options={options()} />
+  return <DialogSelect onMove={(option) => props.onMove(option.value)} title={t("tui.dialog.fork.title")} options={options()} />
 }
