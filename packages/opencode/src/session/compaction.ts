@@ -308,6 +308,11 @@ export const layer: Layer.Layer<
 
       const prompt = compacting.prompt ?? [defaultPrompt, ...compacting.context].join("\n\n")
       const msgs = structuredClone(selected.head)
+      // Strip reasoning parts so the compaction LLM only sees final output,
+      // preventing thinking/reasoning text from leaking into the summary.
+      for (const msg of msgs) {
+        msg.parts = msg.parts.filter((part) => part.type !== "reasoning")
+      }
       yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
       const modelMessages = yield* MessageV2.toModelMessagesEffect(msgs, model, { stripMedia: true })
       const ctx = yield* InstanceState.context
