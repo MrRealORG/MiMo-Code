@@ -386,7 +386,7 @@ export const runMaxStep = (input: MaxStepInput): Effect.Effect<SessionProcessor.
       finishReason: winner.finishReason,
       usage: winner.usage,
       providerMetadata: winner.providerMetadata,
-      tools: input.tools as any,
+      tools: input.tools,
       messages: input.messages,
       selection: { winner: pick, total: survivors.length },
       thinkingMs: Date.now() - ensembleStartedAt,

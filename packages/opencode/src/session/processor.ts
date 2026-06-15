@@ -18,6 +18,7 @@ import { SessionRetry } from "./retry"
 import { SessionStatus } from "./status"
 import { SessionSummary } from "./summary"
 import type { Provider } from "@/provider"
+import type { Tool as AITool } from "ai"
 import { Question } from "@/question"
 import { errorMessage } from "@/util/error"
 import { isRecoverableError } from "@/tool/recoverable"
@@ -58,7 +59,7 @@ export type ReplayInput = {
   usage?: any
   providerMetadata?: Record<string, any>
   /** Execute-bearing tools (from resolveTools) used to run the winner's calls. */
-  tools: Record<string, { execute?: (input: any, options: any) => Promise<any> }>
+  tools: Record<string, AITool>
   /** Model messages passed to tool execute contexts. */
   messages: any[]
   /**
