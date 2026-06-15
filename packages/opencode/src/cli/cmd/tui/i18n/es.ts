@@ -448,7 +448,21 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
-  // Workspace trust
+  
+  // Workspace create dialog
+  "tui.dialog.workspace.create_session_failed": "Error al crear la sesión del espacio de trabajo",
+  "tui.dialog.workspace.restore_failed": "Error al restaurar la sesión: {{error}}",
+  "tui.dialog.workspace.restore_success": "Sesión restaurada en el nuevo espacio de trabajo",
+  "tui.dialog.workspace.adaptors_load_failed": "Error al cargar los adaptadores del espacio de trabajo",
+  "tui.dialog.workspace.create_failed": "Error al crear el espacio de trabajo",
+  "tui.dialog.workspace.create_error": "Error al crear el espacio de trabajo: {{error}}",
+  "tui.dialog.workspace.title.creating": "Creando espacio de trabajo",
+  "tui.dialog.workspace.title.new": "Nuevo espacio de trabajo",
+  "tui.dialog.workspace.creating": "Creando espacio de trabajo {{type}}...",
+  "tui.dialog.workspace.creating_desc": "Esto puede tardar un momento en entornos remotos",
+  "tui.dialog.workspace.loading": "Cargando espacios de trabajo...",
+  "tui.dialog.workspace.loading_desc": "Obteniendo adaptadores de espacios de trabajo disponibles",
+// Workspace trust
   "trust.title": "Accediendo al espacio de trabajo:",
   "trust.safety_check": "Verificación rápida: ¿Es este un proyecto que creaste o en el que confías? (Tu propio código, un proyecto open source conocido o trabajo de tu equipo). Si no, tómate un momento para revisar el contenido de esta carpeta.",
   "trust.capabilities": "MiMo Code podrá leer, editar y ejecutar archivos aquí.",

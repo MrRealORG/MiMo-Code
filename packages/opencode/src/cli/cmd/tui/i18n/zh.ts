@@ -406,7 +406,21 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自动",
 
-  // Workspace trust
+  
+  // Workspace create dialog
+  "tui.dialog.workspace.create_session_failed": "创建工作区会话失败",
+  "tui.dialog.workspace.restore_failed": "恢复会话失败：{{error}}",
+  "tui.dialog.workspace.restore_success": "会话已恢复到新工作区",
+  "tui.dialog.workspace.adaptors_load_failed": "加载工作区适配器失败",
+  "tui.dialog.workspace.create_failed": "创建工作区失败",
+  "tui.dialog.workspace.create_error": "创建工作区失败：{{error}}",
+  "tui.dialog.workspace.title.creating": "正在创建工作区",
+  "tui.dialog.workspace.title.new": "新建工作区",
+  "tui.dialog.workspace.creating": "正在创建 {{type}} 工作区...",
+  "tui.dialog.workspace.creating_desc": "远程环境可能需要较长时间",
+  "tui.dialog.workspace.loading": "正在加载工作区...",
+  "tui.dialog.workspace.loading_desc": "正在获取可用的工作区适配器",
+// Workspace trust
   "trust.title": "访问工作区：",
   "trust.safety_check": "安全确认：这是你自己创建或信任的项目吗？（如你自己的代码、知名开源项目或团队内部项目）。如果不是，请先检查此目录下的内容。",
   "trust.capabilities": "MiMo Code 将能够读取、编辑和执行此目录中的文件。",

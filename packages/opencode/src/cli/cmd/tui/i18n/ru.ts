@@ -474,7 +474,21 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Авто",
 
-  // Workspace trust
+  
+  // Workspace create dialog
+  "tui.dialog.workspace.create_session_failed": "Не удалось создать сеанс рабочего пространства",
+  "tui.dialog.workspace.restore_failed": "Не удалось восстановить сеанс: {{error}}",
+  "tui.dialog.workspace.restore_success": "Сеанс восстановлен в новом рабочем пространстве",
+  "tui.dialog.workspace.adaptors_load_failed": "Не удалось загрузить адаптеры рабочих пространств",
+  "tui.dialog.workspace.create_failed": "Не удалось создать рабочее пространство",
+  "tui.dialog.workspace.create_error": "Не удалось создать рабочее пространство: {{error}}",
+  "tui.dialog.workspace.title.creating": "Создание рабочего пространства",
+  "tui.dialog.workspace.title.new": "Новое рабочее пространство",
+  "tui.dialog.workspace.creating": "Создание рабочего пространства {{type}}...",
+  "tui.dialog.workspace.creating_desc": "Для удалённых сред это может занять некоторое время",
+  "tui.dialog.workspace.loading": "Загрузка рабочих пространств...",
+  "tui.dialog.workspace.loading_desc": "Получение доступных адаптеров рабочих пространств",
+// Workspace trust
   "trust.title": "Доступ к рабочему пространству:",
   "trust.safety_check": "Проверка безопасности: это проект, который вы создали или которому доверяете? (Ваш собственный код, известный open source проект или работа вашей команды). Если нет, сначала проверьте содержимое этой папки.",
   "trust.capabilities": "MiMo Code сможет читать, редактировать и выполнять файлы здесь.",

@@ -414,7 +414,21 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "自動",
 
-  // Workspace trust
+  
+  // Workspace create dialog
+  "tui.dialog.workspace.create_session_failed": "ワークスペースセッションの作成に失敗しました",
+  "tui.dialog.workspace.restore_failed": "セッションの復元に失敗しました：{{error}}",
+  "tui.dialog.workspace.restore_success": "セッションが新しいワークスペースに復元されました",
+  "tui.dialog.workspace.adaptors_load_failed": "ワークスペースアダプタの読み込みに失敗しました",
+  "tui.dialog.workspace.create_failed": "ワークスペースの作成に失敗しました",
+  "tui.dialog.workspace.create_error": "ワークスペースの作成に失敗しました：{{error}}",
+  "tui.dialog.workspace.title.creating": "ワークスペースを作成中",
+  "tui.dialog.workspace.title.new": "新しいワークスペース",
+  "tui.dialog.workspace.creating": "{{type}}ワークスペースを作成中...",
+  "tui.dialog.workspace.creating_desc": "リモート環境では時間がかかる場合があります",
+  "tui.dialog.workspace.loading": "ワークスペースを読み込み中...",
+  "tui.dialog.workspace.loading_desc": "利用可能なワークスペースアダプタを取得中",
+// Workspace trust
   "trust.title": "ワークスペースにアクセス中：",
   "trust.safety_check": "安全確認：これはあなたが作成した、または信頼しているプロジェクトですか？（自分のコード、有名なオープンソースプロジェクト、チームの作業など）。そうでない場合は、まずこのフォルダの内容を確認してください。",
   "trust.capabilities": "MiMo Code はここでファイルの読み取り、編集、実行が可能になります。",

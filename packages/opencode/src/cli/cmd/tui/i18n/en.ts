@@ -413,7 +413,21 @@ export const dict: Record<string, string> = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
-  // Workspace trust
+  
+  // Workspace create dialog
+  "tui.dialog.workspace.create_session_failed": "Failed to create workspace session",
+  "tui.dialog.workspace.restore_failed": "Failed to restore session: {{error}}",
+  "tui.dialog.workspace.restore_success": "Session restored into the new workspace",
+  "tui.dialog.workspace.adaptors_load_failed": "Failed to load workspace adaptors",
+  "tui.dialog.workspace.create_failed": "Creating workspace failed",
+  "tui.dialog.workspace.create_error": "Failed to create workspace: {{error}}",
+  "tui.dialog.workspace.title.creating": "Creating Workspace",
+  "tui.dialog.workspace.title.new": "New Workspace",
+  "tui.dialog.workspace.creating": "Creating {{type}} workspace...",
+  "tui.dialog.workspace.creating_desc": "This can take a while for remote environments",
+  "tui.dialog.workspace.loading": "Loading workspaces...",
+  "tui.dialog.workspace.loading_desc": "Fetching available workspace adaptors",
+// Workspace trust
   "trust.title": "Accessing workspace:",
   "trust.safety_check": "Quick safety check: Is this a project you created or one you trust? (Like your own code, a well-known open source project, or work from your team). If not, take a moment to review what's in this folder first.",
   "trust.capabilities": "MiMo Code will be able to read, edit, and execute files here.",

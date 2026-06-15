@@ -462,7 +462,21 @@ export const dict = {
   // Session badges
   "tui.session.badge.auto": "Auto",
 
-  // Workspace trust
+  
+  // Workspace create dialog
+  "tui.dialog.workspace.create_session_failed": "Échec de la création de la session d'espace de travail",
+  "tui.dialog.workspace.restore_failed": "Échec de la restauration de la session : {{error}}",
+  "tui.dialog.workspace.restore_success": "Session restaurée dans le nouvel espace de travail",
+  "tui.dialog.workspace.adaptors_load_failed": "Échec du chargement des adaptateurs d'espace de travail",
+  "tui.dialog.workspace.create_failed": "Échec de la création de l'espace de travail",
+  "tui.dialog.workspace.create_error": "Échec de la création de l'espace de travail : {{error}}",
+  "tui.dialog.workspace.title.creating": "Création de l'espace de travail",
+  "tui.dialog.workspace.title.new": "Nouvel espace de travail",
+  "tui.dialog.workspace.creating": "Création de l'espace de travail {{type}}...",
+  "tui.dialog.workspace.creating_desc": "Cela peut prendre un moment pour les environnements distants",
+  "tui.dialog.workspace.loading": "Chargement des espaces de travail...",
+  "tui.dialog.workspace.loading_desc": "Récupération des adaptateurs d'espaces de travail disponibles",
+// Workspace trust
   "trust.title": "Accès à l'espace de travail :",
   "trust.safety_check": "Vérification rapide : est-ce un projet que vous avez créé ou auquel vous faites confiance ? (Votre propre code, un projet open source reconnu ou un travail de votre équipe). Sinon, prenez un moment pour examiner le contenu de ce dossier.",
   "trust.capabilities": "MiMo Code pourra lire, modifier et exécuter des fichiers ici.",
