@@ -161,7 +161,7 @@ export const dict: Record<string, string> = {
   "tui.tips.scroll_accel":
     "Enable {highlight}scroll_acceleration{/highlight} in {highlight}tui.json{/highlight} for smooth macOS-style scrolling",
   "tui.tips.username_toggle": "Toggle username display in chat via command palette ({highlight}Ctrl+P{/highlight})",
-  "tui.tips.docker": "Run {highlight}docker run -it --rm ghcr.io/anomalyco/opencode{/highlight} for containerized use",
+  "tui.tips.docker": "Run {highlight}docker run -it --rm ghcr.io/xiaomimo/mimo-code{/highlight} for containerized use",
   "tui.tips.zen": "Use {highlight}/connect{/highlight} with MiMo Code for curated, tested models",
   "tui.tips.agents_md": "Commit your project's {highlight}AGENTS.md{/highlight} file to Git for team sharing",
   "tui.tips.review": "Use {highlight}/review{/highlight} to review uncommitted changes, branches, or PRs",
@@ -428,4 +428,8 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Startup loading
+  "tui.startup.loading_plugins": "Loading plugins...",
+  "tui.startup.finishing": "Finishing startup...",
 }

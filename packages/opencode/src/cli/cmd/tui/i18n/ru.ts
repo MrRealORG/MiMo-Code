@@ -233,7 +233,7 @@ export const dict = {
   "tui.tips.username_toggle":
     "Переключайте отображение имени пользователя через палитру команд ({highlight}Ctrl+P{/highlight})",
   "tui.tips.docker":
-    "Выполните {highlight}docker run -it --rm ghcr.io/anomalyco/opencode{/highlight} для контейнерного запуска",
+    "Выполните {highlight}docker run -it --rm ghcr.io/xiaomimo/mimo-code{/highlight} для контейнерного запуска",
   "tui.tips.zen":
     "Используйте {highlight}/connect{/highlight} с MiMo Code для подобранных и протестированных моделей",
   "tui.tips.agents_md":
@@ -489,4 +489,8 @@ export const dict = {
   "trust.dangerous.advice_root": "Если нет весомой причины, НЕ доверяйте корню файловой системы.",
   "trust.dangerous.option.yes": "Я понимаю риски, доверять только в этой сессии",
   "trust.dangerous.option.no": "Выйти (рекомендуется)",
+
+  // Startup loading
+  "tui.startup.loading_plugins": "Загрузка плагинов...",
+  "tui.startup.finishing": "Завершение запуска...",
 } satisfies Partial<Record<Keys, string>>

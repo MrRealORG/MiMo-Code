@@ -154,7 +154,7 @@ export const dict = {
   "tui.tips.scroll_accel":
     "在 {highlight}tui.json{/highlight} 中啟用 {highlight}scroll_acceleration{/highlight} 享受平滑捲動",
   "tui.tips.username_toggle": "透過指令面板（{highlight}Ctrl+P{/highlight}）切換對話中使用者名稱的顯示",
-  "tui.tips.docker": "執行 {highlight}docker run -it --rm ghcr.io/anomalyco/opencode{/highlight} 使用容器化版本",
+  "tui.tips.docker": "執行 {highlight}docker run -it --rm ghcr.io/xiaomimo/mimo-code{/highlight} 使用容器化版本",
   "tui.tips.zen": "搭配 MiMo Code 使用 {highlight}/connect{/highlight} 選用經過測試的精選模型",
   "tui.tips.agents_md": "把專案中的 {highlight}AGENTS.md{/highlight} 提交到 Git 與團隊共享",
   "tui.tips.review": "用 {highlight}/review{/highlight} 審閱未提交變更、分支或 PR",
@@ -397,4 +397,8 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "等待瀏覽器授權中...",
   "tui.dialog.login.flow.invalid_code": "Code 無效，請重試",
   "tui.dialog.login.flow.copied": "已複製",
+
+  // Startup loading
+  "tui.startup.loading_plugins": "正在載入外掛...",
+  "tui.startup.finishing": "正在完成啟動...",
 } satisfies Partial<Record<Keys, string>>

@@ -178,7 +178,7 @@ export const dict = {
   "tui.tips.username_toggle":
     "コマンドパレット（{highlight}Ctrl+P{/highlight}）でチャット内のユーザー名表示を切り替えます",
   "tui.tips.docker":
-    "{highlight}docker run -it --rm ghcr.io/anomalyco/opencode{/highlight} でコンテナ版を実行できます",
+    "{highlight}docker run -it --rm ghcr.io/xiaomimo/mimo-code{/highlight} でコンテナ版を実行できます",
   "tui.tips.zen": "MiMo Code と組み合わせて {highlight}/connect{/highlight} で厳選されたモデルを使えます",
   "tui.tips.agents_md": "プロジェクトの {highlight}AGENTS.md{/highlight} を Git にコミットしてチームで共有します",
   "tui.tips.review": "{highlight}/review{/highlight} で未コミット変更、ブランチ、PR をレビューします",
@@ -429,4 +429,8 @@ export const dict = {
   "trust.dangerous.advice_root": "明確な理由がない限り、ファイルシステムのルートを信頼しないでください。",
   "trust.dangerous.option.yes": "リスクを理解した上で、今回のみ信頼する",
   "trust.dangerous.option.no": "終了（推奨）",
+
+  // Startup loading
+  "tui.startup.loading_plugins": "プラグインを読み込み中...",
+  "tui.startup.finishing": "起動を完了中...",
 } satisfies Partial<Record<Keys, string>>

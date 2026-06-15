@@ -154,7 +154,7 @@ export const dict = {
   "tui.tips.scroll_accel":
     "在 {highlight}tui.json{/highlight} 中开启 {highlight}scroll_acceleration{/highlight} 享受平滑滚动",
   "tui.tips.username_toggle": "通过命令面板（{highlight}Ctrl+P{/highlight}）切换聊天中用户名的显示",
-  "tui.tips.docker": "运行 {highlight}docker run -it --rm ghcr.io/anomalyco/opencode{/highlight} 使用容器化版本",
+  "tui.tips.docker": "运行 {highlight}docker run -it --rm ghcr.io/xiaomimo/mimo-code{/highlight} 使用容器化版本",
   "tui.tips.zen": "搭配 MiMo Code 使用 {highlight}/connect{/highlight} 选用经过测试的精选模型",
   "tui.tips.agents_md": "把项目里的 {highlight}AGENTS.md{/highlight} 提交到 Git 与团队共享",
   "tui.tips.review": "用 {highlight}/review{/highlight} 审阅未提交改动、分支或 PR",
@@ -421,4 +421,8 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+
+  // Startup loading
+  "tui.startup.loading_plugins": "正在加载插件...",
+  "tui.startup.finishing": "正在完成启动...",
 } satisfies Partial<Record<Keys, string>>

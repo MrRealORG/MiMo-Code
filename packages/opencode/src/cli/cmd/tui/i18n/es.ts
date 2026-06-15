@@ -230,7 +230,7 @@ export const dict = {
   "tui.tips.username_toggle":
     "Activa/desactiva la visualización del nombre de usuario desde la paleta de comandos ({highlight}Ctrl+P{/highlight})",
   "tui.tips.docker":
-    "Ejecuta {highlight}docker run -it --rm ghcr.io/anomalyco/opencode{/highlight} para uso en contenedor",
+    "Ejecuta {highlight}docker run -it --rm ghcr.io/xiaomimo/mimo-code{/highlight} para uso en contenedor",
   "tui.tips.zen":
     "Usa {highlight}/connect{/highlight} con MiMo Code para modelos seleccionados y probados",
   "tui.tips.agents_md":
@@ -470,4 +470,8 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "Esperando autorización del navegador...",
   "tui.dialog.login.flow.invalid_code": "Código inválido, intenta de nuevo",
   "tui.dialog.login.flow.copied": "Copiado",
+
+  // Startup loading
+  "tui.startup.loading_plugins": "Cargando plugins...",
+  "tui.startup.finishing": "Finalizando inicio...",
 } satisfies Partial<Record<Keys, string>>
