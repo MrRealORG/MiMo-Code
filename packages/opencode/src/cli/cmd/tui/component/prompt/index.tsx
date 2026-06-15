@@ -73,6 +73,8 @@ export type PromptRef = {
   paste(): void
 }
 
+import * as Log from "@/util/log"
+
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -352,7 +354,7 @@ export function Prompt(props: PromptProps) {
   function promptModelWarning() {
     toast.show({
       variant: "warning",
-      message: "Connect a provider to send prompts",
+      message: t("tui.prompt.connect_provider"),
       duration: 3000,
     })
     if (sync.data.provider.length === 0) {
@@ -1063,10 +1065,10 @@ export function Prompt(props: PromptProps) {
       const res = await sdk.client.session.create({ workspace: props.workspaceID })
 
       if (res.error) {
-        console.log("Creating a session failed:", res.error)
+        Log.Default.error("Creating a session failed", { error: res.error })
 
         toast.show({
-          message: "Creating a session failed. Open console for more details.",
+          message: t("tui.prompt.session_create_failed"),
           variant: "error",
         })
 
