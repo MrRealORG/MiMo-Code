@@ -219,7 +219,8 @@ export const LineTrimmedReplacer: Replacer = function* (content, find) {
   const originalLines = content.split("\n")
   const searchLines = find.split("\n")
 
-  if (searchLines[searchLines.length - 1] === "") {
+  const hasTrailingNewline = searchLines[searchLines.length - 1] === ""
+  if (hasTrailingNewline) {
     searchLines.pop()
   }
 
@@ -250,7 +251,7 @@ export const LineTrimmedReplacer: Replacer = function* (content, find) {
         }
       }
 
-      yield content.substring(matchStartIndex, matchEndIndex)
+      yield content.substring(matchStartIndex, matchEndIndex) + (hasTrailingNewline ? "\n" : "")
     }
   }
 }
@@ -263,7 +264,8 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
     return
   }
 
-  if (searchLines[searchLines.length - 1] === "") {
+  const hasTrailingNewline = searchLines[searchLines.length - 1] === ""
+  if (hasTrailingNewline) {
     searchLines.pop()
   }
 
@@ -333,7 +335,7 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
           matchEndIndex += 1 // Add newline character except for the last line
         }
       }
-      yield content.substring(matchStartIndex, matchEndIndex)
+      yield content.substring(matchStartIndex, matchEndIndex) + (hasTrailingNewline ? "\n" : "")
     }
     return
   }
@@ -386,7 +388,7 @@ export const BlockAnchorReplacer: Replacer = function* (content, find) {
         matchEndIndex += 1
       }
     }
-    yield content.substring(matchStartIndex, matchEndIndex)
+    yield content.substring(matchStartIndex, matchEndIndex) + (hasTrailingNewline ? "\n" : "")
   }
 }
 

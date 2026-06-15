@@ -237,9 +237,7 @@ export function DialogSessionList() {
                 setToDelete(undefined)
                 return
               }
-              if (status && status !== "connected") {
-                await sync.session.refresh()
-              }
+              await sync.session.refresh()
               if (search()) await refetch()
               setToDelete(undefined)
               return
