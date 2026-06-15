@@ -426,6 +426,16 @@ export const dict = {
     "Aucune connexion requise — exécutez simplement mimo. Pour les modèles payants/premium, choisissez plutôt la connexion navigateur MiMo.",
   "cli.providers.mimo_login.decrypt_retry": "Échec du déchiffrement, veuillez réessayer ({remaining} tentatives restantes)",
   "cli.providers.mimo_login.decrypt_exhausted": "Échec du déchiffrement, nombre maximal de tentatives atteint",
+  "cli.providers.waiting_auth": "En attente d'autorisation...",
+  "cli.providers.auth_failed": "Échec de l'autorisation",
+  "cli.providers.login_success": "Connexion réussie",
+  "cli.providers.login_failed": "Échec de la connexion",
+  "cli.providers.done": "Terminé",
+  "cli.providers.paste_code": "Collez le code d'autorisation ici : ",
+  "cli.providers.enter_api_key": "Entrez votre clé API",
+  "cli.providers.required": "Requis",
+  "cli.providers.mimo_not_found": "Plugin d'authentification MiMo introuvable",
+  "cli.providers.browser_manual_hint": "Le navigateur ne s'est pas ouvert ? Utilisez l'URL ci-dessous pour vous connecter :",
 
   // Question i18n — plan_exit
   "tui.question.plan_exit.question": "Le plan {{plan}} est terminé. Voulez-vous basculer vers l'agent build pour commencer l'implémentation ?",

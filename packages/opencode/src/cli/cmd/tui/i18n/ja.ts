@@ -378,6 +378,16 @@ export const dict = {
     "ログイン不要 — そのまま mimo を実行できます。有料/上位モデルを利用する場合は MiMo ブラウザログインを選択してください。",
   "cli.providers.mimo_login.decrypt_retry": "復号に失敗しました、再試行してください（残り {remaining} 回）",
   "cli.providers.mimo_login.decrypt_exhausted": "復号に失敗しました、最大再試行回数に達しました",
+  "cli.providers.waiting_auth": "認証を待機中...",
+  "cli.providers.auth_failed": "認証に失敗しました",
+  "cli.providers.login_success": "ログイン成功",
+  "cli.providers.login_failed": "ログイン失敗",
+  "cli.providers.done": "完了",
+  "cli.providers.paste_code": "認証コードをここに貼り付けてください：",
+  "cli.providers.enter_api_key": "API キーを入力してください",
+  "cli.providers.required": "必須",
+  "cli.providers.mimo_not_found": "MiMo 認証プラグインが見つかりません",
+  "cli.providers.browser_manual_hint": "ブラウザが開きませんか？以下の URL からログインしてください：",
 
   // Question i18n — plan_exit
   "tui.question.plan_exit.question": "{{plan}} の計画が完了しました。build エージェントに切り替えて実装を開始しますか？",

@@ -94,7 +94,8 @@ function wrap<Parameters extends z.ZodType, Result extends Metadata>(
           ...(ctx.callID ? { "tool.call_id": ctx.callID } : {}),
         }
         return Effect.gen(function* () {
-          yield* Effect.try({
+          // Try normal Zod parse first.
+          let parsed = yield* Effect.try({
             try: () => toolInfo.parameters.parse(args),
             catch: (error) => {
               if (error instanceof z.ZodError && toolInfo.formatValidationError) {
@@ -106,7 +107,27 @@ function wrap<Parameters extends z.ZodType, Result extends Metadata>(
               )
             },
           })
-          const result = yield* execute(args, ctx)
+          // If parse failed and the tool has a shell.recover, attempt recovery.
+          // Some models (e.g. mimo-v2.5-pro) send JSON-shape args with inner
+          // values stringified (e.g. operation as a JSON string instead of an
+          // object). recover() handles this by JSON.parsing the inner values.
+          if (parsed instanceof Error && toolInfo.shell?.recover) {
+            const recovered = toolInfo.shell.recover(args)
+            if (recovered !== undefined) {
+              parsed = yield* Effect.try({
+                try: () => toolInfo.parameters.parse(recovered),
+                catch: (error) =>
+                  new Error(
+                    `The ${id} tool was called with invalid arguments: ${error}.\nPlease rewrite the input so it satisfies the expected schema.`,
+                    { cause: error },
+                  ),
+              })
+            }
+          }
+          if (parsed instanceof Error) {
+            return yield* Effect.fail(parsed)
+          }
+          const result = yield* execute(parsed, ctx)
           if (result.metadata.truncated !== undefined) {
             return result
           }

@@ -438,6 +438,16 @@ export const dict = {
     "Вход не требуется — просто запустите mimo. Для платных/премиум-моделей выберите вход через браузер MiMo.",
   "cli.providers.mimo_login.decrypt_retry": "Ошибка расшифровки, повторите попытку (осталось попыток: {remaining})",
   "cli.providers.mimo_login.decrypt_exhausted": "Ошибка расшифровки, превышено максимальное число попыток",
+  "cli.providers.waiting_auth": "Ожидание авторизации...",
+  "cli.providers.auth_failed": "Ошибка авторизации",
+  "cli.providers.login_success": "Вход выполнен успешно",
+  "cli.providers.login_failed": "Ошибка входа",
+  "cli.providers.done": "Готово",
+  "cli.providers.paste_code": "Вставьте код авторизации сюда: ",
+  "cli.providers.enter_api_key": "Введите ваш API-ключ",
+  "cli.providers.required": "Обязательно",
+  "cli.providers.mimo_not_found": "Плагин авторизации MiMo не найден",
+  "cli.providers.browser_manual_hint": "Браузер не открылся? Используйте URL ниже для входа:",
 
   // Question i18n — plan_exit
   "tui.question.plan_exit.question": "План {{plan}} завершён. Переключиться на агента build и начать реализацию?",

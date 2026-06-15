@@ -95,10 +95,10 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string, 
         prompts.log.info(authorize.instructions)
       }
       const spinner = prompts.spinner()
-      spinner.start("Waiting for authorization...")
+      spinner.start(t("cli.providers.waiting_auth"))
       const result = await authorize.callback()
       if (result.type === "failed") {
-        spinner.stop("Failed to authorize", 1)
+        spinner.stop(t("cli.providers.auth_failed"), 1)
       }
       if (result.type === "success") {
         const saveProvider = result.provider ?? provider
@@ -119,19 +119,19 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string, 
             ...(result.metadata ? { metadata: result.metadata } : {}),
           })
         }
-        spinner.stop("Login successful")
+        spinner.stop(t("cli.providers.login_success"))
       }
     }
 
     if (authorize.method === "code") {
       const code = await prompts.text({
-        message: "Paste the authorization code here: ",
-        validate: (x) => (x && x.length > 0 ? undefined : "Required"),
+        message: t("cli.providers.paste_code"),
+        validate: (x) => (x && x.length > 0 ? undefined : t("cli.providers.required")),
       })
       if (prompts.isCancel(code)) throw new UI.CancelledError()
       const result = await authorize.callback(code)
       if (result.type === "failed") {
-        prompts.log.error("Failed to authorize")
+        prompts.log.error(t("cli.providers.auth_failed"))
       }
       if (result.type === "success") {
         const saveProvider = result.provider ?? provider
@@ -152,25 +152,25 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string, 
             ...(result.metadata ? { metadata: result.metadata } : {}),
           })
         }
-        prompts.log.success("Login successful")
+        prompts.log.success(t("cli.providers.login_success"))
       }
     }
 
-    prompts.outro("Done")
+    prompts.outro(t("cli.providers.done"))
     return true
   }
 
   if (method.type === "api") {
     if (method.authorize) {
       const key = await prompts.password({
-        message: "Enter your API key",
-        validate: (x) => (x && x.length > 0 ? undefined : "Required"),
+        message: t("cli.providers.enter_api_key"),
+        validate: (x) => (x && x.length > 0 ? undefined : t("cli.providers.required")),
       })
       if (prompts.isCancel(key)) throw new UI.CancelledError()
 
       const result = await method.authorize(inputs)
       if (result.type === "failed") {
-        prompts.log.error("Failed to authorize")
+        prompts.log.error(t("cli.providers.auth_failed"))
       }
       if (result.type === "success") {
         const saveProvider = result.provider ?? provider
@@ -178,9 +178,9 @@ async function handlePluginAuth(plugin: { auth: PluginAuth }, provider: string, 
           type: "api",
           key: result.key ?? key,
         })
-        prompts.log.success("Login successful")
+        prompts.log.success(t("cli.providers.login_success"))
       }
-      prompts.outro("Done")
+      prompts.outro(t("cli.providers.done"))
       return true
     }
   }
@@ -248,7 +248,7 @@ async function mimoLogin() {
   )
   const mimoHook = hooks.findLast((h) => h.auth?.provider === "xiaomi")
   if (!mimoHook?.auth) {
-    prompts.log.error("MiMo auth plugin not found")
+    prompts.log.error(t("cli.providers.mimo_not_found"))
     return
   }
 
@@ -258,7 +258,7 @@ async function mimoLogin() {
   const authorize = await method.authorize()
   if (authorize.method !== "auto") return
 
-  prompts.log.info(`Browser didn't open? Use the url below to sign in:\n${authorize.url}`)
+  prompts.log.info(t("cli.providers.browser_manual_hint") + "\n" + authorize.url)
 
   const browserPromise = authorize.callback().catch(() => ({ type: "failed" as const }))
 
@@ -273,12 +273,12 @@ async function mimoLogin() {
           key: raceResult.data.key,
           ...(raceResult.data.metadata ? { metadata: raceResult.data.metadata } : {}),
         })
-        prompts.log.success("Login successful")
-        prompts.outro("Done")
+        prompts.log.success(t("cli.providers.login_success"))
+        prompts.outro(t("cli.providers.done"))
         return
       }
-      prompts.log.error("Login failed")
-      prompts.outro("Done")
+      prompts.log.error(t("cli.providers.login_failed"))
+      prompts.outro(t("cli.providers.done"))
       return
     }
 
@@ -289,8 +289,8 @@ async function mimoLogin() {
         key: callbackResult.key,
         ...(callbackResult.metadata ? { metadata: callbackResult.metadata } : {}),
       })
-      prompts.log.success("Login successful")
-      prompts.outro("Done")
+      prompts.log.success(t("cli.providers.login_success"))
+      prompts.outro(t("cli.providers.done"))
       return
     }
 
