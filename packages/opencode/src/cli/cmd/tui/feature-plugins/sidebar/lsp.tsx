@@ -1,4 +1,5 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@mimo-ai/plugin/tui"
+import { useLanguage } from "@tui/context/language"
 import { createMemo, For, Show, createSignal } from "solid-js"
 
 const id = "internal:sidebar-lsp"
@@ -6,6 +7,7 @@ const id = "internal:sidebar-lsp"
 function View(props: { api: TuiPluginApi }) {
   const [open, setOpen] = createSignal(true)
   const theme = () => props.api.theme.current
+  const { t } = useLanguage()
   const list = createMemo(() => props.api.state.lsp())
   const off = createMemo(() => props.api.state.config.lsp === false)
 
@@ -16,13 +18,13 @@ function View(props: { api: TuiPluginApi }) {
           <text fg={theme().text}>{open() ? "▼" : "▶"}</text>
         </Show>
         <text fg={theme().text}>
-          <b>LSP</b>
+          <b>{t("tui.sidebar.lsp")}</b>
         </text>
       </box>
       <Show when={list().length <= 2 || open()}>
         <Show when={list().length === 0}>
           <text fg={theme().textMuted}>
-            {off() ? "LSPs have been disabled in settings" : "LSPs will activate as files are read"}
+            {off() ? t("tui.sidebar.lsp_disabled") : t("tui.sidebar.lsp_activate")}
           </text>
         </Show>
         <For each={list()}>

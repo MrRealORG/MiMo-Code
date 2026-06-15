@@ -2,6 +2,7 @@ import { createMemo, createSignal, Show } from "solid-js"
 import { useRouteData, useCurrentAgentID } from "@tui/context/route"
 import { useSync } from "@tui/context/sync"
 import { useTheme } from "@tui/context/theme"
+import { useLanguage } from "@tui/context/language"
 import { SplitBorder } from "@tui/component/border"
 import type { AssistantMessage } from "@mimo-ai/sdk/v2"
 import { useCommandDialog } from "@tui/component/dialog-command"
@@ -26,7 +27,7 @@ export function SubagentFooter() {
     const idx = list.findIndex((a) => a.actor_id === cur)
     const entry = idx === -1 ? undefined : list[idx]
     return {
-      label: entry ? Locale.titlecase(entry.agent) : "Subagent",
+      label: entry ? Locale.titlecase(entry.agent) : t("tui.footer.subagent"),
       index: idx + 1,
       total: list.length,
       status: entry?.status,
@@ -66,6 +67,7 @@ export function SubagentFooter() {
   })
 
   const { theme } = useTheme()
+  const { t } = useLanguage()
   const keybind = useKeybind()
   const command = useCommandDialog()
   const [hover, setHover] = createSignal<"parent" | "prev" | "next" | null>(null)
@@ -91,7 +93,7 @@ export function SubagentFooter() {
             </text>
             <Show when={subagentInfo().total > 0}>
               <text style={{ fg: theme.textMuted }}>
-                ({subagentInfo().index} of {subagentInfo().total})
+                ({t("tui.footer.of", { current: subagentInfo().index, total: subagentInfo().total })})
                 <Show when={subagentInfo().status}>{` · ${subagentInfo().status}`}</Show>
               </text>
             </Show>
@@ -111,7 +113,7 @@ export function SubagentFooter() {
               backgroundColor={hover() === "parent" ? theme.backgroundElement : theme.backgroundPanel}
             >
               <text fg={theme.text}>
-                Main <span style={{ fg: theme.textMuted }}>{keybind.print("session_parent")}</span>
+                {t("tui.footer.main")} <span style={{ fg: theme.textMuted }}>{keybind.print("session_parent")}</span>
               </text>
             </box>
             <box
@@ -121,7 +123,7 @@ export function SubagentFooter() {
               backgroundColor={hover() === "prev" ? theme.backgroundElement : theme.backgroundPanel}
             >
               <text fg={theme.text}>
-                Prev <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle_reverse")}</span>
+                {t("tui.footer.prev")} <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle_reverse")}</span>
               </text>
             </box>
             <box
@@ -131,7 +133,7 @@ export function SubagentFooter() {
               backgroundColor={hover() === "next" ? theme.backgroundElement : theme.backgroundPanel}
             >
               <text fg={theme.text}>
-                Next <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle")}</span>
+                {t("tui.footer.next")} <span style={{ fg: theme.textMuted }}>{keybind.print("session_child_cycle")}</span>
               </text>
             </box>
           </box>

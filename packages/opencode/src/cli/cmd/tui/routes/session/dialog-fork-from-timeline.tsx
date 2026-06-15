@@ -1,6 +1,7 @@
 import { createMemo, onMount } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect, type DialogSelectOption } from "@tui/ui/dialog-select"
+import { useLanguage } from "@tui/context/language"
 import type { TextPart } from "@mimo-ai/sdk/v2"
 import { Locale } from "@/util"
 import { useSDK } from "@tui/context/sdk"
@@ -13,6 +14,7 @@ export function DialogForkFromTimeline(props: { sessionID: string; onMove: (mess
   const sync = useSync()
   const dialog = useDialog()
   const sdk = useSDK()
+  const { t } = useLanguage()
   const route = useRoute()
 
   onMount(() => {
@@ -22,7 +24,7 @@ export function DialogForkFromTimeline(props: { sessionID: string; onMove: (mess
   const options = createMemo((): DialogSelectOption<string | undefined>[] => {
     const messages = sync.data.message[props.sessionID]?.["main"] ?? []
     const fullSession = {
-      title: "Full session",
+      title: t("tui.dialog.fork_full_session"),
       value: undefined,
       onSelect: async (dialog: DialogContext) => {
         const forked = await sdk.client.session.fork({ sessionID: props.sessionID })
@@ -72,5 +74,5 @@ export function DialogForkFromTimeline(props: { sessionID: string; onMove: (mess
     return [fullSession, ...result.reverse()]
   })
 
-  return <DialogSelect onMove={(option) => props.onMove(option.value)} title="Fork session" options={options()} />
+  return <DialogSelect onMove={(option) => props.onMove(option.value)} title={t("tui.dialog.fork_session")} options={options()} />
 }

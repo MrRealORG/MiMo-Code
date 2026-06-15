@@ -1,6 +1,7 @@
 import { createMemo, onMount } from "solid-js"
 import { useSync } from "@tui/context/sync"
 import { DialogSelect, type DialogSelectOption } from "@tui/ui/dialog-select"
+import { useLanguage } from "@tui/context/language"
 import type { TextPart } from "@mimo-ai/sdk/v2"
 import { Locale } from "@/util"
 import { DialogMessage } from "./dialog-message"
@@ -13,6 +14,7 @@ export function DialogTimeline(props: {
   setPrompt?: (prompt: PromptInfo) => void
 }) {
   const sync = useSync()
+  const { t } = useLanguage()
   const dialog = useDialog()
 
   onMount(() => {
@@ -43,5 +45,5 @@ export function DialogTimeline(props: {
     return result
   })
 
-  return <DialogSelect onMove={(option) => props.onMove(option.value)} title="Timeline" options={options()} />
+  return <DialogSelect onMove={(option) => props.onMove(option.value)} title={t("tui.dialog.timeline")} options={options()} />
 }

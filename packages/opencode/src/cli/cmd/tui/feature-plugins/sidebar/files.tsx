@@ -1,4 +1,5 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@mimo-ai/plugin/tui"
+import { useLanguage } from "@tui/context/language"
 import { createMemo, For, Show, createSignal } from "solid-js"
 
 const id = "internal:sidebar-files"
@@ -6,6 +7,7 @@ const id = "internal:sidebar-files"
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const [open, setOpen] = createSignal(true)
   const theme = () => props.api.theme.current
+  const { t } = useLanguage()
   const list = createMemo(() => props.api.state.session.diff(props.session_id))
 
   return (
@@ -16,7 +18,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             <text fg={theme().text}>{open() ? "▼" : "▶"}</text>
           </Show>
           <text fg={theme().text}>
-            <b>Modified Files</b>
+            <b>{t("tui.sidebar.modified_files")}</b>
           </text>
         </box>
         <Show when={list().length <= 2 || open()}>

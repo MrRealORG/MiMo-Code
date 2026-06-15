@@ -1,5 +1,6 @@
 import { createMemo, Match, onCleanup, onMount, Show, Switch } from "solid-js"
 import { useTheme } from "../../context/theme"
+import { useLanguage } from "../../context/language"
 import { useSync } from "../../context/sync"
 import { useDirectory } from "../../context/directory"
 import { useConnected } from "../../component/dialog-model"
@@ -8,6 +9,7 @@ import { useRoute } from "../../context/route"
 
 export function Footer() {
   const { theme } = useTheme()
+  const { t } = useLanguage()
   const sync = useSync()
   const route = useRoute()
   const mcp = createMemo(() => Object.values(sync.data.mcp).filter((x) => x.status === "connected").length)
@@ -56,18 +58,17 @@ export function Footer() {
         <Switch>
           <Match when={store.welcome}>
             <text fg={theme.text}>
-              Get started <span style={{ fg: theme.textMuted }}>/connect</span>
+              {t("tui.footer.get_started")} <span style={{ fg: theme.textMuted }}>/connect</span>
             </text>
           </Match>
           <Match when={connected()}>
             <Show when={permissions().length > 0}>
               <text fg={theme.warning}>
-                <span style={{ fg: theme.warning }}>△</span> {permissions().length} Permission
-                {permissions().length > 1 ? "s" : ""}
+                <span style={{ fg: theme.warning }}>△</span> {permissions().length} {permissions().length > 1 ? t("tui.footer.permissions") : t("tui.footer.permission")}
               </text>
             </Show>
             <text fg={theme.text}>
-              <span style={{ fg: lsp().length > 0 ? theme.success : theme.textMuted }}>•</span> {lsp().length} LSP
+              <span style={{ fg: lsp().length > 0 ? theme.success : theme.textMuted }}>•</span> {lsp().length} {t("tui.footer.lsp")}
             </text>
             <Show when={mcp()}>
               <text fg={theme.text}>
@@ -79,7 +80,7 @@ export function Footer() {
                     <span style={{ fg: theme.success }}>⊙ </span>
                   </Match>
                 </Switch>
-                {mcp()} MCP
+                {mcp()} {t("tui.footer.mcp")}
               </text>
             </Show>
             <text fg={theme.textMuted}>/status</text>
