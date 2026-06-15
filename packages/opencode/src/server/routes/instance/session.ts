@@ -986,7 +986,7 @@ export const SessionRoutes = lazy(() =>
               "SessionRoutes.prompt.disconnect",
               c,
               SessionPrompt.Service.use((svc) => svc.cancel(sessionID)),
-            ).catch(() => {})
+            ).catch((err) => log.warn("session cancel failed on disconnect", { sessionID, error: String(err) }))
           }
           if (signal.aborted) {
             onClientDisconnect()
