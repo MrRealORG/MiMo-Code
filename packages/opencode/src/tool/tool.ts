@@ -93,9 +93,18 @@ function wrap<Parameters extends z.ZodType, Result extends Metadata>(
           "message.id": ctx.messageID,
           ...(ctx.callID ? { "tool.call_id": ctx.callID } : {}),
         }
+        // Some models (e.g. mimo-v2.5-pro) stringify nested object fields in
+        // tool call arguments even in JSON mode (e.g. {"operation":"{\"action\":\"run\",...}"}).
+        // If the tool defines a shell.recover function, try it before Zod
+        // validation so stringified fields are parsed back to objects.
+        let effectiveArgs = args
+        if (toolInfo.shell?.recover) {
+          const recovered = toolInfo.shell.recover(args as unknown)
+          if (recovered !== undefined) effectiveArgs = recovered as typeof args
+        }
         return Effect.gen(function* () {
           yield* Effect.try({
-            try: () => toolInfo.parameters.parse(args),
+            try: () => toolInfo.parameters.parse(effectiveArgs),
             catch: (error) => {
               if (error instanceof z.ZodError && toolInfo.formatValidationError) {
                 return new Error(toolInfo.formatValidationError(error), { cause: error })
@@ -106,7 +115,7 @@ function wrap<Parameters extends z.ZodType, Result extends Metadata>(
               )
             },
           })
-          const result = yield* execute(args, ctx)
+          const result = yield* execute(effectiveArgs, ctx)
           if (result.metadata.truncated !== undefined) {
             return result
           }
