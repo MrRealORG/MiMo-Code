@@ -10,6 +10,11 @@ import { useLanguage } from "@tui/context/language"
 
 export type ToastOptions = z.infer<typeof TuiEvent.ToastShow.properties>
 
+/** After this many identical messages, further occurrences are suppressed for the session. */
+const MAX_TOAST_REPEATS = 3
+/** Minimum ms between showings of the same message. */
+const MIN_TOAST_INTERVAL_MS = 30_000
+
 export function Toast() {
   const toast = useToast()
   const { theme } = useTheme()
@@ -57,9 +62,36 @@ function init() {
 
   let timeoutHandle: NodeJS.Timeout | null = null
 
+  // Deduplication state: message key → { count, lastShown }
+  const seen = new Map<string, { count: number; lastShown: number }>()
+
+  function shouldSuppress(message: string): boolean {
+    const now = Date.now()
+    const entry = seen.get(message)
+    if (!entry) return false
+    // Already shown MAX times — suppress for the rest of the session
+    if (entry.count >= MAX_TOAST_REPEATS) return true
+    // Shown recently — suppress until interval elapses
+    if (now - entry.lastShown < MIN_TOAST_INTERVAL_MS) return true
+    return false
+  }
+
+  function recordShown(message: string) {
+    const now = Date.now()
+    const entry = seen.get(message)
+    if (entry) {
+      entry.count++
+      entry.lastShown = now
+    } else {
+      seen.set(message, { count: 1, lastShown: now })
+    }
+  }
+
   const toast = {
     show(options: ToastOptions) {
       const { duration = 5000, ...currentToast } = options
+      if (shouldSuppress(currentToast.message)) return
+      recordShown(currentToast.message)
       setStore("currentToast", currentToast)
       if (timeoutHandle) clearTimeout(timeoutHandle)
       timeoutHandle = setTimeout(() => {
