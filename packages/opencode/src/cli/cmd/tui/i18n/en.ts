@@ -428,4 +428,31 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Session list dialog
+  "tui.session_list.title": "Sessions",
+  "tui.session_list.today": "Today",
+  "tui.session_list.unknown_workspace": "unknown",
+  "tui.session_list.confirm_delete": "Press {{key}} again to confirm",
+  "tui.session_list.delete": "delete",
+  "tui.session_list.rename": "rename",
+  "tui.session_list.new_workspace": "new workspace",
+  "tui.session_list.failed_delete_workspace": "Failed to delete workspace",
+  "tui.session_list.failed_delete_session": "Failed to delete session",
+
+  // Model dialog
+  "tui.model.select_model": "Select model",
+  "tui.model.favorites": "Favorites",
+  "tui.model.favorite_marker": "(Favorite)",
+  "tui.model.recent": "Recent",
+  "tui.model.free": "Free",
+  "tui.model.add_model": "+ Add model",
+  "tui.model.popular_providers": "Popular providers",
+  "tui.model.connect_provider": "Connect provider",
+  "tui.model.view_all_providers": "View all providers",
+  "tui.model.favorite_toggle": "Favorite",
+  "tui.model.wizard.model_id": "Model id",
+  "tui.model.wizard.model_id_placeholder": "gateway model id",
+  "tui.model.wizard.display_name": "Display name",
+  "tui.model.wizard.display_name_placeholder": "shown in model picker",
 }

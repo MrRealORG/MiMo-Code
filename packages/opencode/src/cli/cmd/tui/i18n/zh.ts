@@ -421,4 +421,31 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+
+  // Session list dialog
+  "tui.session_list.title": "会话列表",
+  "tui.session_list.today": "今天",
+  "tui.session_list.unknown_workspace": "未知",
+  "tui.session_list.confirm_delete": "再次按 {{key}} 确认删除",
+  "tui.session_list.delete": "删除",
+  "tui.session_list.rename": "重命名",
+  "tui.session_list.new_workspace": "新建工作区",
+  "tui.session_list.failed_delete_workspace": "删除工作区失败",
+  "tui.session_list.failed_delete_session": "删除会话失败",
+
+  // Model dialog
+  "tui.model.select_model": "选择模型",
+  "tui.model.favorites": "收藏",
+  "tui.model.favorite_marker": "（已收藏）",
+  "tui.model.recent": "最近使用",
+  "tui.model.free": "免费",
+  "tui.model.add_model": "+ 添加模型",
+  "tui.model.popular_providers": "热门服务提供商",
+  "tui.model.connect_provider": "连接服务提供商",
+  "tui.model.view_all_providers": "查看所有服务提供商",
+  "tui.model.favorite_toggle": "收藏",
+  "tui.model.wizard.model_id": "模型 ID",
+  "tui.model.wizard.model_id_placeholder": "网关模型 ID",
+  "tui.model.wizard.display_name": "显示名称",
+  "tui.model.wizard.display_name_placeholder": "显示在模型选择器中",
 } satisfies Partial<Record<Keys, string>>
