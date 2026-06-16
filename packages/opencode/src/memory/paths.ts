@@ -1,3 +1,7 @@
+// Fix for #861: Windows backslash path regex in memory/paths.ts
+// Adds normalizeSeparators() to convert \ to / before regex matching
+// Also hardens assertSafeComponent to reject backslash traversal
+
 import path from "path"
 import { createHash } from "crypto"
 
@@ -42,8 +46,18 @@ function detectType(key: string): MemoryType {
   return "free"
 }
 
+/**
+ * Normalize backslashes to forward slashes so that regex-based path
+ * parsers work identically on Windows (where `path.join` produces `\`)
+ * and POSIX systems.
+ */
+function normalizeSeparators(p: string): string {
+  return p.replace(/\\/g, "/")
+}
+
 export function parsePath(absPath: string): MemoryLocator | null {
-  const m = absPath.match(/\/memory\/(global|projects|sessions)(?:\/([^/]+))?\/(.+)\.md$/)
+  const normalized = normalizeSeparators(absPath)
+  const m = normalized.match(/\/memory\/(global|projects|sessions)(?:\/([^/]+))?\/(.+)\.md$/)
   if (!m) return null
   const [, scope, idMaybe, keyRaw] = m
   const scope_id = scope === "global" ? "" : (idMaybe ?? "")
@@ -57,7 +71,8 @@ export function parsePath(absPath: string): MemoryLocator | null {
 const CC_PATH_RE = /\/\.claude\/projects\/([^/]+)\/memory\/(.+)\.md$/
 
 export function parseCcPath(absPath: string): MemoryLocator | null {
-  const m = absPath.match(CC_PATH_RE)
+  const normalized = normalizeSeparators(absPath)
+  const m = normalized.match(CC_PATH_RE)
   if (!m) return null
   const [, slug, keyRaw] = m
   return {
@@ -94,12 +109,14 @@ export function parseCcFrontmatterType(body: string): CcType | null {
 }
 
 function assertSafeComponent(value: string) {
-  // Reject any segment containing ".." or starting with "/" — guards against
+  // Reject any segment containing ".." or starting with "/" or "\" — guards against
   // path traversal and absolute-path injection from caller-supplied scope_id/key.
-  for (const segment of value.split("/")) {
+  // Split on both slash types so that Windows-style backslash segments are also
+  // rejected (e.g. "..\secret").
+  for (const segment of value.split(/[/\\]/)) {
     if (segment === "..") throw new Error(`buildPath: invalid path component: ${value}`)
   }
-  if (value.startsWith("/")) throw new Error(`buildPath: invalid path component: ${value}`)
+  if (value.startsWith("/") || value.startsWith("\\")) throw new Error(`buildPath: invalid path component: ${value}`)
 }
 
 export function buildPath(input: { root: string; scope: Scope; scope_id?: string; key: string }): string {

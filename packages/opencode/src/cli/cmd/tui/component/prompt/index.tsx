@@ -22,6 +22,7 @@ import { DialogStash } from "../dialog-stash"
 import { type AutocompleteRef, Autocomplete } from "./autocomplete"
 import { useCommandDialog } from "../dialog-command"
 import { useLanguage } from "@tui/context/language"
+import { Log } from "@/util"
 import { useRenderer, type JSX } from "@opentui/solid"
 import * as Editor from "@tui/util/editor"
 import * as Voice from "@tui/util/voice"
@@ -1063,7 +1064,7 @@ export function Prompt(props: PromptProps) {
       const res = await sdk.client.session.create({ workspace: props.workspaceID })
 
       if (res.error) {
-        console.log("Creating a session failed:", res.error)
+        Log.Default.error("Creating a session failed", { error: res.error })
 
         toast.show({
           message: "Creating a session failed. Open console for more details.",
