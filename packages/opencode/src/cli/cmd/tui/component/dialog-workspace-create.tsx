@@ -4,6 +4,7 @@ import { DialogSelect } from "@tui/ui/dialog-select"
 import { useRoute } from "@tui/context/route"
 import { useSync } from "@tui/context/sync"
 import { useProject } from "@tui/context/project"
+import { useLanguage } from "@tui/context/language"
 import { createMemo, createSignal, onMount } from "solid-js"
 import { setTimeout as sleep } from "node:timers/promises"
 import { errorData, errorMessage } from "@/util/error"
@@ -18,6 +19,18 @@ type Adaptor = {
 }
 
 const log = Log.Default.clone().tag("service", "tui-workspace")
+
+const passthrough = (key: string, params?: Record<string, any>) => {
+  // Fallback: return key as-is when called outside reactive context
+  const dict: Record<string, string> = {
+    "tui.workspace.create_session_failed": "Failed to create workspace session",
+    "tui.workspace.restore_failed": "Failed to restore session: {{error}}",
+    "tui.workspace.restored": "Session restored into the new workspace",
+  }
+  let val = dict[key] ?? key
+  if (params) Object.entries(params).forEach(([k, v]) => { val = val.replace(`{{${k}}}`, String(v)) })
+  return val
+}
 
 function scoped(sdk: ReturnType<typeof useSDK>, sync: ReturnType<typeof useSync>, workspaceID: string) {
   return createOpencodeClient({
@@ -34,8 +47,10 @@ export async function openWorkspaceSession(input: {
   sdk: ReturnType<typeof useSDK>
   sync: ReturnType<typeof useSync>
   toast: ReturnType<typeof useToast>
+  t?: (key: string, params?: Record<string, any>) => string
   workspaceID: string
 }) {
+  const t = input.t ?? passthrough
   const client = scoped(input.sdk, input.sync, input.workspaceID)
   log.info("workspace session create requested", {
     workspaceID: input.workspaceID,
@@ -51,7 +66,7 @@ export async function openWorkspaceSession(input: {
     })
     if (!result) {
       input.toast.show({
-        message: "Failed to create workspace session",
+        message: t("tui.workspace.create_session_failed"),
         variant: "error",
       })
       return
@@ -75,7 +90,7 @@ export async function openWorkspaceSession(input: {
         status: result.response?.status,
       })
       input.toast.show({
-        message: "Failed to create workspace session",
+        message: t("tui.workspace.create_session_failed"),
         variant: "error",
       })
       return
@@ -100,10 +115,12 @@ export async function restoreWorkspaceSession(input: {
   sync: ReturnType<typeof useSync>
   project: ReturnType<typeof useProject>
   toast: ReturnType<typeof useToast>
+  t?: (key: string, params?: Record<string, any>) => string
   workspaceID: string
   sessionID: string
   done?: () => void
 }) {
+  const t = input.t ?? passthrough
   log.info("session restore requested", {
     workspaceID: input.workspaceID,
     sessionID: input.sessionID,
@@ -126,7 +143,7 @@ export async function restoreWorkspaceSession(input: {
       error: result?.error ? errorData(result.error) : undefined,
     })
     input.toast.show({
-      message: `Failed to restore session: ${errorMessage(result?.error ?? "no response")}`,
+      message: t("tui.workspace.restore_failed", { error: errorMessage(result?.error ?? "no response") }),
       variant: "error",
     })
     return
@@ -161,7 +178,7 @@ export async function restoreWorkspaceSession(input: {
   })
 
   input.toast.show({
-    message: "Session restored into the new workspace",
+    message: t("tui.workspace.restored"),
     variant: "success",
   })
   input.done?.()
@@ -175,6 +192,7 @@ export function DialogWorkspaceCreate(props: { onSelect: (workspaceID: string) =
   const project = useProject()
   const sdk = useSDK()
   const toast = useToast()
+  const { t } = useLanguage()
   const [creating, setCreating] = createSignal<string>()
   const [adaptors, setAdaptors] = createSignal<Adaptor[]>()
 
@@ -187,10 +205,13 @@ export function DialogWorkspaceCreate(props: { onSelect: (workspaceID: string) =
       const res = await sdk
         .fetch(url)
         .then((x) => x.json() as Promise<Adaptor[]>)
-        .catch(() => undefined)
+        .catch((err: any) => {
+          log.warn("Failed to load workspace adaptors", { error: err })
+          return undefined
+        })
       if (!res) {
         toast.show({
-          message: "Failed to load workspace adaptors",
+          message: t("tui.workspace.load_adaptors_failed"),
           variant: "error",
         })
         return
@@ -204,9 +225,9 @@ export function DialogWorkspaceCreate(props: { onSelect: (workspaceID: string) =
     if (type) {
       return [
         {
-          title: `Creating ${type} workspace...`,
+          title: t("tui.workspace.creating", { type }),
           value: "creating" as const,
-          description: "This can take a while for remote environments",
+          description: t("tui.workspace.creating_desc"),
         },
       ]
     }
@@ -214,9 +235,9 @@ export function DialogWorkspaceCreate(props: { onSelect: (workspaceID: string) =
     if (!list) {
       return [
         {
-          title: "Loading workspaces...",
+          title: t("tui.workspace.loading"),
           value: "loading" as const,
-          description: "Fetching available workspace adaptors",
+          description: t("tui.workspace.fetching_adaptors"),
         },
       ]
     }
@@ -236,7 +257,7 @@ export function DialogWorkspaceCreate(props: { onSelect: (workspaceID: string) =
 
     const result = await sdk.client.experimental.workspace.create({ type, branch: null }).catch((err) => {
       toast.show({
-        message: "Creating workspace failed",
+        message: t("tui.workspace.create_failed"),
         variant: "error",
       })
       log.error("workspace create request failed", {
@@ -255,7 +276,7 @@ export function DialogWorkspaceCreate(props: { onSelect: (workspaceID: string) =
         error: result?.error ? errorData(result.error) : undefined,
       })
       toast.show({
-        message: `Failed to create workspace: ${errorMessage(result?.error ?? "no response")}`,
+        message: t("tui.workspace.create_failed_with_error", { error: errorMessage(result?.error ?? "no response") }),
         variant: "error",
       })
       return
@@ -277,7 +298,7 @@ export function DialogWorkspaceCreate(props: { onSelect: (workspaceID: string) =
 
   return (
     <DialogSelect
-      title={creating() ? "Creating Workspace" : "New Workspace"}
+      title={creating() ? t("tui.workspace.creating_title") : t("tui.workspace.new_title")}
       skipFilter={true}
       options={options()}
       onSelect={(option) => {
