@@ -7,7 +7,7 @@ export const config = {
 
   // GitHub
   github: {
-    repoUrl: "https://github.com/anomalyco/opencode",
+    repoUrl: "https://github.com/XiaomiMiMo/MiMo-Code",
     starsFormatted: {
       compact: "140K",
       full: "140,000",
