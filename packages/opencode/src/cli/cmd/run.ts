@@ -644,7 +644,7 @@ export const RunCommand = cmd({
       })
 
       loop(tracker).catch((e) => {
-        console.error(e)
+        queryLog.error("run loop failed", { error: e })
         process.exit(1)
       })
 

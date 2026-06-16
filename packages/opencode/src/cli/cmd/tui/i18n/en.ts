@@ -428,4 +428,42 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Error component (crash screen)
+  "tui.error.report_issue": "Please report an issue.",
+  "tui.error.copy_issue_url": "Copy issue URL (exception info pre-filled)",
+  "tui.error.copied": "Successfully copied",
+  "tui.error.fatal": "A fatal error occurred!",
+  "tui.error.reset_tui": "Reset TUI",
+  "tui.error.exit": "Exit",
+
+  // Stash dialog
+  "tui.stash.title": "Stash",
+  "tui.stash.just_now": "just now",
+  "tui.stash.minutes_ago": "{{n}}m ago",
+  "tui.stash.hours_ago": "{{n}}h ago",
+  "tui.stash.days_ago": "{{n}}d ago",
+  "tui.stash.confirm_delete": "Press {{key}} again to confirm",
+  "tui.stash.line_count": "~{{n}} lines",
+  "tui.stash.delete": "delete",
+
+  // Startup loading
+  "tui.startup.loading_plugins": "Loading plugins...",
+  "tui.startup.finishing": "Finishing startup...",
+
+  // Worktree dialog
+  "tui.worktree.title": "Worktrees",
+  "tui.worktree.loading": "Loading worktrees...",
+  "tui.worktree.create_new": "+ Create new worktree",
+  "tui.worktree.switching": "Switching to worktree...",
+  "tui.worktree.creating": "Creating worktree...",
+  "tui.worktree.create_failed": "Failed to create worktree",
+  "tui.worktree.switched": "Switched to {{name}}",
+
+  // Plugin route missing
+  "tui.plugin_route.unknown": "Unknown plugin route: {{id}}",
+  "tui.plugin_route.go_home": "go home",
+
+  // Tag dialog
+  "tui.tag.title": "Autocomplete",
 }
