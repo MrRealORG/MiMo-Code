@@ -5,6 +5,7 @@ import { createSignal } from "solid-js"
 import { InstallationVersion } from "@/installation/version"
 import { win32FlushInputBuffer } from "../win32"
 import { getScrollAcceleration } from "../util/scroll"
+import * as Log from "@/util/log"
 
 export function ErrorComponent(props: {
   error: Error
@@ -31,7 +32,7 @@ export function ErrorComponent(props: {
   })
   const [copied, setCopied] = createSignal(false)
 
-  const issueURL = new URL("https://github.com/anomalyco/opencode/issues/new?template=bug-report.yml")
+  const issueURL = new URL("https://github.com/XiaomiMiMo/MiMo-Code/issues/new?template=bug-report.yml")
 
   // Choose safe fallback colors per mode since theme context may not be available
   const isLight = props.mode === "light"
@@ -43,7 +44,7 @@ export function ErrorComponent(props: {
   }
 
   if (props.error.message) {
-    issueURL.searchParams.set("title", `opentui: fatal: ${props.error.message}`)
+    issueURL.searchParams.set("title", `MiMo Code: fatal: ${props.error.message}`)
   }
 
   if (props.error.stack) {
