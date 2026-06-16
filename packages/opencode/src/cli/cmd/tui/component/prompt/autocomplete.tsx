@@ -8,6 +8,7 @@ import { useSDK } from "@tui/context/sdk"
 import { useSync } from "@tui/context/sync"
 import { getScrollAcceleration } from "../../util/scroll"
 import { useTuiConfig } from "../../context/tui-config"
+import { useLanguage } from "@tui/context/language"
 import { useTheme, selectedForeground } from "@tui/context/theme"
 import { SplitBorder } from "@tui/component/border"
 import { useCommandDialog } from "@tui/component/dialog-command"
@@ -84,6 +85,7 @@ export function Autocomplete(props: {
   const dimensions = useTerminalDimensions()
   const frecency = useFrecency()
   const tuiConfig = useTuiConfig()
+  const t = useLanguage().t
 
   const [store, setStore] = createStore({
     index: 0,
@@ -644,7 +646,7 @@ export function Autocomplete(props: {
           each={options()}
           fallback={
             <box paddingLeft={1} paddingRight={1}>
-              <text fg={theme.textMuted}>No matching items</text>
+              <text fg={theme.textMuted}>{t("tui.autocomplete.no_matching")}</text>
             </box>
           }
         >
