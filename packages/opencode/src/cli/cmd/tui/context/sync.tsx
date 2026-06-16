@@ -361,7 +361,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           break
 
         case "session.deleted": {
-          const result = Binary.search(store.session, event.properties.info.id, (s) => s.id)
+          const deletedID = event.properties.info.id
+          const result = Binary.search(store.session, deletedID, (s) => s.id)
           if (result.found) {
             setStore(
               "session",
@@ -370,6 +371,27 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               }),
             )
           }
+          batch(() => {
+            setStore("message", deletedID, undefined as any)
+            setStore("todo", deletedID, undefined as any)
+            setStore("task", deletedID, undefined as any)
+            setStore("actor", deletedID, undefined as any)
+            setStore("permission", deletedID, undefined as any)
+            setStore("question", deletedID, undefined as any)
+            setStore("session_cwd", deletedID, undefined as any)
+            setStore("session_diff", deletedID, undefined as any)
+            setStore("session_goal", deletedID, undefined as any)
+            setStore("session_status", deletedID, undefined as any)
+            const msgs = store.message[deletedID]
+            if (msgs) {
+              const msgIDs = new Set(msgs.map((m: any) => m.id))
+              setStore("part", produce((draft: any) => {
+                for (const key of Object.keys(draft)) {
+                  if (msgIDs.has(key)) delete draft[key]
+                }
+              }))
+            }
+          })
           break
         }
         case "session.updated": {

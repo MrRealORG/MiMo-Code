@@ -188,8 +188,12 @@ function detectTimezoneLocale(): Locale | undefined {
 }
 
 export function detectSystemLocale(): Locale {
-  const tz = detectTimezoneLocale()
-  if (tz) return tz
+  // Priority: 1) system language (most accurate), 2) env vars, 3) timezone (geographic hint)
+  try {
+    const intl = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase()
+    const match = matchers.find((m) => m.test(intl))
+    if (match) return match.locale
+  } catch {}
   for (const env of ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] as const) {
     const value = process.env[env]
     if (!value) continue
@@ -200,10 +204,7 @@ export function detectSystemLocale(): Locale {
       if (match) return match.locale
     }
   }
-  try {
-    const intl = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase()
-    const match = matchers.find((m) => m.test(intl))
-    if (match) return match.locale
-  } catch {}
+  const tz = detectTimezoneLocale()
+  if (tz) return tz
   return "en"
 }
