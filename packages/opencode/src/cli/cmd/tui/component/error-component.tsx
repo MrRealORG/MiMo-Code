@@ -53,7 +53,7 @@ export function ErrorComponent(props: {
     )
   }
 
-  issueURL.searchParams.set("opencode-version", InstallationVersion)
+  issueURL.searchParams.set("mimo-version", InstallationVersion)
 
   const copyIssueURL = () => {
     void Clipboard.copy(issueURL.toString()).then(() => {
