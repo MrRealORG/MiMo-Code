@@ -394,6 +394,12 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       } else {
         route.navigate({ type: "session", sessionID: match })
       }
+    } else if (sync.status === "partial" || sync.status === "complete") {
+      // No sessions found to continue — navigate to home instead of
+      // staying stuck on the invalid "dummy" session route (#758).
+      continued = true
+      toast.show({ message: "No session to continue", variant: "warning", duration: 4000 })
+      route.navigate({ type: "home" })
     }
   })
 
