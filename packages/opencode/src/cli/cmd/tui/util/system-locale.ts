@@ -188,8 +188,10 @@ function detectTimezoneLocale(): Locale | undefined {
 }
 
 export function detectSystemLocale(): Locale {
-  const tz = detectTimezoneLocale()
-  if (tz) return tz
+  // Priority 1: Explicit locale env vars (user's intended language setting).
+  // These must take precedence over timezone which is only a weak signal —
+  // e.g. a Chinese user in a region mapped to a Russian timezone should still
+  // get Chinese when LANG=zh_CN.UTF-8 is set (#714).
   for (const env of ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"] as const) {
     const value = process.env[env]
     if (!value) continue
@@ -200,10 +202,17 @@ export function detectSystemLocale(): Locale {
       if (match) return match.locale
     }
   }
+
+  // Priority 2: Intl locale from the runtime (respects OS display language).
   try {
     const intl = Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase()
     const match = matchers.find((m) => m.test(intl))
     if (match) return match.locale
   } catch {}
+
+  // Priority 3: Timezone-based guess (weakest signal, last resort).
+  const tz = detectTimezoneLocale()
+  if (tz) return tz
+
   return "en"
 }

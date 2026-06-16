@@ -6,9 +6,9 @@ import { bundledLanguages, type BundledLanguage } from "shiki"
 import { createSimpleContext } from "./helper"
 import { getSharedHighlighter, registerCustomTheme, ThemeRegistrationResolved } from "@pierre/diffs"
 
-registerCustomTheme("OpenCode", () => {
+registerCustomTheme("MiMo Code", () => {
   return Promise.resolve({
-    name: "OpenCode",
+    name: "MiMo Code",
     colors: {
       "editor.background": "var(--color-background-stronger)",
       "editor.foreground": "var(--text-base)",
