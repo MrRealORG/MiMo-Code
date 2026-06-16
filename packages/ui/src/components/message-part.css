@@ -1,5 +1,6 @@
 [data-component="assistant-message"] {
   content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
   width: 100%;
   display: flex;
   flex-direction: column;

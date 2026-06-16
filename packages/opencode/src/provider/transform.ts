@@ -6,6 +6,7 @@ import type * as Provider from "./provider"
 import type * as ModelsDev from "./models"
 import { iife } from "@/util/iife"
 import { Flag } from "@/flag/flag"
+import { isSupportedImageMime } from "@/util/media"
 
 type Modality = NonNullable<ModelsDev.Model["modalities"]>["input"][number]
 
@@ -351,6 +352,18 @@ function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMes
 
       const mime = part.type === "image" ? String(part.image).split(";")[0].replace("data:", "") : part.mediaType
       const filename = part.type === "file" ? part.filename : undefined
+
+      // Reject unsupported image formats (e.g. .ico, .tiff) before they
+      // reach the API and cause a 400 error that repeats every turn.
+      // See: https://github.com/XiaomiMiMo/MiMo-Code/issues/351
+      if (mime.startsWith("image/") && !isSupportedImageMime(mime)) {
+        const ext = filename ? filename.split(".").pop() ?? mime.split("/")[1] : mime.split("/")[1]
+        return {
+          type: "text" as const,
+          text: `ERROR: Unsupported image format ".${ext}" (${mime}). Only BMP, GIF, JPEG, PNG, and WebP are supported. Please convert the file and try again.`,
+        }
+      }
+
       const modality = mimeToModality(mime)
       if (!modality) return part
       const supported = modality === "image" ? supportsImageInput(model) : model.capabilities.input[modality]
