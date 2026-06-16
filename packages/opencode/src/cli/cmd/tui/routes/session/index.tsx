@@ -34,7 +34,7 @@ import type {
   ReasoningPart,
 } from "@mimo-ai/sdk/v2"
 import { useLocal } from "@tui/context/local"
-import { Locale } from "@/util"
+import { Locale, Log } from "@/util"
 import type { Tool } from "@/tool"
 import type { ReadTool } from "@/tool/read"
 import type { WriteTool } from "@/tool/write"
@@ -295,7 +295,9 @@ export function Session() {
     if (keybind.match("app_exit", evt)) {
       const status = sync.data.session_status?.[route.sessionID]
       if (status && status.type !== "idle") {
-        void sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
+        void sdk.client.session.abort({ sessionID: route.sessionID }).catch((error) => {
+          Log.Default.warn("Failed to abort session on exit", { sessionID: route.sessionID, error })
+        })
         return
       }
       void exit()
@@ -544,7 +546,9 @@ export function Session() {
       },
       onSelect: async (dialog) => {
         const status = sync.data.session_status?.[route.sessionID]
-        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
+        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch((error) => {
+          Log.Default.warn("Failed to abort session before undo", { sessionID: route.sessionID, error })
+        })
         const revert = session()?.revert?.messageID
         const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
         if (!message) return

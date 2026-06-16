@@ -4,6 +4,9 @@ import { createSimpleContext } from "./helper"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { Flag } from "@/flag/flag"
 import { batch, onCleanup, onMount } from "solid-js"
+import * as Log from "@/util/log"
+
+const log = Log.create({ service: "tui.sdk" })
 
 export type EventSource = {
   subscribe: (handler: (event: GlobalEvent) => void) => Promise<() => void>
@@ -90,7 +93,9 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
           if (Flag.MIMOCODE_EXPERIMENTAL_WORKSPACES) {
             // Start syncing workspaces, it's important to do this after
             // we've started listening to events
-            await sdk.sync.start().catch(() => {})
+            await sdk.sync.start().catch((error) => {
+              log.debug("workspace sync start failed", { error })
+            })
           }
 
           for await (const event of events.stream) {
@@ -107,7 +112,9 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
           const backoff = Math.min(retryDelay * 2 ** (attempt - 1), maxRetryDelay)
           await new Promise((resolve) => setTimeout(resolve, backoff))
         }
-      })().catch(() => {})
+      })().catch((error) => {
+        log.error("SSE event loop terminated", { error, attempt })
+      })
     }
 
     onMount(async () => {
@@ -118,7 +125,9 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
         if (Flag.MIMOCODE_EXPERIMENTAL_WORKSPACES) {
           // Start syncing workspaces, it's important to do this after
           // we've started listening to events
-          await sdk.sync.start().catch(() => {})
+          await sdk.sync.start().catch((error) => {
+            log.debug("workspace sync start failed", { error })
+          })
         }
       } else {
         startSSE()
