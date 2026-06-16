@@ -31,7 +31,7 @@ export function ErrorComponent(props: {
   })
   const [copied, setCopied] = createSignal(false)
 
-  const issueURL = new URL("https://github.com/anomalyco/opencode/issues/new?template=bug-report.yml")
+  const issueURL = new URL("https://github.com/XiaomiMiMo/MiMo-Code/issues/new?template=bug-report.yml")
 
   // Choose safe fallback colors per mode since theme context may not be available
   const isLight = props.mode === "light"
@@ -43,17 +43,17 @@ export function ErrorComponent(props: {
   }
 
   if (props.error.message) {
-    issueURL.searchParams.set("title", `opentui: fatal: ${props.error.message}`)
+    issueURL.searchParams.set("title", `MiMo Code: fatal: ${props.error.message}`)
   }
 
   if (props.error.stack) {
     issueURL.searchParams.set(
       "description",
-      "```\n" + props.error.stack.substring(0, 6000 - issueURL.toString().length) + "...\n```",
+      "```\n" + props.error.stack.split("\n").slice(0, 3).join("\n").substring(0, 2000) + "\n...\n```",
     )
   }
 
-  issueURL.searchParams.set("opencode-version", InstallationVersion)
+  issueURL.searchParams.set("mimo-version", InstallationVersion)
 
   const copyIssueURL = () => {
     void Clipboard.copy(issueURL.toString()).then(() => {
