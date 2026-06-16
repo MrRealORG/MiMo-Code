@@ -428,4 +428,53 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Variant dialog
+  "tui.variant.default": "Default",
+  "tui.variant.title": "Select variant",
+
+  // Agent dialog
+  "tui.agent.native": "native",
+  "tui.agent.title": "Select agent",
+
+  // Skill dialog
+  "tui.skill.category": "Skills",
+  "tui.skill.title": "Skills",
+  "tui.skill.placeholder": "Search skills...",
+
+  // Theme dialog
+  "tui.theme.title": "Themes",
+
+  // Console org dialog
+  "tui.console_org.loading": "Loading orgs...",
+  "tui.console_org.empty": "No orgs found",
+  "tui.console_org.switched": "Switched to {{name}}",
+  "tui.console_org.title": "Switch org",
+
+  // MCP dialog
+  "tui.mcp.loading": "\u22ef Loading",
+  "tui.mcp.enabled": "\u2713 Enabled",
+  "tui.mcp.disabled": "\u25cb Disabled",
+  "tui.mcp.title": "MCPs",
+  "tui.mcp.toggle": "toggle",
+
+  // Workflow dialog
+  "tui.workflow.empty": "(no workflow runs)",
+  "tui.workflow.title": "Workflows",
+  "tui.workflow.resume_title": "Resume workflow",
+  "tui.workflow.resume_confirm": "Re-run \"{{name}}\"? This re-executes the workflow and may incur cost.",
+
+  // Session delete failed dialog
+  "tui.session_delete_failed.title": "Failed to Delete Session",
+  "tui.session_delete_failed.description": "The session \"{{session}}\" could not be deleted because the workspace \"{{workspace}}\" is not available.",
+  "tui.session_delete_failed.recovery_hint": "Choose how you want to recover this broken workspace session.",
+  "tui.session_delete_failed.delete_title": "Delete workspace",
+  "tui.session_delete_failed.delete_desc": "Delete the workspace and all sessions attached to it.",
+  "tui.session_delete_failed.restore_title": "Restore to new workspace",
+  "tui.session_delete_failed.restore_desc": "Try to restore this session into a new workspace.",
+
+  // Workspace unavailable dialog
+  "tui.workspace_unavailable.title": "Workspace Unavailable",
+  "tui.workspace_unavailable.description": "This session is attached to a workspace that is no longer available.",
+  "tui.workspace_unavailable.restore_hint": "Would you like to restore this session into a new workspace?",
 }

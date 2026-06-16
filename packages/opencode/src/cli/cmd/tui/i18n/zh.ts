@@ -421,4 +421,53 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+
+  // Variant dialog
+  "tui.variant.default": "默认",
+  "tui.variant.title": "选择变体",
+
+  // Agent dialog
+  "tui.agent.native": "内置",
+  "tui.agent.title": "选择智能体",
+
+  // Skill dialog
+  "tui.skill.category": "技能",
+  "tui.skill.title": "技能",
+  "tui.skill.placeholder": "搜索技能...",
+
+  // Theme dialog
+  "tui.theme.title": "主题",
+
+  // Console org dialog
+  "tui.console_org.loading": "加载组织列表...",
+  "tui.console_org.empty": "未找到组织",
+  "tui.console_org.switched": "已切换到 {{name}}",
+  "tui.console_org.title": "切换组织",
+
+  // MCP dialog
+  "tui.mcp.loading": "⋯ 加载中",
+  "tui.mcp.enabled": "✓ 已启用",
+  "tui.mcp.disabled": "○ 已禁用",
+  "tui.mcp.title": "MCP 服务",
+  "tui.mcp.toggle": "切换",
+
+  // Workflow dialog
+  "tui.workflow.empty": "（无工作流运行记录）",
+  "tui.workflow.title": "工作流",
+  "tui.workflow.resume_title": "恢复工作流",
+  "tui.workflow.resume_confirm": "重新运行 \"{{name}}\"？这将重新执行工作流并可能产生费用。",
+
+  // Session delete failed dialog
+  "tui.session_delete_failed.title": "删除会话失败",
+  "tui.session_delete_failed.description": "无法删除会话 \"{{session}}\"，因为工作区 \"{{workspace}}\" 不可用。",
+  "tui.session_delete_failed.recovery_hint": "请选择恢复此损坏工作区会话的方式。",
+  "tui.session_delete_failed.delete_title": "删除工作区",
+  "tui.session_delete_failed.delete_desc": "删除工作区及其下所有会话。",
+  "tui.session_delete_failed.restore_title": "恢复到新工作区",
+  "tui.session_delete_failed.restore_desc": "尝试将此会话恢复到新的工作区。",
+
+  // Workspace unavailable dialog
+  "tui.workspace_unavailable.title": "工作区不可用",
+  "tui.workspace_unavailable.description": "此会话关联的工作区已不可用。",
+  "tui.workspace_unavailable.restore_hint": "是否将此会话恢复到新的工作区？",
 } satisfies Partial<Record<Keys, string>>

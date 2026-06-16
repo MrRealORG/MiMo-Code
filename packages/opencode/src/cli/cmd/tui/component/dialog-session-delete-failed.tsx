@@ -1,6 +1,7 @@
 import { TextAttributes } from "@opentui/core"
 import { useTheme } from "../context/theme"
 import { useDialog } from "../ui/dialog"
+import { useLanguage } from "@tui/context/language"
 import { createStore } from "solid-js/store"
 import { For } from "solid-js"
 import { useKeyboard } from "@opentui/solid"
@@ -14,6 +15,7 @@ export function DialogSessionDeleteFailed(props: {
 }) {
   const dialog = useDialog()
   const { theme } = useTheme()
+  const { t } = useLanguage()
   const [store, setStore] = createStore({
     active: "delete" as "delete" | "restore",
   })
@@ -21,14 +23,14 @@ export function DialogSessionDeleteFailed(props: {
   const options = [
     {
       id: "delete" as const,
-      title: "Delete workspace",
-      description: "Delete the workspace and all sessions attached to it.",
+      title: t("tui.session_delete_failed.delete_title"),
+      description: t("tui.session_delete_failed.delete_desc"),
       run: props.onDelete,
     },
     {
       id: "restore" as const,
-      title: "Restore to new workspace",
-      description: "Try to restore this session into a new workspace.",
+      title: t("tui.session_delete_failed.restore_title"),
+      description: t("tui.session_delete_failed.restore_desc"),
       run: props.onRestore,
     },
   ]
@@ -56,17 +58,17 @@ export function DialogSessionDeleteFailed(props: {
     <box paddingLeft={2} paddingRight={2} gap={1}>
       <box flexDirection="row" justifyContent="space-between">
         <text attributes={TextAttributes.BOLD} fg={theme.text}>
-          Failed to Delete Session
+          {t("tui.session_delete_failed.title")}
         </text>
         <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
           esc
         </text>
       </box>
       <text fg={theme.textMuted} wrapMode="word">
-        {`The session "${props.session}" could not be deleted because the workspace "${props.workspace}" is not available.`}
+        {t("tui.session_delete_failed.description", { session: props.session, workspace: props.workspace })}
       </text>
       <text fg={theme.textMuted} wrapMode="word">
-        Choose how you want to recover this broken workspace session.
+        {t("tui.session_delete_failed.recovery_hint")}
       </text>
       <box flexDirection="column" paddingBottom={1} gap={1}>
         <For each={options}>
