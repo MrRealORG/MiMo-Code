@@ -396,5 +396,11 @@ export const dict = {
   "tui.dialog.login.flow.manual_hint": "瀏覽器未開啟？點擊下方連結以複製：",
   "tui.dialog.login.flow.waiting": "等待瀏覽器授權中...",
   "tui.dialog.login.flow.invalid_code": "Code 無效，請重試",
-  "tui.dialog.login.flow.copied": "已複製",
+  "tui.dialog.login.flow.copied": "已複製",,
+  "tui.upsell.title": "免費額度已用完",
+  "tui.upsell.subscribe_to": "訂閱",
+  "tui.upsell.service_name": "MiMo Go",
+  "tui.upsell.description": "以獲取最佳開源模型的穩定訪問，每月 $5 起。",
+  "tui.upsell.dont_show_again": "不再顯示",
+  "tui.upsell.subscribe": "訂閱",
 } satisfies Partial<Record<Keys, string>>

@@ -421,4 +421,78 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+
+  // Startup loading
+  "tui.startup.loading_plugins": "加载插件中...",
+  "tui.startup.finishing": "正在完成启动...",
+
+  // Session rename dialog
+  "tui.rename_session.title": "重命名会话",
+
+  // Worktree dialog
+  "tui.worktree.title": "工作树",
+  "tui.worktree.loading": "加载工作树中...",
+  "tui.worktree.create_new": "+ 创建新工作树",
+  "tui.worktree.switching": "切换工作树中...",
+  "tui.worktree.switched": "已切换到 {{name}}",
+  "tui.worktree.creating": "创建工作树中...",
+  "tui.worktree.create_failed": "创建工作树失败",
+
+  // Stash dialog
+  "tui.stash.title": "暂存",
+  "tui.stash.delete": "删除",
+  "tui.stash.confirm_delete": "再次按 {{key}} 确认删除",
+  "tui.stash.line_count": "~{{count}} 行",
+
+  // Workspace create dialog
+  "tui.workspace.new_title": "新建工作区",
+  "tui.workspace.creating_title": "创建工作区",
+  "tui.workspace.loading": "加载工作区中...",
+  "tui.workspace.fetching_adaptors": "获取可用工作区适配器",
+  "tui.workspace.creating": "正在创建 {{type}} 工作区...",
+  "tui.workspace.creating_desc": "远程环境可能需要一些时间",
+  "tui.workspace.load_adaptors_failed": "加载工作区适配器失败",
+  "tui.workspace.create_session_failed": "创建工作区会话失败",
+  "tui.workspace.restore_failed": "恢复会话失败: {{error}}",
+  "tui.workspace.restored": "会话已恢复到新工作区",
+  "tui.workspace.create_failed": "创建工作区失败",
+  "tui.workspace.create_failed_with_error": "创建工作区失败: {{error}}",
+
+  // Theme dialog
+  "tui.theme.title": "主题",
+
+  // Agent dialog
+  "tui.agent.title": "选择智能体",
+  "tui.agent.native": "内置",
+
+  // Variant dialog
+  "tui.variant.title": "选择变体",
+  "tui.variant.default": "默认",
+
+  // Skill dialog
+  "tui.skill.title": "技能",
+  "tui.skill.category": "技能",
+  "tui.skill.placeholder": "搜索技能...",
+
+  // Autocomplete / Tag dialog
+  "tui.autocomplete.title": "自动补全",
+  "tui.autocomplete.no_matches": "无匹配项",
+
+  // Console org dialog
+  "tui.console_org.title": "切换组织",
+  "tui.console_org.loading": "加载组织中...",
+  "tui.console_org.empty": "未找到组织",
+  "tui.console_org.switched": "已切换到 {{name}}",
+
+  // Workflows dialog
+  "tui.workflows.title": "工作流",
+  "tui.workflows.empty": "（无工作流记录）",
+  "tui.workflows.resume_title": "恢复工作流",
+  "tui.workflows.resume_confirm": "重新运行 \"{{name}}\"？这将重新执行工作流并可能产生费用。",,
+  "tui.upsell.title": "免费额度已用完",
+  "tui.upsell.subscribe_to": "订阅",
+  "tui.upsell.service_name": "MiMo Go",
+  "tui.upsell.description": "以获取最佳开源模型的稳定访问，每月 $5 起。",
+  "tui.upsell.dont_show_again": "不再显示",
+  "tui.upsell.subscribe": "订阅",
 } satisfies Partial<Record<Keys, string>>

@@ -469,5 +469,11 @@ export const dict = {
   "tui.dialog.login.flow.manual_hint": "¿El navegador no se abrió? Haz clic en el enlace para copiar:",
   "tui.dialog.login.flow.waiting": "Esperando autorización del navegador...",
   "tui.dialog.login.flow.invalid_code": "Código inválido, intenta de nuevo",
-  "tui.dialog.login.flow.copied": "Copiado",
+  "tui.dialog.login.flow.copied": "Copiado",,
+  "tui.upsell.title": "Límite gratuito alcanzado",
+  "tui.upsell.subscribe_to": "Suscríbete a",
+  "tui.upsell.service_name": "MiMo Go",
+  "tui.upsell.description": "para acceso confiable a los mejores modelos de código abierto, desde $5/mes.",
+  "tui.upsell.dont_show_again": "no mostrar de nuevo",
+  "tui.upsell.subscribe": "suscribirse",
 } satisfies Partial<Record<Keys, string>>

@@ -428,5 +428,11 @@ export const dict = {
   "trust.dangerous.advice_home": "明確な理由がない限り、ホームディレクトリ全体を信頼しないでください。",
   "trust.dangerous.advice_root": "明確な理由がない限り、ファイルシステムのルートを信頼しないでください。",
   "trust.dangerous.option.yes": "リスクを理解した上で、今回のみ信頼する",
-  "trust.dangerous.option.no": "終了（推奨）",
+  "trust.dangerous.option.no": "終了（推奨）",,
+  "tui.upsell.title": "無料枠に達しました",
+  "tui.upsell.subscribe_to": "サブスクライブ",
+  "tui.upsell.service_name": "MiMo Go",
+  "tui.upsell.description": "最適なオープンソースモデルへの安定したアクセスを、月額$5から。",
+  "tui.upsell.dont_show_again": "今後表示しない",
+  "tui.upsell.subscribe": "サブスクライブ",
 } satisfies Partial<Record<Keys, string>>

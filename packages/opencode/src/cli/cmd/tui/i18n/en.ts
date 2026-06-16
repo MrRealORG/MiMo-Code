@@ -428,4 +428,78 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Startup loading
+  "tui.startup.loading_plugins": "Loading plugins...",
+  "tui.startup.finishing": "Finishing startup...",
+
+  // Session rename dialog
+  "tui.rename_session.title": "Rename Session",
+
+  // Worktree dialog
+  "tui.worktree.title": "Worktrees",
+  "tui.worktree.loading": "Loading worktrees...",
+  "tui.worktree.create_new": "+ Create new worktree",
+  "tui.worktree.switching": "Switching to worktree...",
+  "tui.worktree.switched": "Switched to {{name}}",
+  "tui.worktree.creating": "Creating worktree...",
+  "tui.worktree.create_failed": "Failed to create worktree",
+
+  // Stash dialog
+  "tui.stash.title": "Stash",
+  "tui.stash.delete": "delete",
+  "tui.stash.confirm_delete": "Press {{key}} again to confirm",
+  "tui.stash.line_count": "~{{count}} lines",
+
+  // Workspace create dialog
+  "tui.workspace.new_title": "New Workspace",
+  "tui.workspace.creating_title": "Creating Workspace",
+  "tui.workspace.loading": "Loading workspaces...",
+  "tui.workspace.fetching_adaptors": "Fetching available workspace adaptors",
+  "tui.workspace.creating": "Creating {{type}} workspace...",
+  "tui.workspace.creating_desc": "This can take a while for remote environments",
+  "tui.workspace.load_adaptors_failed": "Failed to load workspace adaptors",
+  "tui.workspace.create_session_failed": "Failed to create workspace session",
+  "tui.workspace.restore_failed": "Failed to restore session: {{error}}",
+  "tui.workspace.restored": "Session restored into the new workspace",
+  "tui.workspace.create_failed": "Creating workspace failed",
+  "tui.workspace.create_failed_with_error": "Failed to create workspace: {{error}}",
+
+  // Theme dialog
+  "tui.theme.title": "Themes",
+
+  // Agent dialog
+  "tui.agent.title": "Select agent",
+  "tui.agent.native": "native",
+
+  // Variant dialog
+  "tui.variant.title": "Select variant",
+  "tui.variant.default": "Default",
+
+  // Skill dialog
+  "tui.skill.title": "Skills",
+  "tui.skill.category": "Skills",
+  "tui.skill.placeholder": "Search skills...",
+
+  // Autocomplete / Tag dialog
+  "tui.autocomplete.title": "Autocomplete",
+  "tui.autocomplete.no_matches": "No matching items",
+
+  // Console org dialog
+  "tui.console_org.title": "Switch org",
+  "tui.console_org.loading": "Loading orgs...",
+  "tui.console_org.empty": "No orgs found",
+  "tui.console_org.switched": "Switched to {{name}}",
+
+  // Workflows dialog
+  "tui.workflows.title": "Workflows",
+  "tui.workflows.empty": "(no workflow runs)",
+  "tui.workflows.resume_title": "Resume workflow",
+  "tui.workflows.resume_confirm": "Re-run \"{{name}}\"? This re-executes the workflow and may incur cost.",,
+  "tui.upsell.title": "Free limit reached",
+  "tui.upsell.subscribe_to": "Subscribe to",
+  "tui.upsell.service_name": "MiMo Go",
+  "tui.upsell.description": "for reliable access to the best open-source models, starting at $5/month.",
+  "tui.upsell.dont_show_again": "don't show again",
+  "tui.upsell.subscribe": "subscribe",
 }

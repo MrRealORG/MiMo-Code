@@ -488,5 +488,11 @@ export const dict = {
   "trust.dangerous.advice_home": "Если нет весомой причины, НЕ доверяйте всему домашнему каталогу.",
   "trust.dangerous.advice_root": "Если нет весомой причины, НЕ доверяйте корню файловой системы.",
   "trust.dangerous.option.yes": "Я понимаю риски, доверять только в этой сессии",
-  "trust.dangerous.option.no": "Выйти (рекомендуется)",
+  "trust.dangerous.option.no": "Выйти (рекомендуется)",,
+  "tui.upsell.title": "Бесплатный лимит исчерпан",
+  "tui.upsell.subscribe_to": "Подпишитесь на",
+  "tui.upsell.service_name": "MiMo Go",
+  "tui.upsell.description": "для надёжного доступа к лучшим open-source моделям от $5/мес.",
+  "tui.upsell.dont_show_again": "больше не показывать",
+  "tui.upsell.subscribe": "подписаться",
 } satisfies Partial<Record<Keys, string>>
