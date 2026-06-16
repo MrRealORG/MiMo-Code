@@ -193,6 +193,10 @@ export const TuiThreadCommand = cmd({
         ? Filesystem.resolve(path.isAbsolute(args.project) ? args.project : path.join(root, args.project))
         : Filesystem.resolve(process.cwd())
       const file = await target()
+      if (args.project && !(await Filesystem.exists(next))) {
+        UI.error("Directory not found: " + next)
+        return
+      }
       try {
         process.chdir(next)
       } catch {

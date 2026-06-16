@@ -27,7 +27,7 @@ import { TuiThreadCommand } from "./cli/cmd/tui/thread"
 import { AcpCommand } from "./cli/cmd/acp"
 import { EOL } from "os"
 // Web command temporarily disabled
-// import { WebCommand } from "./cli/cmd/web"
+import { WebDisabledCommand } from "./cli/cmd/web-disabled"
 import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
 import { DbCommand } from "./cli/cmd/db"
@@ -182,7 +182,7 @@ const cli = yargs(args)
   .command(UninstallCommand)
   .command(ServeCommand)
   // Web command temporarily disabled
-  // .command(WebCommand)
+  .command(WebDisabledCommand)
   .command(ModelsCommand)
   .command(StatsCommand)
   .command(ExportCommand)
