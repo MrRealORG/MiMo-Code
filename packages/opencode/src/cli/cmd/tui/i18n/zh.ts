@@ -421,4 +421,19 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+
+  // Status dialog
+  "tui.status.title": "状态",
+  "tui.status.no_mcp": "无 MCP 服务器",
+  "tui.status.mcp_servers": "{{count}} 个 MCP 服务器",
+  "tui.status.connected": "已连接",
+  "tui.status.pending_approval": "等待授权",
+  "tui.status.disabled_config": "已在配置中禁用",
+  "tui.status.needs_auth": "需要认证（运行：mimo mcp auth {{name}}）",
+  "tui.status.lsp_servers": "{{count}} 个 LSP 服务器",
+  "tui.status.no_formatters": "无格式化工具",
+  "tui.status.formatters": "{{count}} 个格式化工具",
+  "tui.status.no_plugins": "无插件",
+  "tui.status.plugins": "{{count}} 个插件",
+
 } satisfies Partial<Record<Keys, string>>

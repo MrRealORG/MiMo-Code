@@ -428,4 +428,18 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+
+  // Status dialog
+  "tui.status.title": "Status",
+  "tui.status.no_mcp": "No MCP Servers",
+  "tui.status.mcp_servers": "{{count}} MCP Servers",
+  "tui.status.connected": "Connected",
+  "tui.status.pending_approval": "Pending approval",
+  "tui.status.disabled_config": "Disabled in configuration",
+  "tui.status.needs_auth": "Needs authentication (run: mimo mcp auth {{name}})",
+  "tui.status.lsp_servers": "{{count}} LSP Servers",
+  "tui.status.no_formatters": "No Formatters",
+  "tui.status.formatters": "{{count}} Formatters",
+  "tui.status.no_plugins": "No Plugins",
+  "tui.status.plugins": "{{count}} Plugins",
 }

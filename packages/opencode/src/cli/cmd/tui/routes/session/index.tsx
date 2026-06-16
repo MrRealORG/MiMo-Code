@@ -91,6 +91,7 @@ import { TuiPluginRuntime } from "../../plugin"
 import { DialogGoUpsell } from "../../component/dialog-go-upsell"
 import { SessionRetry } from "@/session/retry"
 import { getRevertDiffFiles } from "../../util/revert-diff"
+import { Log } from "@/util"
 
 addDefaultParsers(parsers.parsers)
 
@@ -129,6 +130,7 @@ export function Session() {
   const tuiConfig = useTuiConfig()
   const kv = useKV()
   const { theme } = useTheme()
+  const log = Log.create({ service: "tui.session" })
   const promptRef = usePromptRef()
   const session = createMemo(() => sync.session.get(route.sessionID))
   const currentAgentID = useCurrentAgentID()
@@ -295,7 +297,7 @@ export function Session() {
     if (keybind.match("app_exit", evt)) {
       const status = sync.data.session_status?.[route.sessionID]
       if (status && status.type !== "idle") {
-        void sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
+        void sdk.client.session.abort({ sessionID: route.sessionID }).catch((err: any) => log.warn("Failed to abort session on exit", { error: String(err) }))
         return
       }
       void exit()
@@ -544,7 +546,7 @@ export function Session() {
       },
       onSelect: async (dialog) => {
         const status = sync.data.session_status?.[route.sessionID]
-        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
+        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch((err: any) => log.warn("Failed to abort session before undo", { error: String(err) }))
         const revert = session()?.revert?.messageID
         const message = messages().findLast((x) => (!revert || x.id < revert) && x.role === "user")
         if (!message) return
