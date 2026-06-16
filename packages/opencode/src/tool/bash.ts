@@ -382,7 +382,7 @@ export const BashTool = Tool.define(
     })
 
     const argPath = Effect.fn("BashTool.argPath")(function* (arg: string, cwd: string, ps: boolean, shell: string) {
-      const text = ps ? expand(arg, cwd, shell) : home(unquote(arg))
+      const text = expand(home(unquote(arg)), cwd, shell)
       const file = text && prefix(text)
       if (!file || dynamic(file, ps)) return
       const next = ps ? provider(file) : file

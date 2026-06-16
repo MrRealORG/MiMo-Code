@@ -96,7 +96,7 @@ function init() {
     const textEditingKey = textInputFocused && isTextEditingKey(evt)
     for (const option of entries()) {
       if (!isEnabled(option)) continue
-      if (textEditingKey && !option.keybind?.startsWith("input_")) continue
+      if (textEditingKey && !option.keybind?.startsWith("input_") && !option.keybind?.startsWith("<leader>")) continue
       if (option.keybind && keybind.match(option.keybind, evt)) {
         evt.preventDefault()
         option.onSelect?.(dialog)
