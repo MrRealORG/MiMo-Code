@@ -421,4 +421,23 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+  // Session delete failed dialog
+  "tui.delete_failed.title": "删除会话失败",
+  "tui.delete_failed.session_unavailable": "会话 \"{{session}}\" 无法删除，因为工作区 \"{{workspace}}\" 不可用。",
+  "tui.delete_failed.choose_recovery": "选择如何恢复此损坏的工作区会话。",
+  "tui.delete_failed.title_delete": "删除工作区",
+  "tui.delete_failed.desc_delete": "删除工作区及其关联的所有会话。",
+  "tui.delete_failed.title_restore": "恢复到新工作区",
+  "tui.delete_failed.desc_restore": "尝试将此会话恢复到新的工作区。",
+
+  // Workspace unavailable dialog
+  "tui.workspace_unavailable.title": "工作区不可用",
+  "tui.workspace_unavailable.description": "此会话关联的工作区已不可用。",
+  "tui.workspace_unavailable.restore_prompt": "是否将此会话恢复到新的工作区？",
+  "tui.workspace_unavailable.cancel": "取消",
+  "tui.workspace_unavailable.restore": "恢复",
+
+  // Plugin route missing
+  "tui.plugin_route_missing.unknown": "未知插件路由：{{id}}",
+  "tui.plugin_route_missing.go_home": "返回首页"
 } satisfies Partial<Record<Keys, string>>

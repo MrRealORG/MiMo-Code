@@ -428,4 +428,23 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+  // Session delete failed dialog
+  "tui.delete_failed.title": "Failed to Delete Session",
+  "tui.delete_failed.session_unavailable": "The session \"{{session}}\" could not be deleted because the workspace \"{{workspace}}\" is not available.",
+  "tui.delete_failed.choose_recovery": "Choose how you want to recover this broken workspace session.",
+  "tui.delete_failed.title_delete": "Delete workspace",
+  "tui.delete_failed.desc_delete": "Delete the workspace and all sessions attached to it.",
+  "tui.delete_failed.title_restore": "Restore to new workspace",
+  "tui.delete_failed.desc_restore": "Try to restore this session into a new workspace.",
+
+  // Workspace unavailable dialog
+  "tui.workspace_unavailable.title": "Workspace Unavailable",
+  "tui.workspace_unavailable.description": "This session is attached to a workspace that is no longer available.",
+  "tui.workspace_unavailable.restore_prompt": "Would you like to restore this session into a new workspace?",
+  "tui.workspace_unavailable.cancel": "cancel",
+  "tui.workspace_unavailable.restore": "restore",
+
+  // Plugin route missing
+  "tui.plugin_route_missing.unknown": "Unknown plugin route: {{id}}",
+  "tui.plugin_route_missing.go_home": "go home"
 }
