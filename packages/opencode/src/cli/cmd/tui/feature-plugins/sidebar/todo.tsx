@@ -1,12 +1,14 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@mimo-ai/plugin/tui"
 import { createMemo, For, Show, createSignal } from "solid-js"
 import { TodoItem } from "../../component/todo-item"
+import { useLanguage } from "@tui/context/language"
 
 const id = "internal:sidebar-todo"
 
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const [open, setOpen] = createSignal(true)
   const theme = () => props.api.theme.current
+  const t = useLanguage().t
   const list = createMemo(() => props.api.state.session.todo(props.session_id))
   const tasks = createMemo(() => props.api.state.session.task(props.session_id))
   const show = createMemo(
@@ -21,7 +23,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             <text fg={theme().text}>{open() ? "▼" : "▶"}</text>
           </Show>
           <text fg={theme().text}>
-            <b>Todo</b>
+            <b>{t("tui.sidebar.todo")}</b>
           </text>
         </box>
         <Show when={list().length <= 2 || open()}>

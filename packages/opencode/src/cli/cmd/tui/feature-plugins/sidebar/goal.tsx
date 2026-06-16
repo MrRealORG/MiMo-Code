@@ -1,30 +1,28 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@mimo-ai/plugin/tui"
 import { createMemo, Show } from "solid-js"
+import { useLanguage } from "@tui/context/language"
 
 const id = "internal:sidebar-goal"
 
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
+  const t = useLanguage().t
   const goal = createMemo(() => props.api.state.session.goal(props.session_id))
-  // The latest verdict (keyed by the most recently judged turn) drives the
-  // status line; per-turn reasons live inline on the message stream.
   const latest = createMemo(() => {
     const g = goal()
     if (!g?.lastMessageID) return undefined
     return g.verdicts[g.lastMessageID]
   })
 
-  // Show whenever there is an active goal, or a verdict survives from a goal
-  // that just cleared (so the ✓/⊘ result lingers briefly).
   const show = createMemo(() => Boolean(goal()?.condition || latest()))
 
   const status = createMemo(() => {
     const v = latest()
     if (!v) return undefined
-    if (v.error) return { dot: theme().textMuted, label: "error (stopped)" }
-    if (v.ok) return { dot: theme().success, label: "met" }
-    if (v.impossible) return { dot: theme().error, label: "impossible" }
-    return { dot: theme().warning, label: `round ${v.attempt} · not met` }
+    if (v.error) return { dot: theme().textMuted, label: t("tui.sidebar.goal.error_stopped") }
+    if (v.ok) return { dot: theme().success, label: t("tui.sidebar.goal.met") }
+    if (v.impossible) return { dot: theme().error, label: t("tui.sidebar.goal.impossible") }
+    return { dot: theme().warning, label: t("tui.sidebar.goal.not_met", { round: v.attempt }) }
   })
 
   return (
@@ -32,7 +30,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       <box>
         <box flexDirection="row" gap={1}>
           <text fg={theme().text}>
-            <b>Goal</b>
+            <b>{t("tui.sidebar.goal")}</b>
           </text>
         </box>
         <Show when={goal()?.condition}>
@@ -54,7 +52,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
                 •
               </text>
               <text fg={theme().textMuted} wrapMode="word">
-                Judge: {s().label}
+                {t("tui.sidebar.goal.judge")}{s().label}
               </text>
             </box>
           )}
@@ -66,7 +64,6 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
 
 const tui: TuiPlugin = async (api) => {
   api.slots.register({
-    // Just below LSP (300) so the goal status sits beneath the LSP block.
     order: 350,
     slots: {
       sidebar_content(_ctx, props) {

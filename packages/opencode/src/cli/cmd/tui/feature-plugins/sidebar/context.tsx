@@ -2,17 +2,18 @@ import type { AssistantMessage } from "@mimo-ai/sdk/v2"
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@mimo-ai/plugin/tui"
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { completedTPS, formatTPS, streamingTPS } from "./tps"
+import { useLanguage } from "@tui/context/language"
 
 const id = "internal:sidebar-context"
 const REFRESH_MS = 1000
 
-const money = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-})
-
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
+  const { t, effective } = useLanguage()
+  const money = createMemo(() => new Intl.NumberFormat(effective() === "zh" ? "zh-CN" : "en-US", {
+    style: "currency",
+    currency: "USD",
+  }))
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
   const cost = createMemo(() => msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0))
 
@@ -38,7 +39,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     if (!m) return null
 
     if (isStreaming()) {
-      tick() // reactivity dep so the readout updates between deltas
+      tick()
       const parts = props.api.state.part(m.id)
       const combined = parts
         .filter((p) => p.type === "text" || p.type === "reasoning")
@@ -85,12 +86,12 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   return (
     <box>
       <text fg={theme().text}>
-        <b>Context</b>
+        <b>{t("tui.sidebar.context")}</b>
       </text>
-      <text fg={theme().textMuted}>{state().tokens.toLocaleString()} tokens</text>
-      <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
+      <text fg={theme().textMuted}>{state().tokens.toLocaleString()} {t("tui.sidebar.tokens")}</text>
+      <text fg={theme().textMuted}>{state().percent ?? 0}{t("tui.sidebar.percent_used")}</text>
       <Show when={tpsLabel()}>{(label) => <text fg={theme().textMuted}>{label()}</text>}</Show>
-      <text fg={theme().textMuted}>{money.format(cost())} spent</text>
+      <text fg={theme().textMuted}>{money().format(cost())} {t("tui.sidebar.spent")}</text>
     </box>
   )
 }

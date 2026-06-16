@@ -1,11 +1,13 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@mimo-ai/plugin/tui"
-import { createMemo, For, Match, Show, Switch, createSignal } from "solid-js"
+import { createMemo, For, Show, Match, Switch, createSignal } from "solid-js"
+import { useLanguage } from "@tui/context/language"
 
 const id = "internal:sidebar-mcp"
 
 function View(props: { api: TuiPluginApi }) {
   const [open, setOpen] = createSignal(true)
   const theme = () => props.api.theme.current
+  const t = useLanguage().t
   const list = createMemo(() => props.api.state.mcp())
   const on = createMemo(() => list().filter((item) => item.status === "connected").length)
   const bad = createMemo(
@@ -26,6 +28,16 @@ function View(props: { api: TuiPluginApi }) {
     return theme().textMuted
   }
 
+  const statusLabel = (status: string, error?: string) => {
+    if (status === "connected") return t("tui.sidebar.mcp.connected")
+    if (status === "failed") return error ?? t("tui.sidebar.mcp.failed")
+    if (status === "pending") return t("tui.sidebar.mcp.pending")
+    if (status === "disabled") return t("tui.sidebar.mcp.disabled")
+    if (status === "needs_auth") return t("tui.sidebar.mcp.needs_auth")
+    if (status === "needs_client_registration") return t("tui.sidebar.mcp.needs_client_id")
+    return status
+  }
+
   return (
     <Show when={list().length > 0}>
       <box>
@@ -34,11 +46,11 @@ function View(props: { api: TuiPluginApi }) {
             <text fg={theme().text}>{open() ? "▼" : "▶"}</text>
           </Show>
           <text fg={theme().text}>
-            <b>MCP</b>
+            <b>{t("tui.sidebar.mcp.title")}</b>
             <Show when={!open()}>
               <span style={{ fg: theme().textMuted }}>
                 {" "}
-                ({on()} active{bad() > 0 ? `, ${bad()} error${bad() > 1 ? "s" : ""}` : ""})
+                ({t("tui.sidebar.mcp.collapsed_summary", { active: on(), errors: bad(), hasErrors: bad() > 0, plural: bad() > 1 })})
               </span>
             </Show>
           </text>
@@ -58,16 +70,7 @@ function View(props: { api: TuiPluginApi }) {
                 <text fg={theme().text} wrapMode="word">
                   {item.name}{" "}
                   <span style={{ fg: theme().textMuted }}>
-                    <Switch fallback={item.status}>
-                      <Match when={item.status === "connected"}>Connected</Match>
-                      <Match when={item.status === "failed"}>
-                        <i>{item.error}</i>
-                      </Match>
-                      <Match when={(item.status as string) === "pending"}>Pending approval</Match>
-                      <Match when={item.status === "disabled"}>Disabled</Match>
-                      <Match when={item.status === "needs_auth"}>Needs auth</Match>
-                      <Match when={item.status === "needs_client_registration"}>Needs client ID</Match>
-                    </Switch>
+                    {item.status === "failed" ? <i>{item.error}</i> : statusLabel(item.status, item.error)}
                   </span>
                 </text>
               </box>
