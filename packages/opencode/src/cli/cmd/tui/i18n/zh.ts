@@ -421,4 +421,10 @@ export const dict = {
   "trust.dangerous.advice_root": "除非有明确的理由，否则不要信任文件系统根目录。",
   "trust.dangerous.option.yes": "我了解风险，仅本次信任",
   "trust.dangerous.option.no": "退出（推荐）",
+  "tui.error.report_issue": "请报告此问题。",
+  "tui.error.copy_url": "复制问题链接（已预填异常信息）",
+  "tui.error.copied": "已成功复制",
+  "tui.error.fatal": "发生了致命错误！",
+  "tui.error.reset": "重置 TUI",
+  "tui.error.exit": "退出",
 } satisfies Partial<Record<Keys, string>>

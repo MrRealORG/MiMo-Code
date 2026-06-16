@@ -477,4 +477,10 @@ export const dict = {
   "trust.dangerous.advice_root": "Sauf raison très spécifique, NE faites PAS confiance à la racine du système de fichiers.",
   "trust.dangerous.option.yes": "Je comprends les risques, faire confiance pour cette session",
   "trust.dangerous.option.no": "Quitter (recommandé)",
+  "tui.error.report_issue": "Veuillez signaler ce problème.",
+  "tui.error.copy_url": "Copier l'URL du problème (infos d'exception préremplies)",
+  "tui.error.copied": "Copié avec succès",
+  "tui.error.fatal": "Une erreur fatale s'est produite !",
+  "tui.error.reset": "Réinitialiser TUI",
+  "tui.error.exit": "Quitter",
 } satisfies Partial<Record<Keys, string>>

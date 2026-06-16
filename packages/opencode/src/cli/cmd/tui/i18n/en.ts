@@ -428,4 +428,10 @@ export const dict: Record<string, string> = {
   "trust.dangerous.advice_root": "Unless you have a very specific reason, DO NOT trust the filesystem root.",
   "trust.dangerous.option.yes": "I understand the risks, trust for this session",
   "trust.dangerous.option.no": "Exit (recommended)",
+  "tui.error.report_issue": "Please report an issue.",
+  "tui.error.copy_url": "Copy issue URL (exception info pre-filled)",
+  "tui.error.copied": "Successfully copied",
+  "tui.error.fatal": "A fatal error occurred!",
+  "tui.error.reset": "Reset TUI",
+  "tui.error.exit": "Exit",
 }

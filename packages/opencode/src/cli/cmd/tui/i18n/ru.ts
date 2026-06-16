@@ -489,4 +489,10 @@ export const dict = {
   "trust.dangerous.advice_root": "Если нет весомой причины, НЕ доверяйте корню файловой системы.",
   "trust.dangerous.option.yes": "Я понимаю риски, доверять только в этой сессии",
   "trust.dangerous.option.no": "Выйти (рекомендуется)",
+  "tui.error.report_issue": "Пожалуйста, сообщите об этой проблеме.",
+  "tui.error.copy_url": "Скопировать URL проблемы (информация об исключении предзаполнена)",
+  "tui.error.copied": "Успешно скопировано",
+  "tui.error.fatal": "Произошла фатальная ошибка!",
+  "tui.error.reset": "Сбросить TUI",
+  "tui.error.exit": "Выйти",
 } satisfies Partial<Record<Keys, string>>

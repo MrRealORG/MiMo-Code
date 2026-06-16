@@ -397,4 +397,10 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "等待瀏覽器授權中...",
   "tui.dialog.login.flow.invalid_code": "Code 無效，請重試",
   "tui.dialog.login.flow.copied": "已複製",
+  "tui.error.report_issue": "請回報此問題。",
+  "tui.error.copy_url": "複製問題連結（已預填異常資訊）",
+  "tui.error.copied": "已成功複製",
+  "tui.error.fatal": "發生了致命錯誤！",
+  "tui.error.reset": "重置 TUI",
+  "tui.error.exit": "退出",
 } satisfies Partial<Record<Keys, string>>

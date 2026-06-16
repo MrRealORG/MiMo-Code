@@ -429,4 +429,10 @@ export const dict = {
   "trust.dangerous.advice_root": "明確な理由がない限り、ファイルシステムのルートを信頼しないでください。",
   "trust.dangerous.option.yes": "リスクを理解した上で、今回のみ信頼する",
   "trust.dangerous.option.no": "終了（推奨）",
+  "tui.error.report_issue": "問題を報告してください。",
+  "tui.error.copy_url": "問題URLをコピー（例外情報を事前入力）",
+  "tui.error.copied": "コピーしました",
+  "tui.error.fatal": "致命的なエラーが発生しました！",
+  "tui.error.reset": "TUIをリセット",
+  "tui.error.exit": "終了",
 } satisfies Partial<Record<Keys, string>>

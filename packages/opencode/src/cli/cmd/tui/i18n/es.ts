@@ -470,4 +470,10 @@ export const dict = {
   "tui.dialog.login.flow.waiting": "Esperando autorización del navegador...",
   "tui.dialog.login.flow.invalid_code": "Código inválido, intenta de nuevo",
   "tui.dialog.login.flow.copied": "Copiado",
+  "tui.error.report_issue": "Por favor, informe de este problema.",
+  "tui.error.copy_url": "Copiar URL del problema (info de excepción prellenada)",
+  "tui.error.copied": "Copiado con éxito",
+  "tui.error.fatal": "¡Ocurrió un error fatal!",
+  "tui.error.reset": "Restablecer TUI",
+  "tui.error.exit": "Salir",
 } satisfies Partial<Record<Keys, string>>
