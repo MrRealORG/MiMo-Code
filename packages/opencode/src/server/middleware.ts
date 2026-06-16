@@ -31,7 +31,7 @@ export const ErrorMiddleware: ErrorHandler = (err, c) => {
     return c.json(new NamedError.Unknown({ message: err.message }).toObject(), { status: 409 })
   }
   if (err instanceof HTTPException) return err.getResponse()
-  const message = err instanceof Error && err.stack ? err.stack : err.toString()
+  const message = err instanceof Error ? err.message : err.toString()
   return c.json(new NamedError.Unknown({ message }).toObject(), {
     status: 500,
   })
@@ -80,7 +80,7 @@ export function CorsMiddleware(opts?: { cors?: string[] }): MiddlewareHandler {
       if (input === "tauri://localhost" || input === "http://tauri.localhost" || input === "https://tauri.localhost")
         return input
 
-      if (/^https:\/\/([a-z0-9-]+\.)*opencode\.ai$/.test(input)) return input
+      if (/^https:\/\/([a-z0-9-]+\.)*mimo\.xiaomi\.com$/.test(input)) return input
       if (opts?.cors?.includes(input)) return input
     },
   })
