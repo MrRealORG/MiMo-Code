@@ -1,6 +1,7 @@
 import type { TuiPluginApi, TuiSlotContext, TuiSlotMap, TuiSlotProps } from "@mimo-ai/plugin/tui"
 import { createSlot, createSolidSlotRegistry, type JSX, type SolidPlugin } from "@opentui/solid"
 import { isRecord } from "@/util/record"
+import * as Log from "@/util/log"
 
 type RuntimeSlotMap = TuiSlotMap<Record<string, object>>
 
@@ -38,12 +39,13 @@ export function setupSlots(api: HostPluginApi): HostSlots {
     },
     {
       onPluginError(event) {
-        console.error("[tui.slot] plugin error", {
+        const log = Log.create({ service: "tui.slot" })
+        log.error("plugin error", {
           plugin: event.pluginId,
           slot: event.slot,
           phase: event.phase,
           source: event.source,
-          message: event.error.message,
+          error: event.error.message,
         })
       },
     },
