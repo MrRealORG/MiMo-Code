@@ -3,6 +3,7 @@ import type { GlobalEvent } from "@mimo-ai/sdk/v2"
 import { createSimpleContext } from "./helper"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { Flag } from "@/flag/flag"
+import { Log } from "@/util"
 import { batch, onCleanup, onMount } from "solid-js"
 
 export type EventSource = {
@@ -18,6 +19,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
     headers?: RequestInit["headers"]
     events?: EventSource
   }) => {
+    const log = Log.create({ service: "tui.sdk" })
     const abort = new AbortController()
     let sse: AbortController | undefined
 
@@ -90,7 +92,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
           if (Flag.MIMOCODE_EXPERIMENTAL_WORKSPACES) {
             // Start syncing workspaces, it's important to do this after
             // we've started listening to events
-            await sdk.sync.start().catch(() => {})
+            await sdk.sync.start().catch((err: any) => log.warn("Workspace sync failed", { error: String(err) }))
           }
 
           for await (const event of events.stream) {
@@ -107,7 +109,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
           const backoff = Math.min(retryDelay * 2 ** (attempt - 1), maxRetryDelay)
           await new Promise((resolve) => setTimeout(resolve, backoff))
         }
-      })().catch(() => {})
+      }).catch((err: any) => log.error("SSE event loop crashed", { error: String(err) }))
     }
 
     onMount(async () => {
@@ -118,7 +120,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
         if (Flag.MIMOCODE_EXPERIMENTAL_WORKSPACES) {
           // Start syncing workspaces, it's important to do this after
           // we've started listening to events
-          await sdk.sync.start().catch(() => {})
+          await sdk.sync.start().catch((err: any) => log.warn("Workspace sync failed", { error: String(err) }))
         }
       } else {
         startSSE()

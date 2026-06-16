@@ -7,11 +7,14 @@ import { uniqueBy } from "remeda"
 import path from "path"
 import { Global } from "@/global"
 import { iife } from "@/util/iife"
+import { Log } from "@/util"
 import { useToast } from "../ui/toast"
 import { useArgs } from "./args"
 import { useSDK } from "./sdk"
 import { RGBA } from "@opentui/core"
 import { Filesystem } from "@/util"
+
+const log = Log.create({ service: "tui.local" })
 
 export function parseModel(model: string) {
   const [providerID, ...rest] = model.split("/")
@@ -151,7 +154,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (Array.isArray(x.favorite)) setModelStore("favorite", x.favorite)
           if (typeof x.variant === "object" && x.variant !== null) setModelStore("variant", x.variant)
         })
-        .catch(() => {})
+        .catch((err: any) => log.warn("Failed to read model preferences", { error: String(err) }))
         .finally(() => {
           setModelStore("ready", true)
           if (state.pending) save()

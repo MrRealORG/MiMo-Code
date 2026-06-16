@@ -1792,7 +1792,7 @@ export function Prompt(props: PromptProps) {
                     return (
                       <Show when={retry()}>
                         <box onMouseUp={handleMessageClick}>
-                          <text fg={theme.error}>{retryText()}</text>
+                          <text fg={theme.warning}>{retryText()}</text>
                         </box>
                       </Show>
                     )
