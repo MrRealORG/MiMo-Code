@@ -117,13 +117,13 @@ export function retryable(error: Err) {
     }
   }
 
+  // Try to parse structured error responses (e.g. JSON from provider APIs).
+  // Only attempt JSON.parse when the message is a string — the previous
+  // code had a dead-code path that called JSON.parse on a non-string value
+  // after the type guard above already returned, which always threw.
   const json = iife(() => {
+    if (typeof error.data?.message !== "string") return undefined
     try {
-      if (typeof error.data?.message === "string") {
-        const parsed = JSON.parse(error.data.message)
-        return parsed
-      }
-
       return JSON.parse(error.data.message)
     } catch {
       return undefined
